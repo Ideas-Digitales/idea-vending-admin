@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { type PaginationMeta } from '@/lib/actions/users';
+import { type PaginationMeta } from '@/lib/interfaces';
 
 interface PaginationProps {
   meta: PaginationMeta;

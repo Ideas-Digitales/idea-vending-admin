@@ -1,8 +1,11 @@
-import { Users, Plus, Search, Edit, Trash2, Eye, UserCheck, UserX, AlertCircle, Loader2 } from 'lucide-react';
-import PageWrapper from '@/components/PageWrapper';
-import Sidebar from '@/components/Sidebar';
-import { getUsersAction, type Usuario } from '@/lib/actions/users';
-import UsuariosInfiniteClient from './UsuariosInfiniteClient';
+import {
+  Users,
+  AlertCircle,
+} from "lucide-react";
+import PageWrapper from "@/components/PageWrapper";
+import Sidebar from "@/components/Sidebar";
+import { getUsersAction } from "@/lib/actions/users";
+import UsuariosInfiniteClient from "./UsuariosInfiniteClient";
 
 async function UsuariosContent() {
   // Obtener primera página de usuarios para inicializar
@@ -20,8 +23,12 @@ async function UsuariosContent() {
                   <Users className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-dark">Gestión de Usuarios</h1>
-                  <p className="text-muted">Administra usuarios, roles y permisos del sistema</p>
+                  <h1 className="text-2xl font-bold text-dark">
+                    Gestión de Usuarios
+                  </h1>
+                  <p className="text-muted">
+                    Administra usuarios, roles y permisos del sistema
+                  </p>
                 </div>
               </div>
             </div>
@@ -30,10 +37,12 @@ async function UsuariosContent() {
           <main className="flex-1 p-6 overflow-auto">
             <div className="card p-8 text-center">
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-dark mb-2">Error al cargar usuarios</h3>
+              <h3 className="text-lg font-semibold text-dark mb-2">
+                Error al cargar usuarios
+              </h3>
               <p className="text-muted mb-4">{usersResponse.error}</p>
-              <button 
-                onClick={() => window.location.reload()} 
+              <button
+                onClick={() => window.location.reload()}
                 className="btn-primary"
               >
                 Reintentar
@@ -45,11 +54,11 @@ async function UsuariosContent() {
     );
   }
 
-  const usuarios = usersResponse.users || [];
+  const users = usersResponse.users || [];
 
   return (
-    <UsuariosInfiniteClient 
-      initialUsers={usuarios} 
+    <UsuariosInfiniteClient
+      initialUsers={users}
       initialPagination={usersResponse.pagination}
     />
   );
@@ -57,7 +66,7 @@ async function UsuariosContent() {
 
 export default function UsuariosPage() {
   return (
-    <PageWrapper requiredPermissions={['manage_users']}>
+    <PageWrapper requiredPermissions={["manage_users"]}>
       <UsuariosContent />
     </PageWrapper>
   );

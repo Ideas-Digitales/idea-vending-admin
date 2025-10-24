@@ -1,20 +1,15 @@
 'use server';
 
 import { cookies } from 'next/headers';
+import { User } from '@/lib/interfaces/user.interface';
+
+// Re-export User for other modules
+export type { User };
 
 // Interfaces
 export interface LoginCredentials {
   email: string;
   password: string;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'operator' | 'viewer';
-  permissions: string[];
-  lastLogin?: string;
 }
 
 export interface AuthResponse {
@@ -136,9 +131,12 @@ export async function getUserInfo(token: string, email?: string): Promise<AuthRe
           id: '1',
           email: email,
           name: email.split('@')[0],
+          rut: 'Sin RUT',
           role: 'admin',
+          status: 'active',
           permissions: ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'view_reports'],
           lastLogin: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
         };
 
         return {
@@ -162,9 +160,13 @@ export async function getUserInfo(token: string, email?: string): Promise<AuthRe
       id: userData.id?.toString() || userData.user_id?.toString() || '1',
       email: userData.email || email || 'usuario@ejemplo.com',
       name: userData.name || userData.full_name || userData.username || userData.email?.split('@')[0] || 'Usuario',
+      rut: userData.rut || 'Sin RUT',
       role: mapUserRole(userData.role || userData.user_type || userData.type || 'admin'),
+      status: 'active',
       permissions: mapUserPermissions(userData.role || userData.user_type || userData.type || 'admin'),
       lastLogin: new Date().toISOString(),
+      createdAt: userData.created_at || userData.createdAt || new Date().toISOString(),
+      updatedAt: userData.updated_at || userData.updatedAt,
     };
 
     return {

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ideas Vending Admin",
+  title: "Idea Vending Admin",
   description: "Sistema de administración para máquinas expendedoras",
 };
 

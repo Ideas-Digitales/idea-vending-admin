@@ -7,6 +7,7 @@ import { useUser } from '@/lib/stores/authStore';
 export default function UnauthorizedPage() {
   const router = useRouter();
   const user = useUser();
+  const getYear = new Date().getFullYear();
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -83,7 +84,7 @@ export default function UnauthorizedPage() {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-500">
-            © 2024 Ideas Digitales. Todos los derechos reservados.
+            © {getYear} Idea Digitales. Todos los derechos reservados.
           </p>
         </div>
       </div>

@@ -3,26 +3,97 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Users, Plus, Search, Edit, Trash2, Eye, UserCheck, UserX, Loader2, AlertCircle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
-import { type Usuario, type UsersResponse } from '@/lib/actions/users';
-import { useInfiniteScroll, useScrollToBottom } from '@/lib/hooks/useInfiniteScroll';
+import { User } from '@/lib/interfaces';
+import { useUserStore } from '@/lib/stores/userStore';
+import UserStorePagination from '@/components/UserStorePagination';
 
 interface UsuariosInfiniteClientProps {
-  initialUsers: Usuario[];
-  initialPagination?: UsersResponse['pagination'];
+  initialUsers?: User[];
+  initialPagination?: any;
 }
 
 export default function UsuariosInfiniteClient({ 
-  initialUsers, 
+  initialUsers = [], 
   initialPagination 
 }: UsuariosInfiniteClientProps) {
+  // Store state
+  const {
+    users,
+    isLoading,
+    error,
+    fetchUsers,
+    refreshUsers,
+    setFilters,
+    initializeUsers,
+    clearError,
+    getTotalUsers,
+    getTotalActiveUsers,
+    getTotalAdminUsers,
+    getTotalInactiveUsers,
+  } = useUserStore();
+
+  console.log('Store users:', users);
+  console.log('Initial users:', initialUsers);
+  console.log('Store state:', { users: users.length, isLoading, error });
+
+  // Local UI state
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [isSticky, setIsSticky] = useState(false);
   
+  // Global stats state
+  const [globalStats, setGlobalStats] = useState({
+    totalActive: 0,
+    totalAdmins: 0,
+    totalInactive: 0,
+    isLoading: false,
+  });
+  
   const filtersRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
+
+  // Initialize store with initial data
+  useEffect(() => {
+    if (initialUsers.length > 0 && users.length === 0) {
+      // Si tenemos datos iniciales y el store está vacío, inicializar el store
+      console.log('Inicializando store con datos iniciales:', initialUsers);
+      initializeUsers(initialUsers, initialPagination);
+    } else if (users.length === 0 && initialUsers.length === 0) {
+      // Si no hay datos iniciales ni en el store, cargar desde el servidor
+      console.log('Cargando usuarios desde el servidor');
+      fetchUsers();
+    }
+  }, [initialUsers, users.length, initializeUsers, fetchUsers, initialPagination]);
+
+  // Load global stats
+  useEffect(() => {
+    const loadGlobalStats = async () => {
+      setGlobalStats(prev => ({ ...prev, isLoading: true }));
+      
+      try {
+        // Cargar todas las estadísticas del servidor
+        const [totalActive, totalAdmins, totalInactive] = await Promise.all([
+          getTotalActiveUsers(),
+          getTotalAdminUsers(),
+          getTotalInactiveUsers(),
+        ]);
+        
+        setGlobalStats({
+          totalActive,
+          totalAdmins,
+          totalInactive,
+          isLoading: false,
+        });
+      } catch (error) {
+        console.error('Error loading global stats:', error);
+        setGlobalStats(prev => ({ ...prev, isLoading: false }));
+      }
+    };
+
+    loadGlobalStats();
+  }, []); // Solo cargar una vez al montar el componente
 
   // Debounce para el término de búsqueda
   useEffect(() => {
@@ -38,40 +109,19 @@ export default function UsuariosInfiniteClient({
     search: debouncedSearchTerm || undefined,
     role: roleFilter || undefined,
     status: statusFilter || undefined,
+    page: 1, // Reset to first page when filters change
   }), [debouncedSearchTerm, roleFilter, statusFilter]);
 
-  // Hook de scroll infinito (sin filtros automáticos)
-  const {
-    users,
-    loading,
-    hasMore,
-    error,
-    loadMore,
-    refresh,
-    totalCount,
-  } = useInfiniteScroll({
-    initialUsers,
-    initialPagination,
-    filters: {}, // Sin filtros automáticos
-  });
-
-  // Refrescar solo cuando los filtros de servidor cambien
+  // Aplicar filtros cuando cambien
   const prevFiltersRef = useRef(apiFilters);
   useEffect(() => {
-    // Solo refrescar si los filtros realmente cambiaron
     const filtersChanged = JSON.stringify(prevFiltersRef.current) !== JSON.stringify(apiFilters);
-    if (filtersChanged && (debouncedSearchTerm || roleFilter || statusFilter)) {
-      refresh(apiFilters);
+    if (filtersChanged) {
+      setFilters(apiFilters);
+      fetchUsers(apiFilters);
       prevFiltersRef.current = apiFilters;
     }
-  }, [debouncedSearchTerm, roleFilter, statusFilter, apiFilters, refresh]);
-
-  // Hook para detectar scroll al final
-  useScrollToBottom(useCallback(() => {
-    if (!loading && hasMore) {
-      loadMore();
-    }
-  }, [loading, hasMore, loadMore]));
+  }, [apiFilters, setFilters, fetchUsers]);
 
   // Efecto para manejar el sticky manual
   useEffect(() => {
@@ -102,10 +152,10 @@ export default function UsuariosInfiniteClient({
     
     // Si el término de búsqueda es diferente al debounced, hacer filtrado local instantáneo
     if (searchTerm !== debouncedSearchTerm) {
-      return users.filter(usuario => 
-        usuario.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        usuario.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        usuario.rut.toLowerCase().includes(searchTerm.toLowerCase())
+      return users.filter(user => 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.rut.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
     
@@ -139,10 +189,18 @@ export default function UsuariosInfiniteClient({
 
   // Calcular estadísticas
   const stats = {
-    total: displayedUsers.length,
-    active: displayedUsers.filter(u => u.status === 'active').length,
-    admins: displayedUsers.filter(u => u.role === 'admin').length,
-    inactive: displayedUsers.filter(u => u.status === 'inactive').length,
+    // Total de usuarios del servidor (no filtrados)
+    total: getTotalUsers(),
+    // Estadísticas globales del servidor
+    active: globalStats.totalActive,
+    admins: globalStats.totalAdmins,
+    inactive: globalStats.totalInactive,
+    // Usuarios mostrados en la página actual
+    displayed: displayedUsers.length,
+  };
+
+  const handleRefresh = () => {
+    refreshUsers();
   };
 
   return (
@@ -176,10 +234,13 @@ export default function UsuariosInfiniteClient({
               <div className="card p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-muted mb-2">Total Usuarios</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="text-sm font-semibold text-muted">Total Usuarios</p>
+                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">SERVIDOR</span>
+                    </div>
                     <p className="text-2xl font-bold text-dark">{stats.total}</p>
-                    {totalCount > 0 && stats.total !== totalCount && (
-                      <p className="text-xs text-muted mt-1">de {totalCount} total</p>
+                    {stats.displayed !== stats.total && (
+                      <p className="text-xs text-muted mt-1">{stats.displayed} mostrados de {stats.total} total</p>
                     )}
                   </div>
                   <div className="p-3 rounded-xl bg-blue-50 flex-shrink-0 ml-4">
@@ -191,8 +252,13 @@ export default function UsuariosInfiniteClient({
               <div className="card p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-muted mb-2">Usuarios Activos</p>
-                    <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="text-sm font-semibold text-muted">Usuarios Activos</p>
+                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">SERVIDOR</span>
+                    </div>
+                    <p className="text-2xl font-bold text-green-600">
+                      {globalStats.isLoading ? '...' : stats.active}
+                    </p>
                   </div>
                   <div className="p-3 rounded-xl bg-green-50 flex-shrink-0 ml-4">
                     <UserCheck className="h-6 w-6 text-green-600" />
@@ -203,8 +269,13 @@ export default function UsuariosInfiniteClient({
               <div className="card p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-muted mb-1">Administradores</p>
-                    <p className="text-2xl font-bold text-purple-600">{stats.admins}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm font-semibold text-muted">Administradores</p>
+                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">SERVIDOR</span>
+                    </div>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {globalStats.isLoading ? '...' : stats.admins}
+                    </p>
                   </div>
                   <div className="p-3 rounded-xl bg-purple-50">
                     <Users className="h-6 w-6 text-purple-600" />
@@ -215,8 +286,13 @@ export default function UsuariosInfiniteClient({
               <div className="card p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-muted mb-1">Inactivos</p>
-                    <p className="text-2xl font-bold text-red-600">{stats.inactive}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm font-semibold text-muted">Inactivos</p>
+                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">SERVIDOR</span>
+                    </div>
+                    <p className="text-2xl font-bold text-red-600">
+                      {globalStats.isLoading ? '...' : stats.inactive}
+                    </p>
                   </div>
                   <div className="p-3 rounded-xl bg-red-50">
                     <UserX className="h-6 w-6 text-red-600" />
@@ -338,8 +414,14 @@ export default function UsuariosInfiniteClient({
                     <p className="text-sm text-red-700 mt-1">{error}</p>
                   </div>
                   <button 
-                    onClick={() => refresh(apiFilters)}
-                    className="ml-auto btn-secondary text-sm"
+                    onClick={clearError}
+                    className="ml-auto btn-secondary text-sm mr-2"
+                  >
+                    Limpiar
+                  </button>
+                  <button 
+                    onClick={handleRefresh}
+                    className="btn-secondary text-sm"
                   >
                     Reintentar
                   </button>
@@ -364,17 +446,13 @@ export default function UsuariosInfiniteClient({
                   <div className="flex items-center space-x-4 text-xs">
                     <div className="flex items-center">
                       <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full mr-2">API</span>
-                      <span className="text-muted">Datos reales</span>
-                    </div>
-                    <div className="flex items-center">
-                      <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full mr-2">MOCK</span>
-                      <span className="text-muted">Pendiente en API</span>
+                      <span className="text-muted">Todos los datos provienen del servidor</span>
                     </div>
                   </div>
                 </div>
               </div>
               
-              {displayedUsers.length === 0 && !loading ? (
+              {displayedUsers.length === 0 && !isLoading ? (
                 <div className="p-8 text-center">
                   <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-dark mb-2">No se encontraron usuarios</h3>
@@ -405,25 +483,25 @@ export default function UsuariosInfiniteClient({
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           <div className="flex items-center">
                             Rol
-                            <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
+                            <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
                           </div>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           <div className="flex items-center">
                             Estado
-                            <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
+                            <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
                           </div>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           <div className="flex items-center">
                             Último Acceso
-                            <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
+                            <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
                           </div>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           <div className="flex items-center">
                             Permisos
-                            <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
+                            <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
                           </div>
                         </th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -432,47 +510,47 @@ export default function UsuariosInfiniteClient({
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {displayedUsers.map((usuario) => (
-                        <tr key={usuario.id} className="hover:bg-gray-50">
+                      {displayedUsers.map((user) => (
+                        <tr key={user.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="h-10 w-10 bg-primary rounded-full flex items-center justify-center mr-4">
                                 <span className="text-white text-sm font-medium">
-                                  {usuario.name.charAt(0).toUpperCase()}
+                                  {user.name.charAt(0).toUpperCase()}
                                 </span>
                               </div>
                               <div>
-                                <div className="text-sm font-medium text-dark">{usuario.name}</div>
-                                <div className="text-sm text-muted">{usuario.email}</div>
+                                <div className="text-sm font-medium text-dark">{user.name}</div>
+                                <div className="text-sm text-muted">{user.email}</div>
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-dark">{usuario.rut}</div>
+                            <div className="text-sm text-dark">{user.rut}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(usuario.role)}`}>
-                              {getRoleName(usuario.role)}
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(user.role)}`}>
+                              {getRoleName(user.role)}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(usuario.status)}`}>
-                              {usuario.status === 'active' ? 'Activo' : 'Inactivo'}
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(user.status)}`}>
+                              {user.status === 'active' ? 'Activo' : 'Inactivo'}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
-                            {new Date(usuario.lastLogin).toLocaleString('es-ES')}
+                            {new Date(user.lastLogin).toLocaleString('es-ES')}
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex flex-wrap gap-1">
-                              {usuario.permissions.slice(0, 2).map((permission) => (
+                              {user.permissions.slice(0, 2).map((permission) => (
                                 <span key={permission} className="inline-flex px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
                                   {permission}
                                 </span>
                               ))}
-                              {usuario.permissions.length > 2 && (
+                              {user.permissions.length > 2 && (
                                 <span className="inline-flex px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
-                                  +{usuario.permissions.length - 2}
+                                  +{user.permissions.length - 2}
                                 </span>
                               )}
                             </div>
@@ -509,23 +587,17 @@ export default function UsuariosInfiniteClient({
           </div>
 
           {/* Loading indicator */}
-          {loading && (
+          {isLoading && (
             <div className="px-6">
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-                <span className="text-muted">Cargando más usuarios...</span>
+                <span className="text-muted">Cargando usuarios...</span>
               </div>
             </div>
           )}
 
-          {/* End of results */}
-          {!hasMore && users.length > 0 && (
-            <div className="px-6">
-              <div className="text-center py-8">
-                <p className="text-muted">Has visto todos los usuarios disponibles</p>
-              </div>
-            </div>
-          )}
+          {/* Pagination Controls */}
+          <UserStorePagination className="px-6 py-4" />
 
           {/* Bottom spacing */}
           <div className="h-8"></div>

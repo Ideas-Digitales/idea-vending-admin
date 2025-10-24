@@ -1,61 +1,14 @@
 'use server';
 
 import { cookies } from 'next/headers';
-
-// Interfaces
-export interface Usuario {
-  id: number | string;
-  name: string;
-  email: string;
-  rut: string;
-  role: 'admin' | 'operator' | 'viewer';
-  status: 'active' | 'inactive';
-  permissions: string[];
-  lastLogin: string;
-  createdAt: string;
-  updatedAt?: string;
-}
-
-export interface PaginationLinks {
-  first: string | null;
-  last: string | null;
-  prev: string | null;
-  next: string | null;
-}
-
-export interface PaginationMeta {
-  current_page: number;
-  from: number;
-  last_page: number;
-  path: string;
-  per_page: number;
-  to: number;
-  total: number;
-  links: Array<{
-    url: string | null;
-    label: string;
-    page: number | null;
-    active: boolean;
-  }>;
-}
-
-export interface UsersResponse {
-  success: boolean;
-  users?: Usuario[];
-  error?: string;
-  pagination?: {
-    links: PaginationLinks;
-    meta: PaginationMeta;
-  };
-}
-
-export interface UsersFilters {
-  search?: string;
-  role?: string;
-  status?: string;
-  page?: number;
-  limit?: number;
-}
+import { 
+  User, 
+  UserResponse, 
+  UsersResponse, 
+  UsersFilters, 
+  PaginationLinks, 
+  PaginationMeta 
+} from '@/lib/interfaces/user.interface';
 
 // Server Action para obtener lista de usuarios
 export async function getUsersAction(filters?: UsersFilters): Promise<UsersResponse> {
@@ -152,7 +105,7 @@ export async function getUsersAction(filters?: UsersFilters): Promise<UsersRespo
 }
 
 // Server Action para obtener un usuario específico
-export async function getUserAction(userId: string | number): Promise<{ success: boolean; user?: Usuario; error?: string }> {
+export async function getUserAction(userId: string | number): Promise<UserResponse> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     
@@ -208,7 +161,7 @@ export async function getUserAction(userId: string | number): Promise<{ success:
 }
 
 // Funciones auxiliares para mapear datos
-function mapUsersData(apiData: any): Usuario[] {
+function mapUsersData(apiData: any): User[] {
   // La API puede devolver los usuarios en diferentes estructuras
   const usersArray = apiData.users || apiData.data || apiData || [];
   
@@ -220,14 +173,14 @@ function mapUsersData(apiData: any): Usuario[] {
   return usersArray.map(mapUserData);
 }
 
-function mapUserData(userData: any): Usuario {
+function mapUserData(userData: any): User {
   // Para la API actual, asignamos valores por defecto ya que no vienen role, status, etc.
   const defaultRole = 'viewer'; // Rol por defecto
   const defaultStatus = 'active'; // Estado por defecto
   
   return {
     id: userData.id || 0,
-    name: userData.name || 'Usuario Sin Nombre',
+    name: userData.name || ' Sin Nombre',
     email: userData.email || 'sin-email@ejemplo.com',
     rut: userData.rut || 'Sin RUT',
     role: mapUserRole(userData.role || userData.user_type || userData.type || defaultRole),

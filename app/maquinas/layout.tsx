@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Gestión de Máquinas | Ideas Vending Admin',
+  title: 'Gestión de Máquinas | Idea Vending Admin',
   description: 'Monitoreo y administración de máquinas expendedoras',
 };
 
