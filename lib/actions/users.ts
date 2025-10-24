@@ -1,14 +1,16 @@
 'use server';
 
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 import { 
-  User, 
   UserResponse, 
   UsersResponse, 
   UsersFilters, 
-  PaginationLinks, 
-  PaginationMeta 
+  CreateUser
 } from '@/lib/interfaces/user.interface';
+import { UserAdapter } from '@/lib/adapters/user.adapter';
+import type { ApiUsersResponse } from '@/lib/interfaces/user.interface';
+import type { CreateUserFormData } from '@/lib/schemas/user.schema';
 
 // Server Action para obtener lista de usuarios
 export async function getUsersAction(filters?: UsersFilters): Promise<UsersResponse> {
@@ -63,11 +65,11 @@ export async function getUsersAction(filters?: UsersFilters): Promise<UsersRespo
       };
     }
 
-    const data = await response.json();
+    const data: ApiUsersResponse = await response.json();
     console.log('Respuesta de usuarios:', data);
 
-    // Mapear datos según la estructura de la API
-    const users = mapUsersData(data);
+    // Mapear datos usando el adaptador
+    const users = UserAdapter.apiUsersToApp(data);
 
     // Extraer información de paginación
     const pagination = data.links && data.meta ? {
@@ -144,7 +146,7 @@ export async function getUserAction(userId: string | number): Promise<UserRespon
     }
 
     const data = await response.json();
-    const user = mapUserData(data);
+    const user = UserAdapter.apiToApp(data);
 
     return {
       success: true,
@@ -160,85 +162,105 @@ export async function getUserAction(userId: string | number): Promise<UserRespon
   }
 }
 
-// Funciones auxiliares para mapear datos
-function mapUsersData(apiData: any): User[] {
-  // La API puede devolver los usuarios en diferentes estructuras
-  const usersArray = apiData.users || apiData.data || apiData || [];
-  
-  if (!Array.isArray(usersArray)) {
-    console.warn('Los datos de usuarios no están en formato de array:', apiData);
-    return [];
-  }
+// Server Action para crear un nuevo usuario
+export async function createUserAction(userData: CreateUserFormData): Promise<UserResponse> {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    
+    if (!apiUrl) {
+      return {
+        success: false,
+        error: 'API URL no configurada en variables de entorno',
+      };
+    }
 
-  return usersArray.map(mapUserData);
-}
+    // Obtener token de autenticación
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
 
-function mapUserData(userData: any): User {
-  // Para la API actual, asignamos valores por defecto ya que no vienen role, status, etc.
-  const defaultRole = 'viewer'; // Rol por defecto
-  const defaultStatus = 'active'; // Estado por defecto
-  
-  return {
-    id: userData.id || 0,
-    name: userData.name || ' Sin Nombre',
-    email: userData.email || 'sin-email@ejemplo.com',
-    rut: userData.rut || 'Sin RUT',
-    role: mapUserRole(userData.role || userData.user_type || userData.type || defaultRole),
-    status: mapUserStatus(userData.status || userData.is_active || userData.active || defaultStatus),
-    permissions: mapUserPermissions(userData.role || userData.user_type || userData.type || defaultRole, userData.permissions),
-    lastLogin: userData.last_login || userData.lastLogin || userData.last_login_at || new Date().toISOString(),
-    createdAt: userData.created_at || userData.createdAt || userData.date_created || new Date().toISOString(),
-    updatedAt: userData.updated_at || userData.updatedAt || userData.date_updated,
-  };
-}
+    if (!token) {
+      return {
+        success: false,
+        error: 'Token de autenticación no encontrado',
+      };
+    }
 
-function mapUserRole(apiRole: any): 'admin' | 'operator' | 'viewer' {
-  if (!apiRole) return 'viewer';
-  
-  const role = apiRole.toString().toLowerCase();
-  
-  if (role.includes('admin') || role.includes('administrator') || role.includes('super')) {
-    return 'admin';
-  } else if (role.includes('operator') || role.includes('manager') || role.includes('mod')) {
-    return 'operator';
-  } else {
-    return 'viewer';
-  }
-}
+    // Mapear datos del formulario a la interfaz CreateUser
+    const createUserData: CreateUser = {
+      name: userData.name,
+      email: userData.email,
+      rut: userData.rut,
+      password: userData.password,
+      password_confirmation: userData.confirmPassword,
+      role: userData.role
+    };
+    
+    console.log('Creando usuario:', { ...createUserData, password: '[HIDDEN]', password_confirmation: '[HIDDEN]' });
 
-function mapUserStatus(apiStatus: any): 'active' | 'inactive' {
-  if (typeof apiStatus === 'boolean') {
-    return apiStatus ? 'active' : 'inactive';
-  }
-  
-  if (typeof apiStatus === 'string') {
-    const status = apiStatus.toLowerCase();
-    return status === 'active' || status === '1' || status === 'true' ? 'active' : 'inactive';
-  }
-  
-  if (typeof apiStatus === 'number') {
-    return apiStatus === 1 ? 'active' : 'inactive';
-  }
-  
-  return 'active'; // Default
-}
+    const response = await fetch(`${apiUrl}/users`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(createUserData),
+    });
 
-function mapUserPermissions(apiRole: any, apiPermissions?: any): string[] {
-  // Si la API devuelve permisos específicos, usarlos
-  if (apiPermissions && Array.isArray(apiPermissions)) {
-    return apiPermissions;
-  }
-  
-  // Si no, mapear según el rol
-  const role = mapUserRole(apiRole);
-  
-  switch (role) {
-    case 'admin':
-      return ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'view_reports'];
-    case 'operator':
-      return ['read', 'write', 'manage_machines', 'view_reports'];
-    case 'viewer':
-    default:
-      return ['read', 'view_reports'];
+    if (!response.ok) {
+      console.log('Error al crear usuario:', response.status, response.statusText);
+      
+      const errorData = await response.json().catch(() => ({}));
+      
+      // Manejar errores específicos
+      if (response.status === 422) {
+        // Errores de validación
+        const validationErrors = errorData.errors || {};
+        const errorMessages = [];
+        
+        if (validationErrors.email) {
+          errorMessages.push('El email ya está en uso');
+        }
+        if (validationErrors.rut) {
+          errorMessages.push('El RUT ya está registrado');
+        }
+        if (validationErrors.name) {
+          errorMessages.push('El nombre es inválido');
+        }
+        
+        return {
+          success: false,
+          error: errorMessages.length > 0 
+            ? errorMessages.join(', ') 
+            : errorData.message || 'Datos de usuario inválidos',
+        };
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+    console.log('Usuario creado exitosamente:', data);
+    
+    // Mapear la respuesta usando el adaptador
+    const user = UserAdapter.apiToApp(data.user || data);
+
+    // Revalidar la cache de la página de usuarios para que se actualice automáticamente
+    revalidatePath('/usuarios');
+
+    return {
+      success: true,
+      user,
+    };
+
+  } catch (error) {
+    console.error('Error en createUserAction:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+    };
   }
 }

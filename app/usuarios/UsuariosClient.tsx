@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { Users, Plus, Search, Edit, Trash2, Eye, UserCheck, UserX } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import Pagination from '@/components/Pagination';
-import { type Usuario, type PaginationLinks, type PaginationMeta } from '@/lib/actions/users';
+import { PaginationLinks, PaginationMeta, User } from '@/lib/interfaces';
 
 interface UsuariosClientProps {
-  usuarios: Usuario[];
+  usuarios: User[];
   pagination?: {
     links: PaginationLinks;
     meta: PaginationMeta;
@@ -94,10 +95,13 @@ export default function UsuariosClient({ usuarios, pagination }: UsuariosClientP
                   <p className="text-muted">Administra usuarios, roles y permisos del sistema</p>
                 </div>
               </div>
-              <button className="btn-primary flex items-center space-x-2">
+              <Link 
+                href="/usuarios/crear"
+                className="btn-primary flex items-center space-x-2"
+              >
                 <Plus className="h-4 w-4" />
                 <span>Nuevo Usuario</span>
-              </button>
+              </Link>
             </div>
           </div>
         </header>

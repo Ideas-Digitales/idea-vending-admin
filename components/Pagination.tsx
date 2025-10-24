@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { type PaginationMeta } from '@/lib/interfaces';
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { type PaginationMeta } from "@/lib/interfaces";
 
 interface PaginationProps {
   meta: PaginationMeta;
@@ -9,7 +9,11 @@ interface PaginationProps {
   className?: string;
 }
 
-export default function Pagination({ meta, onPageChange, className = '' }: PaginationProps) {
+export default function Pagination({
+  meta,
+  onPageChange,
+  className = "",
+}: PaginationProps) {
   const { current_page, last_page, from, to, total } = meta;
 
   // Generar array de páginas a mostrar
@@ -29,7 +33,7 @@ export default function Pagination({ meta, onPageChange, className = '' }: Pagin
 
     // Agregar primera página
     if (current_page - delta > 2) {
-      rangeWithDots.push(1, '...');
+      rangeWithDots.push(1, "...");
     } else {
       rangeWithDots.push(1);
     }
@@ -39,7 +43,7 @@ export default function Pagination({ meta, onPageChange, className = '' }: Pagin
 
     // Agregar última página
     if (current_page + delta < last_page - 1) {
-      rangeWithDots.push('...', last_page);
+      rangeWithDots.push("...", last_page);
     } else if (last_page > 1) {
       rangeWithDots.push(last_page);
     }
@@ -57,8 +61,8 @@ export default function Pagination({ meta, onPageChange, className = '' }: Pagin
     <div className={`flex items-center justify-between ${className}`}>
       {/* Información de resultados */}
       <div className="text-sm text-muted">
-        Mostrando <span className="font-medium text-dark">{from}</span> a{' '}
-        <span className="font-medium text-dark">{to}</span> de{' '}
+        Mostrando <span className="font-medium text-dark">{from}</span> a{" "}
+        <span className="font-medium text-dark">{to}</span> de{" "}
         <span className="font-medium text-dark">{total}</span> resultados
       </div>
 
@@ -70,9 +74,10 @@ export default function Pagination({ meta, onPageChange, className = '' }: Pagin
           disabled={current_page === 1}
           className={`
             flex items-center px-3 py-2 text-sm font-medium rounded-md
-            ${current_page === 1
-              ? 'text-gray-400 cursor-not-allowed'
-              : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+            ${
+              current_page === 1
+                ? "text-gray-400 cursor-not-allowed"
+                : "text-gray-700 hover:text-primary hover:bg-gray-50"
             }
           `}
         >
@@ -83,7 +88,7 @@ export default function Pagination({ meta, onPageChange, className = '' }: Pagin
         {/* Números de página */}
         <div className="flex items-center space-x-1">
           {visiblePages.map((page, index) => {
-            if (page === '...') {
+            if (page === "...") {
               return (
                 <span
                   key={`dots-${index}`}
@@ -103,9 +108,10 @@ export default function Pagination({ meta, onPageChange, className = '' }: Pagin
                 onClick={() => onPageChange(pageNumber)}
                 className={`
                   px-3 py-2 text-sm font-medium rounded-md min-w-[40px]
-                  ${isActive
-                    ? 'bg-primary text-white'
-                    : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+                  ${
+                    isActive
+                      ? "bg-primary text-white"
+                      : "text-gray-700 hover:text-primary hover:bg-gray-50"
                   }
                 `}
               >
@@ -121,9 +127,10 @@ export default function Pagination({ meta, onPageChange, className = '' }: Pagin
           disabled={current_page === last_page}
           className={`
             flex items-center px-3 py-2 text-sm font-medium rounded-md
-            ${current_page === last_page
-              ? 'text-gray-400 cursor-not-allowed'
-              : 'text-gray-700 hover:text-primary hover:bg-gray-50'
+            ${
+              current_page === last_page
+                ? "text-gray-400 cursor-not-allowed"
+                : "text-gray-700 hover:text-primary hover:bg-gray-50"
             }
           `}
         >
@@ -136,7 +143,11 @@ export default function Pagination({ meta, onPageChange, className = '' }: Pagin
 }
 
 // Componente simplificado para casos donde solo necesitas los botones básicos
-export function SimplePagination({ meta, onPageChange, className = '' }: PaginationProps) {
+export function SimplePagination({
+  meta,
+  onPageChange,
+  className = "",
+}: PaginationProps) {
   const { current_page, last_page } = meta;
 
   if (last_page <= 1) {
@@ -150,9 +161,10 @@ export function SimplePagination({ meta, onPageChange, className = '' }: Paginat
         disabled={current_page === 1}
         className={`
           flex items-center px-4 py-2 text-sm font-medium rounded-md border
-          ${current_page === 1
-            ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-            : 'text-gray-700 border-gray-300 hover:bg-gray-50'
+          ${
+            current_page === 1
+              ? "text-gray-400 border-gray-200 cursor-not-allowed"
+              : "text-gray-700 border-gray-300 hover:bg-gray-50"
           }
         `}
       >
@@ -169,9 +181,10 @@ export function SimplePagination({ meta, onPageChange, className = '' }: Paginat
         disabled={current_page === last_page}
         className={`
           flex items-center px-4 py-2 text-sm font-medium rounded-md border
-          ${current_page === last_page
-            ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-            : 'text-gray-700 border-gray-300 hover:bg-gray-50'
+          ${
+            current_page === last_page
+              ? "text-gray-400 border-gray-200 cursor-not-allowed"
+              : "text-gray-700 border-gray-300 hover:bg-gray-50"
           }
         `}
       >
