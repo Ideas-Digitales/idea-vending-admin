@@ -51,33 +51,35 @@ export interface ApiUsersResponse {
   };
 }
 
+export interface Pagination {
+  links: {
+    first: string | null;
+    last: string | null;
+    prev: string | null;
+    next: string | null;
+  };
+  meta: {
+    current_page: number;
+    from: number;
+    last_page: number;
+    path: string;
+    per_page: number;
+    to: number;
+    total: number;
+    links: Array<{
+      url: string | null;
+      label: string;
+      page: number | null;
+      active: boolean;
+    }>;
+  };
+}
+
 export interface AppUsersResponse {
   success: boolean;
   users?: User[];
   error?: string;
-  pagination?: {
-    links: {
-      first: string | null;
-      last: string | null;
-      prev: string | null;
-      next: string | null;
-    };
-    meta: {
-      current_page: number;
-      from: number;
-      last_page: number;
-      path: string;
-      per_page: number;
-      to: number;
-      total: number;
-      links: Array<{
-        url: string | null;
-        label: string;
-        page: number | null;
-        active: boolean;
-      }>;
-    };
-  };
+  pagination?: Pagination;
 }
 
 // Single user response interface

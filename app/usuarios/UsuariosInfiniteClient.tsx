@@ -1,31 +1,27 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Users, Plus, Search, Edit, Trash2, Eye, UserCheck, UserX, Loader2, AlertCircle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { User } from '@/lib/interfaces';
 import { useUserStore } from '@/lib/stores/userStore';
 import UserStorePagination from '@/components/UserStorePagination';
+import UserPageSkeleton from '@/components/skeletons/UserPageSkeleton';
 
-interface UsuariosInfiniteClientProps {
-  initialUsers?: User[];
-  initialPagination?: any;
-}
-
-export default function UsuariosInfiniteClient({ 
-  initialUsers = [], 
-  initialPagination 
-}: UsuariosInfiniteClientProps) {
+export default function UsuariosInfiniteClient() {
+  const router = useRouter();
+  
   // Store state
   const {
     users,
     isLoading,
     error,
+    pagination,
     fetchUsers,
     refreshUsers,
     setFilters,
-    initializeUsers,
     clearError,
     getTotalUsers,
     getTotalActiveUsers,
@@ -33,16 +29,11 @@ export default function UsuariosInfiniteClient({
     getTotalInactiveUsers,
   } = useUserStore();
 
-  console.log('Store users:', users);
-  console.log('Initial users:', initialUsers);
-  console.log('Store state:', { users: users.length, isLoading, error });
-
   // Local UI state
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  const [isSticky, setIsSticky] = useState(false);
   
   // Global stats state
   const [globalStats, setGlobalStats] = useState({
@@ -54,47 +45,43 @@ export default function UsuariosInfiniteClient({
   
   const filtersRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
+  
+  // Función para obtener estadísticas
+  const loadGlobalStats = async () => {
+    setGlobalStats(prev => ({ ...prev, isLoading: true }));
+    
+    try {
+      // Cargar todas las estadísticas del servidor
+      const [totalActive, totalAdmins, totalInactive] = await Promise.all([
+        getTotalActiveUsers(),
+        getTotalAdminUsers(),
+        getTotalInactiveUsers(),
+      ]);
+      
+      setGlobalStats({
+        totalActive,
+        totalAdmins,
+        totalInactive,
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error('Error loading global stats:', error);
+      setGlobalStats(prev => ({ ...prev, isLoading: false }));
+    }
+  };
 
-  // Initialize store with initial data
+  // Cargar usuarios al montar el componente
   useEffect(() => {
-    if (initialUsers.length > 0 && users.length === 0) {
-      // Si tenemos datos iniciales y el store está vacío, inicializar el store
-      console.log('Inicializando store con datos iniciales:', initialUsers);
-      initializeUsers(initialUsers, initialPagination);
-    } else if (users.length === 0 && initialUsers.length === 0) {
-      // Si no hay datos iniciales ni en el store, cargar desde el servidor
-      console.log('Cargando usuarios desde el servidor');
+    if (users.length === 0 && !isLoading) {
       fetchUsers();
     }
-  }, [initialUsers, users.length, initializeUsers, fetchUsers, initialPagination]);
-
-  // Load global stats
+  }, []);
+  
+  // Cargar estadísticas cuando cambien los usuarios
   useEffect(() => {
-    const loadGlobalStats = async () => {
-      setGlobalStats(prev => ({ ...prev, isLoading: true }));
-      
-      try {
-        // Cargar todas las estadísticas del servidor
-        const [totalActive, totalAdmins, totalInactive] = await Promise.all([
-          getTotalActiveUsers(),
-          getTotalAdminUsers(),
-          getTotalInactiveUsers(),
-        ]);
-        
-        setGlobalStats({
-          totalActive,
-          totalAdmins,
-          totalInactive,
-          isLoading: false,
-        });
-      } catch (error) {
-        console.error('Error loading global stats:', error);
-        setGlobalStats(prev => ({ ...prev, isLoading: false }));
-      }
-    };
-
     loadGlobalStats();
-  }, []); // Solo cargar una vez al montar el componente
+  }, []);
+
 
   // Debounce para el término de búsqueda
   useEffect(() => {
@@ -124,25 +111,7 @@ export default function UsuariosInfiniteClient({
     }
   }, [apiFilters, setFilters, fetchUsers]);
 
-  // Efecto para manejar el sticky manual
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!filtersRef.current || !mainRef.current) return;
-      
-      const mainRect = mainRef.current.getBoundingClientRect();
-      const filtersRect = filtersRef.current.getBoundingClientRect();
-      
-      // Si el top del main está por encima del viewport, activar sticky
-      const shouldBeSticky = mainRect.top < 0;
-      setIsSticky(shouldBeSticky);
-    };
-
-    const mainElement = mainRef.current;
-    if (mainElement) {
-      mainElement.addEventListener('scroll', handleScroll);
-      return () => mainElement.removeEventListener('scroll', handleScroll);
-    }
-  }, []);
+  // Remover sticky functionality por simplicidad
 
   // Filtrado local (solo para búsqueda instantánea)
   const displayedUsers = useMemo(() => {
@@ -188,6 +157,10 @@ export default function UsuariosInfiniteClient({
     }
   };
 
+  const handleViewUser = (userId: number) => {
+    router.push(`/usuarios/${userId}`);
+  };
+
   // Calcular estadísticas
   const stats = {
     // Total de usuarios del servidor (no filtrados)
@@ -203,6 +176,29 @@ export default function UsuariosInfiniteClient({
   const handleRefresh = () => {
     refreshUsers();
   };
+
+  // Mostrar skeleton mientras está cargando inicialmente (con timeout de seguridad)
+  const [showSkeleton, setShowSkeleton] = useState(false);
+  
+  useEffect(() => {
+    if (isLoading && users.length === 0) {
+      setShowSkeleton(true);
+      // Timeout de seguridad: no mostrar skeleton por más de 10 segundos
+      const timeout = setTimeout(() => {
+        console.warn('Timeout del skeleton - forzando ocultación');
+        setShowSkeleton(false);
+      }, 10000);
+      
+      return () => clearTimeout(timeout);
+    } else {
+      setShowSkeleton(false);
+    }
+  }, [isLoading, users.length]);
+  
+  if (showSkeleton) {
+    console.log('Mostrando skeleton - isLoading:', isLoading, 'usersLength:', users.length);
+    return <UserPageSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -305,6 +301,33 @@ export default function UsuariosInfiniteClient({
               </div>
             </div>
           </div>
+
+          {/* Error State */}
+          {error && (
+            <div className="px-6 py-4">
+              <div className="card p-6 bg-red-50 border border-red-200">
+                <div className="flex items-center">
+                  <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
+                  <div>
+                    <h3 className="text-sm font-medium text-red-800">Error al cargar usuarios</h3>
+                    <p className="text-sm text-red-700 mt-1">{error}</p>
+                  </div>
+                  <button 
+                    onClick={clearError}
+                    className="ml-auto btn-secondary text-sm mr-2"
+                  >
+                    Limpiar
+                  </button>
+                  <button 
+                    onClick={handleRefresh}
+                    className="btn-secondary text-sm"
+                  >
+                    Reintentar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Search and Filters - Sticky */}
           <div className="sticky top-20 z-50 bg-gray-50 py-4">
@@ -562,6 +585,7 @@ export default function UsuariosInfiniteClient({
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex items-center justify-end space-x-2">
                               <button 
+                                onClick={() => handleViewUser(user.id)}
                                 className="text-blue-600 hover:text-blue-900 p-1"
                                 title="Ver detalles"
                               >

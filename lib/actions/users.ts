@@ -146,7 +146,18 @@ export async function getUserAction(userId: string | number): Promise<UserRespon
     }
 
     const data = await response.json();
-    const user = UserAdapter.apiToApp(data);
+    console.log('Respuesta de usuario individual:', data);
+    
+    // La API puede devolver el usuario directamente o dentro de un objeto
+    let userData = data;
+    if (data.user) {
+      userData = data.user;
+    } else if (data.data) {
+      userData = data.data;
+    }
+    
+    console.log('Datos del usuario para adaptador:', userData);
+    const user = UserAdapter.apiToApp(userData);
 
     return {
       success: true,

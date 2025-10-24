@@ -8,16 +8,28 @@ import type {
 // Adaptador para convertir datos de API a formato de aplicación
 export class UserAdapter {
   static apiToApp(apiUser: UserApiData): User {
+    console.log('UserAdapter.apiToApp recibió:', apiUser);
+    
+    if (!apiUser || typeof apiUser !== 'object') {
+      console.error('Datos de usuario inválidos:', apiUser);
+      throw new Error('Datos de usuario inválidos');
+    }
+    
+    if (!apiUser.id || !apiUser.name || !apiUser.email) {
+      console.error('Faltan campos requeridos en usuario:', apiUser);
+      throw new Error('Faltan campos requeridos en los datos del usuario');
+    }
+    
     return {
       id: apiUser.id,
       name: apiUser.name,
       email: apiUser.email,
-      rut: apiUser.rut,
-      createdAt: apiUser.created_at,
-      updatedAt: apiUser.updated_at,
+      rut: apiUser.rut || 'Sin RUT',
+      createdAt: apiUser.created_at || new Date().toISOString(),
+      updatedAt: apiUser.updated_at || new Date().toISOString(),
       role: this.mapUserRole(apiUser.role),
       status: this.mapUserStatus(apiUser.status),
-      lastLogin: apiUser.created_at, // Usando created_at como placeholder para lastLogin
+      lastLogin: apiUser.created_at || new Date().toISOString(), // Usando created_at como placeholder para lastLogin
       permissions: this.mapUserPermissions(apiUser.role),
     };
   }
