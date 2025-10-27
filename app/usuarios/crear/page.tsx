@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import CreateUserForm from "@/components/forms/CreateUserForm";
-import { CreateUserFormData } from "@/lib/schemas/user.schema";
+import { CreateUserFormData, EditUserFormData } from "@/lib/schemas/user.schema";
 import { createUserAction } from "@/lib/actions/users";
 import { useUserStore } from "@/lib/stores/userStore";
 import Sidebar from "@/components/Sidebar";
@@ -12,10 +12,11 @@ export default function CrearUsuarioPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { refreshUsers } = useUserStore();
 
-  const handleSubmit = async (data: CreateUserFormData) => {
+  const handleSubmit = async (data: any) => {
     setIsLoading(true);
 
     try {
+      // En modo crear, los datos vienen del createUserSchema
       const result = await createUserAction(data);
 
       if (result.success) {

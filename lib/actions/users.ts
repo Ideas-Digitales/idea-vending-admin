@@ -261,6 +261,135 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
   }
 }
 
+// Server Action para actualizar un usuario
+export async function updateUserAction(userId: string | number, userData: any): Promise<UserResponse> {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    
+    if (!apiUrl) {
+      return {
+        success: false,
+        error: 'API URL no configurada en variables de entorno',
+      };
+    }
+
+    // Validar que los campos requeridos estén presentes
+    if (!userData.name || !userData.email || !userData.rut || !userData.role || !userData.status) {
+      return {
+        success: false,
+        error: 'Faltan campos requeridos en los datos del usuario',
+      };
+    }
+
+    // Obtener token de autenticación
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+
+    if (!token) {
+      return {
+        success: false,
+        error: 'Token de autenticación no encontrado',
+      };
+    }
+
+    // Mapear rol del schema a rol de la API
+    const mapSchemaRoleToApiRole = (schemaRole: string): string => {
+      switch (schemaRole) {
+        case 'admin': return 'admin';
+        case 'customer': return 'operator';
+        case 'technician': return 'viewer';
+        default: return schemaRole;
+      }
+    };
+
+    // Preparar datos para actualización (sin password si no se proporciona)
+    const updateData: any = {
+      name: userData.name,
+      email: userData.email,
+      rut: userData.rut,
+      role: mapSchemaRoleToApiRole(userData.role || 'admin'),
+      status: userData.status
+    };
+
+    // Solo incluir password si se proporciona
+    if (userData.password && userData.password.trim() !== '') {
+      updateData.password = userData.password;
+      updateData.password_confirmation = userData.confirmPassword;
+    }
+
+    
+    const response = await fetch(`${apiUrl}/users/${userId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(updateData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      
+      
+      // Manejar errores específicos
+      if (response.status === 422) {
+        // Errores de validación
+        const validationErrors = errorData.errors || {};
+        const errorMessages = [];
+        
+        if (validationErrors.email) {
+          errorMessages.push('El email ya está en uso');
+        }
+        if (validationErrors.rut) {
+          errorMessages.push('El RUT ya está registrado');
+        }
+        if (validationErrors.name) {
+          errorMessages.push('El nombre es inválido');
+        }
+        
+        return {
+          success: false,
+          error: errorMessages.length > 0 
+            ? errorMessages.join(', ') 
+            : errorData.message || 'Datos de usuario inválidos',
+        };
+      }
+
+      if (response.status === 404) {
+        return {
+          success: false,
+          error: 'Usuario no encontrado',
+        };
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+    
+    // La API puede devolver los datos directamente o dentro de un objeto 'data'
+    const userResponseData = data.data || data.user || data;
+    const user = UserAdapter.apiToApp(userResponseData);
+
+    revalidatePath('/usuarios');
+    revalidatePath(`/usuarios/${userId}`);
+
+    return {
+      success: true,
+      user,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+    };
+  }
+}
+
 // Server Action para eliminar un usuario
 export async function deleteUserAction(userId: string | number): Promise<{ success: boolean; error?: string }> {
   try {

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { User, UsersFilters, PaginationLinks, PaginationMeta } from "../interfaces";
-import { getUsersAction, getUserAction, deleteUserAction } from "../actions/users";
+import { getUsersAction, getUserAction, deleteUserAction, updateUserAction } from "../actions/users";
 
 interface UserState {
   // Data state
@@ -28,22 +28,26 @@ interface UserState {
   isLoadingUser: boolean;
   isRefreshing: boolean;
   isDeleting: boolean;
+  isUpdating: boolean;
   
   // Error states
   error: string | null;
   userError: string | null;
   deleteError: string | null;
+  updateError: string | null;
   
   // Actions
   fetchUsers: (filters?: UsersFilters) => Promise<void>;
   fetchUser: (userId: string | number) => Promise<void>;
   refreshUsers: () => Promise<void>;
   deleteUser: (userId: string | number) => Promise<boolean>;
+  updateUser: (userId: string | number, userData: any) => Promise<boolean>;
   setFilters: (filters: UsersFilters) => void;
   initializeUsers: (users: User[], pagination?: any) => void;
   clearError: () => void;
   clearUserError: () => void;
   clearDeleteError: () => void;
+  clearUpdateError: () => void;
   clearSelectedUser: () => void;
   
   // Computed getters
@@ -69,9 +73,11 @@ export const useUserStore = create<UserState>()(
   isLoadingUser: false,
   isRefreshing: false,
   isDeleting: false,
+  isUpdating: false,
   error: null,
   userError: null,
   deleteError: null,
+  updateError: null,
 
   // Actions
   fetchUsers: async (filters?: UsersFilters) => {
@@ -241,6 +247,66 @@ export const useUserStore = create<UserState>()(
 
   clearDeleteError: () => {
     set({ deleteError: null });
+  },
+
+  updateUser: async (userId: string | number, userData: any) => {
+    const { users } = get();
+    
+    // Optimistic update: find and update user in local state immediately
+    const userIndex = users.findIndex(u => u.id === Number(userId));
+    if (userIndex === -1) {
+      set({ updateError: 'Usuario no encontrado' });
+      return false;
+    }
+
+    const originalUser = users[userIndex];
+    const optimisticUsers = [...users];
+    // Update the user with new data (merge with existing data)
+    optimisticUsers[userIndex] = { ...originalUser, ...userData };
+    
+    set({ 
+      users: optimisticUsers, 
+      isUpdating: true, 
+      updateError: null 
+    });
+
+    try {
+      const response = await updateUserAction(userId, userData);
+      
+      if (response.success && response.user) {
+        // Success: update with real data from server
+        const finalUsers = [...users];
+        finalUsers[userIndex] = response.user;
+        
+        set({ 
+          users: finalUsers,
+          selectedUser: response.user, // Update selected user if it's the same
+          isUpdating: false,
+          updateError: null 
+        });
+        return true;
+      } else {
+        // Error: revert the optimistic update
+        set({ 
+          users: users, // Restore original users
+          isUpdating: false,
+          updateError: response.error || 'Error al actualizar usuario' 
+        });
+        return false;
+      }
+    } catch (error) {
+      // Error: revert the optimistic update
+      set({ 
+        users: users, // Restore original users
+        isUpdating: false,
+        updateError: error instanceof Error ? error.message : 'Error inesperado' 
+      });
+      return false;
+    }
+  },
+
+  clearUpdateError: () => {
+    set({ updateError: null });
   },
 
   // Computed getters

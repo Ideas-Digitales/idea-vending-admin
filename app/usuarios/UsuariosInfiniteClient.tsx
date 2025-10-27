@@ -629,6 +629,7 @@ export default function UsuariosInfiniteClient() {
                                 <Eye className="h-4 w-4" />
                               </button>
                               <button 
+                                onClick={() => window.location.href = `/usuarios/${user.id}/editar`}
                                 className="text-green-600 hover:text-green-900 p-1"
                                 title="Editar usuario"
                               >

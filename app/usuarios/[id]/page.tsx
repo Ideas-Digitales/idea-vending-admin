@@ -152,7 +152,10 @@ export default function UserDetailPage() {
               </div>
               
               <div className="flex items-center space-x-3">
-                <button className="btn-secondary flex items-center space-x-2">
+                <button 
+                  onClick={() => window.location.href = `/usuarios/${userId}/editar`}
+                  className="btn-secondary flex items-center space-x-2"
+                >
                   <Edit className="h-4 w-4" />
                   <span>Editar</span>
                 </button>
