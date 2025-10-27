@@ -7,6 +7,7 @@ import { createUserAction } from "@/lib/actions/users";
 import { useUserStore } from "@/lib/stores/userStore";
 import Sidebar from "@/components/Sidebar";
 import { ArrowLeft } from "lucide-react";
+import { notify } from '@/lib/adapters/notification.adapter';
 
 export default function CrearUsuarioPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -20,14 +21,15 @@ export default function CrearUsuarioPage() {
       const result = await createUserAction(data);
 
       if (result.success) {
+        notify.success('Usuario creado exitosamente');
         await refreshUsers();
         // Forzar recarga completa de la página de usuarios
         window.location.href = '/usuarios';
       } else {
-        alert(`Error al crear usuario: ${result.error}`);
+        notify.error(`Error al crear usuario: ${result.error}`);
       }
     } catch (error) {
-      alert(
+      notify.error(
         "Error inesperado al crear usuario. Por favor, intenta nuevamente."
       );
     } finally {

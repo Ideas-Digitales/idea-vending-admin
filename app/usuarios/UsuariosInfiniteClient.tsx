@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { useUserStore } from '@/lib/stores/userStore';
 import UserStorePagination from '@/components/UserStorePagination';
 import UserPageSkeleton from '@/components/skeletons/UserPageSkeleton';
+import { notify } from '@/lib/adapters/notification.adapter';
 
 export default function UsuariosInfiniteClient() {
   const router = useRouter();
@@ -85,6 +86,19 @@ export default function UsuariosInfiniteClient() {
       fetchUsers();
     }
   }, [users.length, isLoading, error, fetchUsers]);
+
+  // Mostrar toast para errores
+  useEffect(() => {
+    if (error) {
+      notify.error(`Error al cargar usuarios: ${error}`);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (deleteError) {
+      notify.error(`Error al eliminar usuario: ${deleteError}`);
+    }
+  }, [deleteError]);
   
   const hasLoadedStats = useRef(false);
   useEffect(() => {
@@ -184,9 +198,12 @@ export default function UsuariosInfiniteClient() {
     if (deleteDialog.userId) {
       const success = await deleteUser(deleteDialog.userId);
       if (success) {
+        notify.success(`Usuario "${deleteDialog.userName}" eliminado exitosamente`);
         setDeleteDialog({ isOpen: false, userId: null, userName: '' });
         // Reload global stats after successful deletion
         loadGlobalStats();
+      } else {
+        notify.error(`Error al eliminar el usuario "${deleteDialog.userName}"`);
       }
     }
   };

@@ -8,6 +8,7 @@ import { updateUserAction } from "@/lib/actions/users";
 import { useUserStore } from "@/lib/stores/userStore";
 import Sidebar from "@/components/Sidebar";
 import { ArrowLeft, User } from "lucide-react";
+import { notify } from '@/lib/adapters/notification.adapter';
 
 export default function EditarUsuarioPage() {
   const params = useParams();
@@ -64,14 +65,15 @@ export default function EditarUsuarioPage() {
       const result = await updateUserAction(userId, data);
 
       if (result.success) {
+        notify.success('Usuario actualizado exitosamente');
         await refreshUsers();
         // Forzar recarga completa de la página de usuarios
         window.location.href = '/usuarios';
       } else {
-        alert(`Error al actualizar usuario: ${result.error}`);
+        notify.error(`Error al actualizar usuario: ${result.error}`);
       }
     } catch (error) {
-      alert(
+      notify.error(
         "Error inesperado al actualizar usuario. Por favor, intenta nuevamente."
       );
     } finally {
