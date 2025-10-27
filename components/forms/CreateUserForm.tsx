@@ -8,11 +8,10 @@ import { useState } from 'react';
 
 interface CreateUserFormProps {
   onSubmit: (data: CreateUserFormData) => void;
-  onCancel: () => void;
   isLoading?: boolean;
 }
 
-export default function CreateUserForm({ onSubmit, onCancel, isLoading = false }: CreateUserFormProps) {
+export default function CreateUserForm({ onSubmit, isLoading = false }: CreateUserFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -38,11 +37,6 @@ export default function CreateUserForm({ onSubmit, onCancel, isLoading = false }
 
   const handleFormSubmit = (data: CreateUserFormData) => {
     onSubmit(data);
-  };
-
-  const handleCancel = () => {
-    reset();
-    onCancel();
   };
 
   return (
@@ -235,15 +229,7 @@ export default function CreateUserForm({ onSubmit, onCancel, isLoading = false }
 
         {/* Botones de Acción */}
         <div className="flex justify-end gap-4 pt-6 border-t">
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading}
-          >
-            <X className="h-4 w-4 mr-2 inline" />
-            Cancelar
-          </button>
+        
           <button
             type="submit"
             disabled={!isValid || isLoading}

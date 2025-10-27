@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Users, Plus, Search, Edit, Trash2, Eye, UserCheck, UserX, Loader2, AlertCircle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
-import { User } from '@/lib/interfaces';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { useUserStore } from '@/lib/stores/userStore';
 import UserStorePagination from '@/components/UserStorePagination';
 import UserPageSkeleton from '@/components/skeletons/UserPageSkeleton';
@@ -18,11 +18,14 @@ export default function UsuariosInfiniteClient() {
     users,
     isLoading,
     error,
-    pagination,
     fetchUsers,
     refreshUsers,
     setFilters,
     clearError,
+    deleteUser,
+    isDeleting,
+    deleteError,
+    clearDeleteError,
     getTotalUsers,
     getTotalActiveUsers,
     getTotalAdminUsers,
@@ -34,6 +37,15 @@ export default function UsuariosInfiniteClient() {
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    userId: number | null;
+    userName: string;
+  }>({
+    isOpen: false,
+    userId: null,
+    userName: ''
+  });
   
   // Global stats state
   const [globalStats, setGlobalStats] = useState({
@@ -46,12 +58,10 @@ export default function UsuariosInfiniteClient() {
   const filtersRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
   
-  // Función para obtener estadísticas
-  const loadGlobalStats = async () => {
+  const loadGlobalStats = useCallback(async () => {
     setGlobalStats(prev => ({ ...prev, isLoading: true }));
     
     try {
-      // Cargar todas las estadísticas del servidor
       const [totalActive, totalAdmins, totalInactive] = await Promise.all([
         getTotalActiveUsers(),
         getTotalAdminUsers(),
@@ -65,25 +75,25 @@ export default function UsuariosInfiniteClient() {
         isLoading: false,
       });
     } catch (error) {
-      console.error('Error loading global stats:', error);
       setGlobalStats(prev => ({ ...prev, isLoading: false }));
     }
-  };
+  }, [getTotalActiveUsers, getTotalAdminUsers, getTotalInactiveUsers]);
 
-  // Cargar usuarios al montar el componente
   useEffect(() => {
-    if (users.length === 0 && !isLoading) {
+    // Solo cargar usuarios si no hay datos y no estamos cargando
+    if (users.length === 0 && !isLoading && !error) {
       fetchUsers();
     }
-  }, []);
+  }, [users.length, isLoading, error, fetchUsers]);
   
-  // Cargar estadísticas cuando cambien los usuarios
+  const hasLoadedStats = useRef(false);
   useEffect(() => {
-    loadGlobalStats();
-  }, []);
+    if (!hasLoadedStats.current) {
+      hasLoadedStats.current = true;
+      loadGlobalStats();
+    }
+  }, [loadGlobalStats]);
 
-
-  // Debounce para el término de búsqueda
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -92,35 +102,36 @@ export default function UsuariosInfiniteClient() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Filtros para la API (solo cuando el debounce está completo)
   const apiFilters = useMemo(() => ({
     search: debouncedSearchTerm || undefined,
     role: roleFilter || undefined,
     status: statusFilter || undefined,
-    page: 1, // Reset to first page when filters change
+    page: 1,
   }), [debouncedSearchTerm, roleFilter, statusFilter]);
 
-  // Aplicar filtros cuando cambien
   const prevFiltersRef = useRef(apiFilters);
-  useEffect(() => {
-    const filtersChanged = JSON.stringify(prevFiltersRef.current) !== JSON.stringify(apiFilters);
+  const applyFilters = useCallback((filters: typeof apiFilters) => {
+    const filtersChanged = JSON.stringify(prevFiltersRef.current) !== JSON.stringify(filters);
     if (filtersChanged) {
-      setFilters(apiFilters);
-      fetchUsers(apiFilters);
-      prevFiltersRef.current = apiFilters;
+      setFilters(filters);
+      fetchUsers(filters);
+      prevFiltersRef.current = filters;
     }
-  }, [apiFilters, setFilters, fetchUsers]);
+  }, [setFilters, fetchUsers]);
+  
+  const apiFiltersString = JSON.stringify(apiFilters);
+  
+  useEffect(() => {
+    if (users.length > 0) {
+      applyFilters(apiFilters);
+    }
+  }, [apiFiltersString, applyFilters, users.length]);
 
-  // Remover sticky functionality por simplicidad
-
-  // Filtrado local (solo para búsqueda instantánea)
   const displayedUsers = useMemo(() => {
-    // Si no hay término de búsqueda, mostrar todos los usuarios
     if (!searchTerm) {
       return users;
     }
     
-    // Si el término de búsqueda es diferente al debounced, hacer filtrado local instantáneo
     if (searchTerm !== debouncedSearchTerm) {
       return users.filter(user => 
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -129,7 +140,6 @@ export default function UsuariosInfiniteClient() {
       );
     }
     
-    // Si el término coincide con el debounced, mostrar los usuarios del servidor
     return users;
   }, [users, searchTerm, debouncedSearchTerm]);
 
@@ -161,15 +171,36 @@ export default function UsuariosInfiniteClient() {
     router.push(`/usuarios/${userId}`);
   };
 
-  // Calcular estadísticas
+  // Delete handlers
+  const handleDeleteClick = (userId: number, userName: string) => {
+    setDeleteDialog({
+      isOpen: true,
+      userId,
+      userName
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteDialog.userId) {
+      const success = await deleteUser(deleteDialog.userId);
+      if (success) {
+        setDeleteDialog({ isOpen: false, userId: null, userName: '' });
+        // Reload global stats after successful deletion
+        loadGlobalStats();
+      }
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ isOpen: false, userId: null, userName: '' });
+    clearDeleteError();
+  };
+
   const stats = {
-    // Total de usuarios del servidor (no filtrados)
     total: getTotalUsers(),
-    // Estadísticas globales del servidor
     active: globalStats.totalActive,
     admins: globalStats.totalAdmins,
     inactive: globalStats.totalInactive,
-    // Usuarios mostrados en la página actual
     displayed: displayedUsers.length,
   };
 
@@ -177,26 +208,34 @@ export default function UsuariosInfiniteClient() {
     refreshUsers();
   };
 
-  // Mostrar skeleton mientras está cargando inicialmente (con timeout de seguridad)
   const [showSkeleton, setShowSkeleton] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   
+  // Marcar como inicializado cuando tengamos datos o cuando termine la carga inicial
   useEffect(() => {
-    if (isLoading && users.length === 0) {
-      setShowSkeleton(true);
-      // Timeout de seguridad: no mostrar skeleton por más de 10 segundos
-      const timeout = setTimeout(() => {
-        console.warn('Timeout del skeleton - forzando ocultación');
-        setShowSkeleton(false);
-      }, 10000);
-      
-      return () => clearTimeout(timeout);
-    } else {
+    if (users.length > 0 || (!isLoading && isInitialized)) {
+      setIsInitialized(true);
       setShowSkeleton(false);
     }
-  }, [isLoading, users.length]);
+  }, [users.length, isLoading, isInitialized]);
+
+  useEffect(() => {
+    // Solo mostrar skeleton en la carga inicial si no hay datos persistidos
+    if (isLoading && users.length === 0 && !error && !isInitialized) {
+      setShowSkeleton(true);
+      const timeout = setTimeout(() => {
+        setShowSkeleton(false);
+        setIsInitialized(true);
+      }, 3000); // Reducido a 3 segundos
+      
+      return () => clearTimeout(timeout);
+    } else if (users.length > 0 || error) {
+      setShowSkeleton(false);
+      setIsInitialized(true);
+    }
+  }, [isLoading, users.length, error, isInitialized]);
   
   if (showSkeleton) {
-    console.log('Mostrando skeleton - isLoading:', isLoading, 'usersLength:', users.length);
     return <UserPageSkeleton />;
   }
 
@@ -228,7 +267,6 @@ export default function UsuariosInfiniteClient() {
         </header>
 
         <div className="relative">
-          {/* Stats Cards */}
           <div className="p-6 pb-0">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
               <div className="card p-6">
@@ -302,7 +340,6 @@ export default function UsuariosInfiniteClient() {
             </div>
           </div>
 
-          {/* Error State */}
           {error && (
             <div className="px-6 py-4">
               <div className="card p-6 bg-red-50 border border-red-200">
@@ -598,8 +635,10 @@ export default function UsuariosInfiniteClient() {
                                 <Edit className="h-4 w-4" />
                               </button>
                               <button 
-                                className="text-red-600 hover:text-red-900 p-1"
+                                className="text-red-600 hover:text-red-900 p-1 disabled:opacity-50"
                                 title="Eliminar usuario"
+                                onClick={() => handleDeleteClick(user.id, user.name)}
+                                disabled={isDeleting}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -631,6 +670,34 @@ export default function UsuariosInfiniteClient() {
           <div className="h-8"></div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        title="Eliminar Usuario"
+        message={`¿Estás seguro de que deseas eliminar al usuario "${deleteDialog.userName}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        isLoading={isDeleting}
+        variant="danger"
+      />
+
+      {/* Error Display */}
+      {deleteError && (
+        <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
+          <div className="flex items-center justify-between">
+            <span>{deleteError}</span>
+            <button 
+              onClick={clearDeleteError}
+              className="ml-2 text-red-700 hover:text-red-900"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

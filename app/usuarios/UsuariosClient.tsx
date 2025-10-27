@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Users, Plus, Search, Edit, Trash2, Eye, UserCheck, UserX } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import Pagination from '@/components/Pagination';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { PaginationLinks, PaginationMeta, User } from '@/lib/interfaces';
+import { useUserStore } from '@/lib/stores/userStore';
 
 interface UsuariosClientProps {
   usuarios: User[];
@@ -19,6 +21,33 @@ export default function UsuariosClient({ usuarios, pagination }: UsuariosClientP
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    userId: number | null;
+    userName: string;
+  }>({
+    isOpen: false,
+    userId: null,
+    userName: ''
+  });
+
+  // Store integration
+  const { 
+    users: storeUsers, 
+    deleteUser, 
+    isDeleting, 
+    deleteError, 
+    clearDeleteError,
+    initializeUsers 
+  } = useUserStore();
+
+  // Initialize store with server data
+  useEffect(() => {
+    initializeUsers(usuarios, pagination);
+  }, [usuarios, pagination, initializeUsers]);
+
+  // Use store users if available, fallback to prop users
+  const currentUsers = storeUsers.length > 0 ? storeUsers : usuarios;
 
   // Función para manejar cambio de página
   const handlePageChange = (page: number) => {
@@ -29,9 +58,32 @@ export default function UsuariosClient({ usuarios, pagination }: UsuariosClientP
     window.location.href = url.toString();
   };
 
+  // Delete handlers
+  const handleDeleteClick = (userId: number, userName: string) => {
+    setDeleteDialog({
+      isOpen: true,
+      userId,
+      userName
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteDialog.userId) {
+      const success = await deleteUser(deleteDialog.userId);
+      if (success) {
+        setDeleteDialog({ isOpen: false, userId: null, userName: '' });
+      }
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ isOpen: false, userId: null, userName: '' });
+    clearDeleteError();
+  };
+
   // Filtrar usuarios según los criterios de búsqueda
   const filteredUsuarios = useMemo(() => {
-    return usuarios.filter(usuario => {
+    return currentUsers.filter(usuario => {
       const matchesSearch = searchTerm === '' || 
         usuario.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         usuario.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -42,7 +94,7 @@ export default function UsuariosClient({ usuarios, pagination }: UsuariosClientP
       
       return matchesSearch && matchesRole && matchesStatus;
     });
-  }, [usuarios, searchTerm, roleFilter, statusFilter]);
+  }, [currentUsers, searchTerm, roleFilter, statusFilter]);
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -77,7 +129,7 @@ export default function UsuariosClient({ usuarios, pagination }: UsuariosClientP
   };
 
   // Obtener total real de la paginación si está disponible
-  const totalUsuarios = pagination?.meta.total || usuarios.length;
+  const totalUsuarios = pagination?.meta.total || currentUsers.length;
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -250,9 +302,9 @@ export default function UsuariosClient({ usuarios, pagination }: UsuariosClientP
             <div className="px-6 py-4 border-b border-gray-100">
               <h3 className="text-lg font-bold text-dark">
                 Lista de Usuarios 
-                {filteredUsuarios.length !== usuarios.length && (
+                {filteredUsuarios.length !== currentUsers.length && (
                   <span className="text-sm font-normal text-muted ml-2">
-                    ({filteredUsuarios.length} de {usuarios.length})
+                    ({filteredUsuarios.length} de {currentUsers.length})
                   </span>
                 )}
               </h3>
@@ -263,7 +315,7 @@ export default function UsuariosClient({ usuarios, pagination }: UsuariosClientP
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-dark mb-2">No se encontraron usuarios</h3>
                 <p className="text-muted">
-                  {usuarios.length === 0 
+                  {currentUsers.length === 0 
                     ? 'No hay usuarios registrados en el sistema.'
                     : 'Intenta ajustar los filtros de búsqueda.'
                   }
@@ -358,8 +410,10 @@ export default function UsuariosClient({ usuarios, pagination }: UsuariosClientP
                               <Edit className="h-4 w-4" />
                             </button>
                             <button 
-                              className="text-red-600 hover:text-red-900 p-1"
+                              className="text-red-600 hover:text-red-900 p-1 disabled:opacity-50"
                               title="Eliminar usuario"
+                              onClick={() => handleDeleteClick(usuario.id, usuario.name)}
+                              disabled={isDeleting}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -384,6 +438,34 @@ export default function UsuariosClient({ usuarios, pagination }: UsuariosClientP
           </div>
         </main>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        title="Eliminar Usuario"
+        message={`¿Estás seguro de que deseas eliminar al usuario "${deleteDialog.userName}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        isLoading={isDeleting}
+        variant="danger"
+      />
+
+      {/* Error Display */}
+      {deleteError && (
+        <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
+          <div className="flex items-center justify-between">
+            <span>{deleteError}</span>
+            <button 
+              onClick={clearDeleteError}
+              className="ml-2 text-red-700 hover:text-red-900"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

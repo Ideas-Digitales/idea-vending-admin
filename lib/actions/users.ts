@@ -45,8 +45,6 @@ export async function getUsersAction(filters?: UsersFilters): Promise<UsersRespo
 
     const url = `${apiUrl}/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     
-    console.log('Obteniendo usuarios desde:', url);
-
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -56,8 +54,6 @@ export async function getUsersAction(filters?: UsersFilters): Promise<UsersRespo
     });
 
     if (!response.ok) {
-      console.log('Error al obtener usuarios:', response.status, response.statusText);
-      
       const errorData = await response.json().catch(() => ({}));
       return {
         success: false,
@@ -66,7 +62,6 @@ export async function getUsersAction(filters?: UsersFilters): Promise<UsersRespo
     }
 
     const data: ApiUsersResponse = await response.json();
-    console.log('Respuesta de usuarios:', data);
 
     // Mapear datos usando el adaptador
     const users = UserAdapter.apiUsersToApp(data);
@@ -146,9 +141,7 @@ export async function getUserAction(userId: string | number): Promise<UserRespon
     }
 
     const data = await response.json();
-    console.log('Respuesta de usuario individual:', data);
     
-    // La API puede devolver el usuario directamente o dentro de un objeto
     let userData = data;
     if (data.user) {
       userData = data.user;
@@ -156,7 +149,6 @@ export async function getUserAction(userId: string | number): Promise<UserRespon
       userData = data.data;
     }
     
-    console.log('Datos del usuario para adaptador:', userData);
     const user = UserAdapter.apiToApp(userData);
 
     return {
@@ -206,8 +198,6 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
       role: userData.role
     };
     
-    console.log('Creando usuario:', { ...createUserData, password: '[HIDDEN]', password_confirmation: '[HIDDEN]' });
-
     const response = await fetch(`${apiUrl}/users`, {
       method: 'POST',
       headers: {
@@ -254,21 +244,86 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
     }
 
     const data = await response.json();
-    console.log('Usuario creado exitosamente:', data);
     
-    // Mapear la respuesta usando el adaptador
     const user = UserAdapter.apiToApp(data.user || data);
 
-    // Revalidar la cache de la página de usuarios para que se actualice automáticamente
     revalidatePath('/usuarios');
 
     return {
       success: true,
       user,
     };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+    };
+  }
+}
+
+// Server Action para eliminar un usuario
+export async function deleteUserAction(userId: string | number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    
+    if (!apiUrl) {
+      return {
+        success: false,
+        error: 'API URL no configurada en variables de entorno',
+      };
+    }
+
+    // Obtener token de autenticación
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+
+    if (!token) {
+      return {
+        success: false,
+        error: 'Token de autenticación no encontrado',
+      };
+    }
+
+    const response = await fetch(`${apiUrl}/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      
+      // Manejar errores específicos
+      if (response.status === 404) {
+        return {
+          success: false,
+          error: 'Usuario no encontrado',
+        };
+      }
+      
+      if (response.status === 403) {
+        return {
+          success: false,
+          error: 'No tienes permisos para eliminar este usuario',
+        };
+      }
+      
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    revalidatePath('/usuarios');
+
+    return {
+      success: true,
+    };
 
   } catch (error) {
-    console.error('Error en createUserAction:', error);
+    console.error('Error en deleteUserAction:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Error de conexión con el servidor',

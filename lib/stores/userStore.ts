@@ -1,6 +1,7 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { User, UsersFilters, PaginationLinks, PaginationMeta } from "../interfaces";
-import { getUsersAction, getUserAction } from "../actions/users";
+import { getUsersAction, getUserAction, deleteUserAction } from "../actions/users";
 
 interface UserState {
   // Data state
@@ -26,19 +27,23 @@ interface UserState {
   isLoading: boolean;
   isLoadingUser: boolean;
   isRefreshing: boolean;
+  isDeleting: boolean;
   
   // Error states
   error: string | null;
   userError: string | null;
+  deleteError: string | null;
   
   // Actions
   fetchUsers: (filters?: UsersFilters) => Promise<void>;
   fetchUser: (userId: string | number) => Promise<void>;
   refreshUsers: () => Promise<void>;
+  deleteUser: (userId: string | number) => Promise<boolean>;
   setFilters: (filters: UsersFilters) => void;
   initializeUsers: (users: User[], pagination?: any) => void;
   clearError: () => void;
   clearUserError: () => void;
+  clearDeleteError: () => void;
   clearSelectedUser: () => void;
   
   // Computed getters
@@ -51,7 +56,9 @@ interface UserState {
   hasPrevPage: () => boolean;
 }
 
-export const useUserStore = create<UserState>()((set, get) => ({
+export const useUserStore = create<UserState>()(
+  persist(
+    (set, get) => ({
   // Initial state
   users: [],
   selectedUser: null,
@@ -61,8 +68,10 @@ export const useUserStore = create<UserState>()((set, get) => ({
   isLoading: false,
   isLoadingUser: false,
   isRefreshing: false,
+  isDeleting: false,
   error: null,
   userError: null,
+  deleteError: null,
 
   // Actions
   fetchUsers: async (filters?: UsersFilters) => {
@@ -170,6 +179,68 @@ export const useUserStore = create<UserState>()((set, get) => ({
 
   clearSelectedUser: () => {
     set({ selectedUser: null, userError: null });
+  },
+
+  deleteUser: async (userId: string | number) => {
+    const { users } = get();
+    
+    // Optimistic update: remove user from local state immediately
+    const userToDelete = users.find(u => u.id === Number(userId));
+    if (!userToDelete) {
+      set({ deleteError: 'Usuario no encontrado' });
+      return false;
+    }
+
+    const optimisticUsers = users.filter(u => u.id !== Number(userId));
+    
+    set({ 
+      users: optimisticUsers, 
+      isDeleting: true, 
+      deleteError: null 
+    });
+
+    try {
+      const response = await deleteUserAction(userId);
+      
+      if (response.success) {
+        // Success: keep the optimistic update and update pagination
+        const { pagination } = get();
+        const updatedPagination = pagination ? {
+          ...pagination,
+          meta: {
+            ...pagination.meta,
+            total: pagination.meta.total - 1
+          }
+        } : null;
+
+        set({ 
+          isDeleting: false,
+          deleteError: null,
+          pagination: updatedPagination
+        });
+        return true;
+      } else {
+        // Error: revert the optimistic update
+        set({ 
+          users: users, // Restore original users
+          isDeleting: false,
+          deleteError: response.error || 'Error al eliminar usuario' 
+        });
+        return false;
+      }
+    } catch (error) {
+      // Error: revert the optimistic update
+      set({ 
+        users: users, // Restore original users
+        isDeleting: false,
+        deleteError: error instanceof Error ? error.message : 'Error inesperado' 
+      });
+      return false;
+    }
+  },
+
+  clearDeleteError: () => {
+    set({ deleteError: null });
   },
 
   // Computed getters
@@ -283,4 +354,15 @@ export const useUserStore = create<UserState>()((set, get) => ({
     
     return 0;
   },
-}));
+}),
+    {
+      name: 'user-store',
+      partialize: (state) => ({
+        users: state.users,
+        pagination: state.pagination,
+        currentFilters: state.currentFilters,
+        globalStats: state.globalStats,
+      }),
+    }
+  )
+);
