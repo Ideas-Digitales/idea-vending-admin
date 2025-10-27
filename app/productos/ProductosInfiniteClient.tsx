@@ -1,30 +1,112 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Package, Plus, Search, Edit, Trash2, Eye, ShoppingCart, DollarSign, AlertTriangle, Loader2, AlertCircle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
-import { type Producto, type ProductsResponse } from '@/lib/actions/products';
-import { useInfiniteScrollProducts } from '@/lib/hooks/useInfiniteScrollProducts';
-import { useScrollToBottom } from '@/lib/hooks/useInfiniteScroll';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import { useProductStore } from '@/lib/stores/productStore';
+import ProductStorePagination from '@/components/ProductStorePagination';
+import ProductPageSkeleton from '@/components/skeletons/ProductPageSkeleton';
+import { notify } from '@/lib/adapters/notification.adapter';
 
-interface ProductosInfiniteClientProps {
-  initialProducts: Producto[];
-  initialPagination?: ProductsResponse['pagination'];
-}
+export default function ProductosInfiniteClient() {
+  const router = useRouter();
+  // Store state
+  const {
+    products,
+    isLoading,
+    error,
+    fetchProducts,
+    refreshProducts,
+    setFilters,
+    clearError,
+    deleteProduct,
+    isDeleting,
+    deleteError,
+    clearDeleteError,
+    getTotalProducts,
+    getTotalActiveProducts,
+    getTotalLowStockProducts,
+    getTotalOutOfStockProducts,
+  } = useProductStore();
 
-export default function ProductosInfiniteClient({ 
-  initialProducts, 
-  initialPagination 
-}: ProductosInfiniteClientProps) {
+  // Local UI state
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState<{
+    isOpen: boolean;
+    productId: string | number | null;
+    productName: string;
+  }>({
+    isOpen: false,
+    productId: null,
+    productName: ''
+  });
+  
+  // Global stats state
+  const [globalStats, setGlobalStats] = useState({
+    totalActive: 0,
+    totalLowStock: 0,
+    totalOutOfStock: 0,
+    isLoading: false,
+  });
   
   const filtersRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
 
-  // Debounce para el término de búsqueda
+  const loadGlobalStats = useCallback(async () => {
+    setGlobalStats(prev => ({ ...prev, isLoading: true }));
+    
+    try {
+      const [totalActive, totalLowStock, totalOutOfStock] = await Promise.all([
+        getTotalActiveProducts(),
+        getTotalLowStockProducts(),
+        getTotalOutOfStockProducts(),
+      ]);
+      
+      setGlobalStats({
+        totalActive,
+        totalLowStock,
+        totalOutOfStock,
+        isLoading: false,
+      });
+    } catch (error) {
+      setGlobalStats(prev => ({ ...prev, isLoading: false }));
+    }
+  }, [getTotalActiveProducts, getTotalLowStockProducts, getTotalOutOfStockProducts]);
+
+  useEffect(() => {
+    // Solo cargar productos si no hay datos y no estamos cargando
+    if (products.length === 0 && !isLoading && !error) {
+      fetchProducts();
+    }
+  }, [products.length, isLoading, error, fetchProducts]);
+
+  // Mostrar toast para errores
+  useEffect(() => {
+    if (error) {
+      notify.error(`Error al cargar productos: ${error}`);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (deleteError) {
+      notify.error(`Error al eliminar producto: ${deleteError}`);
+    }
+  }, [deleteError]);
+  
+  const hasLoadedStats = useRef(false);
+  useEffect(() => {
+    if (!hasLoadedStats.current) {
+      hasLoadedStats.current = true;
+      loadGlobalStats();
+    }
+  }, [loadGlobalStats]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -33,54 +115,36 @@ export default function ProductosInfiniteClient({
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Filtros para la API (solo cuando el debounce está completo)
   const apiFilters = useMemo(() => ({
     search: debouncedSearchTerm || undefined,
     category: categoryFilter || undefined,
     is_active: statusFilter ? statusFilter === 'active' : undefined,
+    page: 1,
   }), [debouncedSearchTerm, categoryFilter, statusFilter]);
 
-  // Hook de scroll infinito (sin filtros automáticos)
-  const {
-    products,
-    loading,
-    hasMore,
-    error,
-    loadMore,
-    refresh,
-    totalCount,
-  } = useInfiniteScrollProducts({
-    initialProducts,
-    initialPagination,
-    filters: {}, // Sin filtros automáticos
-  });
-
-  // Refrescar solo cuando los filtros de servidor cambien
   const prevFiltersRef = useRef(apiFilters);
+  const applyFilters = useCallback((filters: typeof apiFilters) => {
+    const filtersChanged = JSON.stringify(prevFiltersRef.current) !== JSON.stringify(filters);
+    if (filtersChanged) {
+      setFilters(filters);
+      fetchProducts(filters);
+      prevFiltersRef.current = filters;
+    }
+  }, [setFilters, fetchProducts]);
+  
+  const apiFiltersString = JSON.stringify(apiFilters);
+  
   useEffect(() => {
-    // Solo refrescar si los filtros realmente cambiaron
-    const filtersChanged = JSON.stringify(prevFiltersRef.current) !== JSON.stringify(apiFilters);
-    if (filtersChanged && (debouncedSearchTerm || categoryFilter || statusFilter)) {
-      refresh(apiFilters);
-      prevFiltersRef.current = apiFilters;
+    if (products.length > 0) {
+      applyFilters(apiFilters);
     }
-  }, [debouncedSearchTerm, categoryFilter, statusFilter, apiFilters, refresh]);
+  }, [apiFiltersString, applyFilters, products.length]);
 
-  // Hook para detectar scroll al final
-  useScrollToBottom(useCallback(() => {
-    if (!loading && hasMore) {
-      loadMore();
-    }
-  }, [loading, hasMore, loadMore]));
-
-  // Filtrado local (solo para búsqueda instantánea)
   const displayedProducts = useMemo(() => {
-    // Si no hay término de búsqueda, mostrar todos los productos
     if (!searchTerm) {
       return products;
     }
     
-    // Si el término de búsqueda es diferente al debounced, hacer filtrado local instantáneo
     if (searchTerm !== debouncedSearchTerm) {
       return products.filter(producto => 
         producto.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -89,7 +153,6 @@ export default function ProductosInfiniteClient({
       );
     }
     
-    // Si el término coincide con el debounced, mostrar los productos del servidor
     return products;
   }, [products, searchTerm, debouncedSearchTerm]);
 
@@ -112,13 +175,80 @@ export default function ProductosInfiniteClient({
     return { color: 'text-green-600', label: 'Stock bueno' };
   };
 
-  // Calcular estadísticas
-  const stats = {
-    total: displayedProducts.length,
-    active: displayedProducts.filter(p => p.is_active).length,
-    lowStock: displayedProducts.filter(p => (p.stock || 0) < 10).length,
-    outOfStock: displayedProducts.filter(p => (p.stock || 0) === 0).length,
+  const handleViewProduct = (productId: string | number) => {
+    router.push(`/productos/${productId}`);
   };
+
+  // Delete handlers
+  const handleDeleteClick = (productId: string | number, productName: string) => {
+    setDeleteDialog({
+      isOpen: true,
+      productId,
+      productName
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteDialog.productId) {
+      const success = await deleteProduct(deleteDialog.productId);
+      if (success) {
+        notify.success(`Producto "${deleteDialog.productName}" eliminado exitosamente`);
+        setDeleteDialog({ isOpen: false, productId: null, productName: '' });
+        // Reload global stats after successful deletion
+        loadGlobalStats();
+      } else {
+        notify.error(`Error al eliminar el producto "${deleteDialog.productName}"`);
+      }
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialog({ isOpen: false, productId: null, productName: '' });
+    clearDeleteError();
+  };
+
+  const stats = {
+    total: getTotalProducts(),
+    active: globalStats.totalActive,
+    lowStock: globalStats.totalLowStock,
+    outOfStock: globalStats.totalOutOfStock,
+    displayed: displayedProducts.length,
+  };
+
+  const handleRefresh = () => {
+    refreshProducts();
+  };
+
+  const [showSkeleton, setShowSkeleton] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Marcar como inicializado cuando tengamos datos o cuando termine la carga inicial
+  useEffect(() => {
+    if (products.length > 0 || (!isLoading && isInitialized)) {
+      setIsInitialized(true);
+      setShowSkeleton(false);
+    }
+  }, [products.length, isLoading, isInitialized]);
+
+  useEffect(() => {
+    // Solo mostrar skeleton en la carga inicial si no hay datos persistidos
+    if (isLoading && products.length === 0 && !error && !isInitialized) {
+      setShowSkeleton(true);
+      const timeout = setTimeout(() => {
+        setShowSkeleton(false);
+        setIsInitialized(true);
+      }, 3000); // Reducido a 3 segundos
+      
+      return () => clearTimeout(timeout);
+    } else if (products.length > 0 || error) {
+      setShowSkeleton(false);
+      setIsInitialized(true);
+    }
+  }, [isLoading, products.length, error, isInitialized]);
+  
+  if (showSkeleton) {
+    return <ProductPageSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -136,10 +266,13 @@ export default function ProductosInfiniteClient({
                   <p className="text-muted">Administra el inventario de las máquinas expendedoras</p>
                 </div>
               </div>
-              <button className="btn-primary flex items-center space-x-2">
+              <Link 
+                href="/productos/crear"
+                className="btn-primary flex items-center space-x-2"
+              >
                 <Plus className="h-4 w-4" />
                 <span>Nuevo Producto</span>
-              </button>
+              </Link>
             </div>
           </div>
         </header>
@@ -151,10 +284,13 @@ export default function ProductosInfiniteClient({
               <div className="card p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-muted mb-2">Total Productos</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="text-sm font-semibold text-muted">Total Productos</p>
+                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">SERVIDOR</span>
+                    </div>
                     <p className="text-2xl font-bold text-dark">{stats.total}</p>
-                    {totalCount > 0 && stats.total !== totalCount && (
-                      <p className="text-xs text-muted mt-1">de {totalCount} total</p>
+                    {stats.displayed !== stats.total && (
+                      <p className="text-xs text-muted mt-1">{stats.displayed} mostrados de {stats.total} total</p>
                     )}
                   </div>
                   <div className="p-3 rounded-xl bg-blue-50 flex-shrink-0 ml-4">
@@ -166,8 +302,13 @@ export default function ProductosInfiniteClient({
               <div className="card p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-muted mb-2">Activos</p>
-                    <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <p className="text-sm font-semibold text-muted">Productos Activos</p>
+                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">SERVIDOR</span>
+                    </div>
+                    <p className="text-2xl font-bold text-green-600">
+                      {globalStats.isLoading ? '...' : stats.active}
+                    </p>
                   </div>
                   <div className="p-3 rounded-xl bg-green-50 flex-shrink-0 ml-4">
                     <ShoppingCart className="h-6 w-6 text-green-600" />
@@ -178,8 +319,13 @@ export default function ProductosInfiniteClient({
               <div className="card p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-muted mb-1">Stock Bajo</p>
-                    <p className="text-2xl font-bold text-yellow-600">{stats.lowStock}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm font-semibold text-muted">Stock Bajo</p>
+                      <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
+                    </div>
+                    <p className="text-2xl font-bold text-yellow-600">
+                      {globalStats.isLoading ? '...' : stats.lowStock}
+                    </p>
                   </div>
                   <div className="p-3 rounded-xl bg-yellow-50">
                     <AlertTriangle className="h-6 w-6 text-yellow-600" />
@@ -190,8 +336,13 @@ export default function ProductosInfiniteClient({
               <div className="card p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-muted mb-1">Sin Stock</p>
-                    <p className="text-2xl font-bold text-red-600">{stats.outOfStock}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm font-semibold text-muted">Sin Stock</p>
+                      <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
+                    </div>
+                    <p className="text-2xl font-bold text-red-600">
+                      {globalStats.isLoading ? '...' : stats.outOfStock}
+                    </p>
                   </div>
                   <div className="p-3 rounded-xl bg-red-50">
                     <Package className="h-6 w-6 text-red-600" />
@@ -305,7 +456,6 @@ export default function ProductosInfiniteClient({
             </div>
           </div>
 
-          {/* Error State */}
           {error && (
             <div className="px-6 py-4">
               <div className="card p-6 bg-red-50 border border-red-200">
@@ -316,8 +466,14 @@ export default function ProductosInfiniteClient({
                     <p className="text-sm text-red-700 mt-1">{error}</p>
                   </div>
                   <button 
-                    onClick={() => refresh(apiFilters)}
-                    className="ml-auto btn-secondary text-sm"
+                    onClick={clearError}
+                    className="ml-auto btn-secondary text-sm mr-2"
+                  >
+                    Limpiar
+                  </button>
+                  <button 
+                    onClick={handleRefresh}
+                    className="btn-secondary text-sm"
                   >
                     Reintentar
                   </button>
@@ -342,17 +498,17 @@ export default function ProductosInfiniteClient({
                   <div className="flex items-center space-x-4 text-xs">
                     <div className="flex items-center">
                       <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full mr-2">API</span>
-                      <span className="text-muted">Datos reales</span>
+                      <span className="text-muted">Datos reales del servidor</span>
                     </div>
                     <div className="flex items-center">
                       <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full mr-2">MOCK</span>
-                      <span className="text-muted">Pendiente en API</span>
+                      <span className="text-muted">Datos simulados</span>
                     </div>
                   </div>
                 </div>
               </div>
               
-              {displayedProducts.length === 0 && !loading ? (
+              {displayedProducts.length === 0 && !isLoading ? (
                 <div className="p-8 text-center">
                   <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-dark mb-2">No se encontraron productos</h3>
@@ -460,20 +616,24 @@ export default function ProductosInfiniteClient({
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex items-center justify-end space-x-2">
                                 <button 
+                                  onClick={() => handleViewProduct(producto.id)}
                                   className="text-blue-600 hover:text-blue-900 p-1"
                                   title="Ver detalles"
                                 >
                                   <Eye className="h-4 w-4" />
                                 </button>
                                 <button 
+                                  onClick={() => window.location.href = `/productos/${producto.id}/editar`}
                                   className="text-green-600 hover:text-green-900 p-1"
                                   title="Editar producto"
                                 >
                                   <Edit className="h-4 w-4" />
                                 </button>
                                 <button 
-                                  className="text-red-600 hover:text-red-900 p-1"
+                                  className="text-red-600 hover:text-red-900 p-1 disabled:opacity-50"
                                   title="Eliminar producto"
+                                  onClick={() => handleDeleteClick(producto.id, producto.name)}
+                                  disabled={isDeleting}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </button>
@@ -490,28 +650,50 @@ export default function ProductosInfiniteClient({
           </div>
 
           {/* Loading indicator */}
-          {loading && (
+          {isLoading && (
             <div className="px-6">
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-                <span className="text-muted">Cargando más productos...</span>
+                <span className="text-muted">Cargando productos...</span>
               </div>
             </div>
           )}
 
-          {/* End of results */}
-          {!hasMore && products.length > 0 && (
-            <div className="px-6">
-              <div className="text-center py-8">
-                <p className="text-muted">Has visto todos los productos disponibles</p>
-              </div>
-            </div>
-          )}
+          {/* Pagination Controls */}
+          <ProductStorePagination className="px-6 py-4" />
 
           {/* Bottom spacing */}
           <div className="h-8"></div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        title="Eliminar Producto"
+        message={`¿Estás seguro de que deseas eliminar el producto "${deleteDialog.productName}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        isLoading={isDeleting}
+        variant="danger"
+      />
+
+      {/* Error Display */}
+      {deleteError && (
+        <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
+          <div className="flex items-center justify-between">
+            <span>{deleteError}</span>
+            <button 
+              onClick={clearDeleteError}
+              className="ml-2 text-red-700 hover:text-red-900"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

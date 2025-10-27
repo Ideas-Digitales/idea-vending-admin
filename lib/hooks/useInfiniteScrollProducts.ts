@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getProductsAction, type Producto, type ProductsFilters, type ProductsResponse } from '@/lib/actions/products';
+import { getProductsAction } from '@/lib/actions/products';
+import { type Producto, type ProductsFilters, type ProductsResponse } from '@/lib/interfaces/product.interface';
 
 interface UseInfiniteScrollProductsOptions {
   initialProducts?: Producto[];

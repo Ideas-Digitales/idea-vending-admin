@@ -1,4 +1,3 @@
-// Import interfaces from user.interface.ts
 import type { 
   User, 
   UserApiData, 
