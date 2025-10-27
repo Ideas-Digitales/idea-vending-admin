@@ -1,12 +1,13 @@
 import { Monitor, AlertCircle } from 'lucide-react';
 import PageWrapper from '@/components/PageWrapper';
 import Sidebar from '@/components/Sidebar';
-import { getMachinesAction, type Maquina } from './serveractions/machines';
-import MachineInfiniteClient from './componentes/MachineInfiniteClient';
+import { getMachinesAction } from './serveractions/machines';
+import MaquinasClient from './MaquinasClient';
 
-async function MaquinasContent() {
+async function MaquinasContent({ searchParams }: { searchParams?: { page?: string } }) {
   // Obtener primera página de máquinas para inicializar
-  const machinesResponse = await getMachinesAction({ page: 1 });
+  const currentPage = Number(searchParams?.page || 1);
+  const machinesResponse = await getMachinesAction({ page: currentPage });
 
   if (!machinesResponse.success) {
     return (
@@ -48,17 +49,15 @@ async function MaquinasContent() {
   const maquinas = machinesResponse.machines || [];
 
   return (
-    <MachineInfiniteClient 
-      initialMachines={maquinas} 
-      initialPagination={machinesResponse.pagination}
-    />
+    <MaquinasClient machines={maquinas} pagination={machinesResponse.pagination} />
   );
 }
 
-export default function MaquinasPage() {
+export default function MaquinasPage({ searchParams }: { searchParams?: { page?: string } }) {
   return (
     <PageWrapper requiredPermissions={['read', 'manage_machines']}>
-      <MaquinasContent />
+      <MaquinasContent searchParams={searchParams} />
     </PageWrapper>
   );
 }
+
