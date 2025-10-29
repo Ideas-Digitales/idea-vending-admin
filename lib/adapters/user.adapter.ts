@@ -76,7 +76,7 @@ export class UserAdapter {
     
     switch (role) {
       case 'admin':
-        return ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'view_reports'];
+        return ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'view_reports', 'manage_enterprises'];
       case 'operator':
         return ['read', 'write', 'manage_machines', 'view_reports'];
       case 'viewer':

@@ -7,7 +7,7 @@ import { useAuthStore, useUser } from '@/lib/stores/authStore';
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { logout } = useAuthStore();
+  const { logout, updateUser } = useAuthStore();
   const user = useUser();
 
   const handleLogout = async () => {
@@ -19,6 +19,12 @@ export default function Sidebar() {
       router.push('/login');
     }
   };
+
+  // SOLUCIÓN TEMPORAL: Forzar permisos correctos para admin
+  if (user && user.role === 'admin' && user.permissions && !user.permissions.includes('manage_enterprises')) {
+    const correctPermissions = ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'manage_enterprises', 'view_reports'];
+    updateUser({ permissions: correctPermissions });
+  }
 
   const navigationItems = [
     {
@@ -108,7 +114,10 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-4 py-4 space-y-2">
         {navigationItems
-          .filter(item => !item.permission || user?.permissions.includes(item.permission))
+          .filter(item => {
+            const hasPermission = !item.permission || user?.permissions.includes(item.permission);
+            return hasPermission;
+          })
           .map((item) => (
           <a
             key={item.name}
