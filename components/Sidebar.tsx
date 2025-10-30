@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { BarChart3, ShoppingCart, Monitor, Settings, LogOut, Users, CreditCard, Building2 } from 'lucide-react';
 import { useAuthStore, useUser } from '@/lib/stores/authStore';
@@ -20,11 +21,13 @@ export default function Sidebar() {
     }
   };
 
-  // SOLUCIÓN TEMPORAL: Forzar permisos correctos para admin
-  if (user && user.role === 'admin' && user.permissions && !user.permissions.includes('manage_enterprises')) {
-    const correctPermissions = ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'manage_enterprises', 'view_reports'];
-    updateUser({ permissions: correctPermissions });
-  }
+  // SOLUCIÓN TEMPORAL: Forzar permisos correctos para admin (evitar setState durante render)
+  useEffect(() => {
+    if (user && user.role === 'admin' && Array.isArray(user.permissions) && !user.permissions.includes('manage_enterprises')) {
+      const correctPermissions = ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'manage_enterprises', 'view_reports'];
+      updateUser({ permissions: correctPermissions });
+    }
+  }, [user?.role, JSON.stringify(user?.permissions || [])]);
 
   const navigationItems = [
     {
