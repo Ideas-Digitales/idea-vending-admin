@@ -276,26 +276,7 @@ export default function EditEnterprisePage() {
               </div>
 
               {/* Botones de Acción */}
-              <div className="flex items-center justify-between pt-6 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="btn-secondary flex items-center space-x-2"
-                  disabled={isSubmitting}
-                >
-                  <X className="h-4 w-4" />
-                  <span>Restablecer</span>
-                </button>
-
-                <div className="flex items-center space-x-3">
-                  <button
-                    type="button"
-                    onClick={handleBack}
-                    className="btn-secondary"
-                    disabled={isSubmitting}
-                  >
-                    Cancelar
-                  </button>
+              <div className="flex justify-end items-center pt-6 border-t border-gray-200">
                   <button
                     type="submit"
                     disabled={!isValid || !isDirty || isSubmitting}
@@ -313,7 +294,6 @@ export default function EditEnterprisePage() {
                       </>
                     )}
                   </button>
-                </div>
               </div>
             </form>
           </div>

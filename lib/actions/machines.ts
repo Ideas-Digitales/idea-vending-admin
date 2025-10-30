@@ -1,69 +1,26 @@
 'use server';
 
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
+import {
+  MachinesResponse,
+  MachineResponse,
+  MachinesFilters,
+  CreateMachine,
+  UpdateMachine
+} from '@/lib/interfaces/machine.interface';
+import { MachineAdapter } from '@/lib/adapters/machine.adapter';
+import { createMachineSchema, updateMachineSchema, CreateMachineFormData, UpdateMachineFormData } from '@/lib/schemas/machine.schema';
+import type { ApiMachinesResponse } from '@/lib/interfaces/machine.interface';
 
-// Interfaces
-export interface Maquina {
-  id: number | string;
-  name: string;
-  status: 'Active' | 'Inactive' | 'Maintenance';
-  is_enabled: boolean;
-  location: string;
-  client_id: number | null;
-  created_at: string;
-  updated_at: string;
-  type: string;
-  enterprise_id: number;
-  connection_status: boolean;
-}
-
-export interface PaginationLinks {
-  first: string | null;
-  last: string | null;
-  prev: string | null;
-  next: string | null;
-}
-
-export interface PaginationMeta {
-  current_page: number;
-  from: number;
-  last_page: number;
-  path: string;
-  per_page: number;
-  to: number;
-  total: number;
-  links: Array<{
-    url: string | null;
-    label: string;
-    page: number | null;
-    active: boolean;
-  }>;
-}
-
-export interface MachinesResponse {
-  success: boolean;
-  machines?: Maquina[];
-  error?: string;
-  pagination?: {
-    links: PaginationLinks;
-    meta: PaginationMeta;
-  };
-}
-
-export interface MachinesFilters {
-  search?: string;
-  status?: string;
-  type?: string;
-  is_enabled?: boolean;
-  page?: number;
-  limit?: number;
-}
+// Re-export types for backward compatibility
+export type { Machine as Maquina } from '@/lib/interfaces/machine.interface';
 
 // Server Action para obtener lista de máquinas
 export async function getMachinesAction(filters?: MachinesFilters): Promise<MachinesResponse> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    
+
     if (!apiUrl) {
       return {
         success: false,
@@ -88,11 +45,12 @@ export async function getMachinesAction(filters?: MachinesFilters): Promise<Mach
     if (filters?.status) queryParams.append('status', filters.status);
     if (filters?.type) queryParams.append('type', filters.type);
     if (filters?.is_enabled !== undefined) queryParams.append('is_enabled', filters.is_enabled.toString());
+    if (filters?.enterprise_id) queryParams.append('enterprise_id', filters.enterprise_id.toString());
     if (filters?.page) queryParams.append('page', filters.page.toString());
     if (filters?.limit) queryParams.append('limit', filters.limit.toString());
 
     const url = `${apiUrl}/machines${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    
+
     console.log('Obteniendo máquinas desde:', url);
 
     const response = await fetch(url, {
@@ -105,7 +63,7 @@ export async function getMachinesAction(filters?: MachinesFilters): Promise<Mach
 
     if (!response.ok) {
       console.log('Error al obtener máquinas:', response.status, response.statusText);
-      
+
       const errorData = await response.json().catch(() => ({}));
       return {
         success: false,
@@ -116,8 +74,8 @@ export async function getMachinesAction(filters?: MachinesFilters): Promise<Mach
     const data = await response.json();
     console.log('Respuesta de máquinas:', data);
 
-    // Mapear datos según la estructura de la API
-    const machines = mapMachinesData(data);
+    // Mapear datos usando el adaptador
+    const machines = MachineAdapter.apiMachinesToApp(data);
 
     // Extraer información de paginación
     const pagination = data.links && data.meta ? {
@@ -155,10 +113,10 @@ export async function getMachinesAction(filters?: MachinesFilters): Promise<Mach
 }
 
 // Server Action para obtener una máquina específica
-export async function getMachineAction(machineId: string | number): Promise<{ success: boolean; machine?: Maquina; error?: string }> {
+export async function getMachineAction(machineId: string | number): Promise<MachineResponse> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    
+
     if (!apiUrl) {
       return {
         success: false,
@@ -194,7 +152,10 @@ export async function getMachineAction(machineId: string | number): Promise<{ su
     }
 
     const data = await response.json();
-    const machine = mapMachineData(data);
+
+    // La API puede devolver la máquina directamente o dentro de un objeto "data"
+    const machineData = data.data || data;
+    const machine = MachineAdapter.apiToApp(machineData);
 
     return {
       success: true,
@@ -210,45 +171,299 @@ export async function getMachineAction(machineId: string | number): Promise<{ su
   }
 }
 
-// Funciones auxiliares para mapear datos
-function mapMachinesData(apiData: any): Maquina[] {
-  // La API puede devolver las máquinas en diferentes estructuras
-  const machinesArray = apiData.data || apiData.machines || apiData || [];
-  
-  if (!Array.isArray(machinesArray)) {
-    console.warn('Los datos de máquinas no están en formato de array:', apiData);
-    return [];
+// Server Action para crear una nueva máquina
+export async function createMachineAction(machineData: CreateMachineFormData): Promise<MachineResponse> {
+  try {
+    // Validar datos con Zod
+    const validationResult = createMachineSchema.safeParse(machineData);
+
+    if (!validationResult.success) {
+      const errors = validationResult.error.issues.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
+      return {
+        success: false,
+        error: `Datos inválidos: ${errors}`,
+      };
+    }
+
+    const validatedData = validationResult.data;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+    if (!apiUrl) {
+      return {
+        success: false,
+        error: 'API URL no configurada en variables de entorno',
+      };
+    }
+
+    // Obtener token de autenticación
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+
+    if (!token) {
+      return {
+        success: false,
+        error: 'Token de autenticación no encontrado',
+      };
+    }
+
+    // Mapear datos del formulario al formato de la API
+    const createMachineData: CreateMachine = {
+      name: validatedData.name,
+      location: validatedData.location,
+      type: validatedData.type,
+      enterprise_id: validatedData.enterprise_id,
+      client_id: validatedData.client_id
+    };
+
+    const response = await fetch(`${apiUrl}/machines`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(createMachineData),
+    });
+
+    if (!response.ok) {
+      console.log('Error al crear máquina:', response.status, response.statusText);
+
+      const errorData = await response.json().catch(() => ({}));
+
+      // Manejar errores específicos
+      if (response.status === 422) {
+        // Errores de validación
+        const validationErrors = errorData.errors || {};
+        const errorMessages = [];
+
+        if (validationErrors.name) {
+          errorMessages.push('El nombre ya está en uso');
+        }
+        if (validationErrors.location) {
+          errorMessages.push('La ubicación es inválida');
+        }
+        if (validationErrors.enterprise_id) {
+          errorMessages.push('La empresa es inválida');
+        }
+
+        return {
+          success: false,
+          error: errorMessages.length > 0
+            ? errorMessages.join(', ')
+            : errorData.message || 'Datos de máquina inválidos',
+        };
+      }
+
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+
+    const machine = MachineAdapter.apiToApp(data.machine || data);
+
+    revalidatePath('/maquinas');
+
+    return {
+      success: true,
+      machine,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+    };
   }
-
-  return machinesArray.map(mapMachineData);
 }
 
-function mapMachineData(machineData: any): Maquina {
-  return {
-    id: machineData.id || machineData.machine_id || machineData.machineId || 0,
-    name: machineData.name || machineData.machine_name || 'Máquina Sin Nombre',
-    status: mapMachineStatus(machineData.status || 'Inactive'),
-    is_enabled: Boolean(machineData.is_enabled ?? machineData.enabled ?? true),
-    location: machineData.location || machineData.address || 'Ubicación no especificada',
-    client_id: machineData.client_id || machineData.clientId || null,
-    created_at: machineData.created_at || machineData.createdAt || new Date().toISOString(),
-    updated_at: machineData.updated_at || machineData.updatedAt || new Date().toISOString(),
-    type: machineData.type || machineData.machine_type || 'MDB-DEX',
-    enterprise_id: machineData.enterprise_id || machineData.enterpriseId || 1,
-    connection_status: Boolean(machineData.connection_status ?? machineData.connected ?? false),
-  };
+// Server Action para actualizar una máquina
+export async function updateMachineAction(machineId: string | number, machineData: UpdateMachineFormData): Promise<MachineResponse> {
+  try {
+    // Validar datos con Zod
+    const validationResult = updateMachineSchema.safeParse(machineData);
+
+    if (!validationResult.success) {
+      const errors = validationResult.error.issues.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
+      return {
+        success: false,
+        error: `Datos inválidos: ${errors}`,
+      };
+    }
+
+    const validatedData = validationResult.data;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+    if (!apiUrl) {
+      return {
+        success: false,
+        error: 'API URL no configurada en variables de entorno',
+      };
+    }
+
+    // Obtener token de autenticación
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+
+    if (!token) {
+      return {
+        success: false,
+        error: 'Token de autenticación no encontrado',
+      };
+    }
+
+    // Preparar datos para actualización
+    const updateData: UpdateMachine = {
+      name: validatedData.name,
+      location: validatedData.location,
+      type: validatedData.type,
+      status: validatedData.status,
+      is_enabled: validatedData.is_enabled,
+      client_id: validatedData.client_id
+    };
+
+    // Filtrar valores undefined
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key as keyof UpdateMachine] === undefined) {
+        delete updateData[key as keyof UpdateMachine];
+      }
+    });
+
+    const response = await fetch(`${apiUrl}/machines/${machineId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(updateData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+
+      // Manejar errores específicos
+      if (response.status === 422) {
+        // Errores de validación
+        const validationErrors = errorData.errors || {};
+        const errorMessages = [];
+
+        if (validationErrors.name) {
+          errorMessages.push('El nombre ya está en uso');
+        }
+        if (validationErrors.location) {
+          errorMessages.push('La ubicación es inválida');
+        }
+
+        return {
+          success: false,
+          error: errorMessages.length > 0
+            ? errorMessages.join(', ')
+            : errorData.message || 'Datos de máquina inválidos',
+        };
+      }
+
+      if (response.status === 404) {
+        return {
+          success: false,
+          error: 'Máquina no encontrada',
+        };
+      }
+
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+
+    // La API puede devolver los datos directamente o dentro de un objeto 'data'
+    const machineResponseData = data.data || data.machine || data;
+    const machine = MachineAdapter.apiToApp(machineResponseData);
+
+    revalidatePath('/maquinas');
+    revalidatePath(`/maquinas/${machineId}`);
+
+    return {
+      success: true,
+      machine,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+    };
+  }
 }
 
-function mapMachineStatus(apiStatus: any): 'Active' | 'Inactive' | 'Maintenance' {
-  if (!apiStatus) return 'Inactive';
-  
-  const status = apiStatus.toString().toLowerCase();
-  
-  if (status.includes('active') || status === 'online' || status === 'running') {
-    return 'Active';
-  } else if (status.includes('maintenance') || status === 'repair' || status === 'service') {
-    return 'Maintenance';
-  } else {
-    return 'Inactive';
+// Server Action para eliminar una máquina
+export async function deleteMachineAction(machineId: string | number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+    if (!apiUrl) {
+      return {
+        success: false,
+        error: 'API URL no configurada en variables de entorno',
+      };
+    }
+
+    // Obtener token de autenticación
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+
+    if (!token) {
+      return {
+        success: false,
+        error: 'Token de autenticación no encontrado',
+      };
+    }
+
+    const response = await fetch(`${apiUrl}/machines/${machineId}`, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+
+      // Manejar errores específicos
+      if (response.status === 404) {
+        return {
+          success: false,
+          error: 'Máquina no encontrada',
+        };
+      }
+
+      if (response.status === 403) {
+        return {
+          success: false,
+          error: 'No tienes permisos para eliminar esta máquina',
+        };
+      }
+
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    revalidatePath('/maquinas');
+
+    return {
+      success: true,
+    };
+
+  } catch (error) {
+    console.error('Error en deleteMachineAction:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+    };
   }
 }
