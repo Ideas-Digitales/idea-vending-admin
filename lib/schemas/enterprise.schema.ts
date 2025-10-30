@@ -36,17 +36,12 @@ export const createEnterpriseSchema = z.object({
     .positive("El ID de usuario debe ser positivo")
 });
 
-// Schema para actualizar una empresa (campos requeridos para edición)
+// Schema para actualizar una empresa (solo campos editables)
 export const updateEnterpriseSchema = z.object({
   name: z
     .string()
     .min(2, "El nombre debe tener al menos 2 caracteres")
     .max(255, "El nombre no puede exceder 255 caracteres")
-    .trim(),
-  
-  rut: z
-    .string()
-    .regex(/^[0-9]+-[0-9kK]$/, "El RUT debe tener el formato correcto (ej: 12345678-9)")
     .trim(),
   
   address: z

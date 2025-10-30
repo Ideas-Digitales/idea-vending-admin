@@ -221,7 +221,6 @@ export async function getEnterpriseAction(enterpriseId: string | number): Promis
     }
 
     const data = await response.json();
-    console.log('Respuesta de empresa individual:', data);
     
     // La API puede devolver la empresa directamente o dentro de un objeto "data"
     const enterpriseData = data.data || data;
@@ -355,7 +354,6 @@ export async function updateEnterpriseAction(
       };
     }
 
-    console.log('Actualizando empresa', enterpriseId, 'con datos:', validatedData);
 
     const response = await fetch(`${apiUrl}/enterprises/${enterpriseId}`, {
       method: 'PATCH',

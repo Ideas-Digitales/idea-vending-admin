@@ -8,6 +8,8 @@ import { ArrowLeft, Building2, Save, X, Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
 import { updateEnterpriseSchema, type UpdateEnterpriseFormData } from '@/lib/schemas/enterprise.schema';
+import { updateEnterpriseAction } from '@/lib/actions/enterprise';
+import { notify } from '@/lib/adapters/notification.adapter';
 
 export default function EditEnterprisePage() {
   const router = useRouter();
@@ -21,7 +23,6 @@ export default function EditEnterprisePage() {
     isLoadingEnterprise: isLoading,
     enterpriseError: error,
     fetchEnterprise,
-    updateEnterprise,
     clearSelectedEnterprise
   } = useEnterpriseStore();
 
@@ -36,6 +37,7 @@ export default function EditEnterprisePage() {
     resolver: zodResolver(updateEnterpriseSchema),
     mode: 'onChange',
   });
+
 
   // Cargar empresa al montar el componente
   useEffect(() => {
@@ -54,7 +56,6 @@ export default function EditEnterprisePage() {
     if (enterprise) {
       reset({
         name: enterprise.name,
-        rut: enterprise.rut,
         address: enterprise.address,
         phone: enterprise.phone,
       });
@@ -70,15 +71,31 @@ export default function EditEnterprisePage() {
   };
 
   const onSubmit = async (data: UpdateEnterpriseFormData) => {
-    // Mostrar mensaje de funcionalidad no implementada
-    alert('⚠️ Funcionalidad no implementada\n\nLa edición de empresas aún no está disponible en la API.');
+    if (!enterpriseId) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      const result = await updateEnterpriseAction(enterpriseId, data);
+      
+      if (result.success) {
+        notify.success('Empresa actualizada exitosamente');
+        // Redirigir a la vista de detalles tras éxito
+        router.push(`/empresas/${enterpriseId}`);
+      } else {
+        notify.error(`Error al actualizar empresa: ${result.error}`);
+      }
+    } catch (error) {
+      notify.error('Error inesperado al actualizar empresa. Por favor, intenta nuevamente.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReset = () => {
     if (enterprise) {
       reset({
         name: enterprise.name,
-        rut: enterprise.rut,
         address: enterprise.address,
         phone: enterprise.phone,
       });
@@ -176,24 +193,6 @@ export default function EditEnterprisePage() {
 
         <main className="flex-1 p-6 overflow-auto">
           <div className="max-w-2xl mx-auto">
-            {/* Banner de funcionalidad no implementada */}
-            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">
-                    Funcionalidad en desarrollo
-                  </h3>
-                  <div className="mt-1 text-sm text-yellow-700">
-                    La edición de empresas aún no está disponible. El endpoint de actualización no ha sido implementado en la API.
-                  </div>
-                </div>
-              </div>
-            </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               
@@ -222,21 +221,21 @@ export default function EditEnterprisePage() {
                     )}
                   </div>
 
-                  {/* RUT */}
+                  {/* RUT (Solo lectura) */}
                   <div>
                     <label htmlFor="rut" className="block text-sm font-medium text-gray-700 mb-2">
-                      RUT *
+                      RUT
                     </label>
                     <input
                       type="text"
                       id="rut"
-                      {...register('rut')}
-                      className={`input-field ${errors.rut ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                      value={enterprise?.rut || ''}
+                      className="input-field bg-gray-50 cursor-not-allowed"
                       placeholder="Ej: 76123456-7"
+                      readOnly
+                      disabled
                     />
-                    {errors.rut && (
-                      <p className="mt-1 text-sm text-red-600">{errors.rut.message}</p>
-                    )}
+                    <p className="mt-1 text-xs text-gray-500">El RUT no se puede modificar</p>
                   </div>
 
                   {/* Teléfono */}
@@ -299,7 +298,7 @@ export default function EditEnterprisePage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={!isValid || isSubmitting}
+                    disabled={!isValid || !isDirty || isSubmitting}
                     className="btn-primary flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (
