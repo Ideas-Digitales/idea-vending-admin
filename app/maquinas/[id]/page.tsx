@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import PageWrapper from "@/components/PageWrapper";
 import Sidebar from "@/components/Sidebar";
-import { getMachineAction } from "../serveractions/machines";
+import { getMachineAction } from "@/lib/actions/machines";
 import { Monitor, Wifi, WifiOff, Calendar, MapPin, KeyRound, User as UserIcon, ChevronLeft } from "lucide-react";
 
 function getStatusChip(status: string) {
@@ -13,12 +13,12 @@ function getStatusChip(status: string) {
 }
 
 async function MaquinaDetalleContent({ params, searchParams }: { params: { id: string }, searchParams?: { updated?: string; error?: string } }) {
-  const res = await getMachineAction(params.id);
-  if (!res.success || !res.machine) {
+  const result = await getMachineAction(params.id);
+  if (!result.success || !result.machine) {
     notFound();
   }
-  const m = res.machine;
-  const status = getStatusChip(m.status);
+  const machine = result.machine;
+  const status = getStatusChip(machine.status);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -63,8 +63,8 @@ async function MaquinaDetalleContent({ params, searchParams }: { params: { id: s
                       <Monitor className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-bold text-dark">{m.name}</h2>
-                      <p className="text-sm text-muted">ID: {m.id}</p>
+                      <h2 className="text-xl font-bold text-dark">{machine.name}</h2>
+                      <p className="text-sm text-muted">ID: {machine.id}</p>
                     </div>
                   </div>
                   <span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.cls}`}>{status.label}</span>
@@ -75,49 +75,49 @@ async function MaquinaDetalleContent({ params, searchParams }: { params: { id: s
                     <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-0.5" />
                     <div>
                       <p className="text-xs text-muted">Ubicación</p>
-                      <p className="text-sm text-dark whitespace-pre-line">{m.location}</p>
+                      <p className="text-sm text-dark whitespace-pre-line">{machine.location}</p>
                     </div>
                   </div>
                   <div>
                     <p className="text-xs text-muted">Tipo</p>
-                    <p className="text-sm text-dark">{m.type || '-'}</p>
+                    <p className="text-sm text-dark">{machine.type || '-'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted">Empresa ID</p>
-                    <p className="text-sm text-dark">{m.enterprise_id}</p>
+                    <p className="text-sm text-dark">{machine.enterprise_id}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted">Cliente ID</p>
-                    <p className="text-sm text-dark">{m.client_id ?? '-'}</p>
+                    <p className="text-sm text-dark">{machine.client_id ?? '-'}</p>
                   </div>
                 </div>
 
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="flex items-center gap-2">
-                    {m.connection_status ? <Wifi className="h-4 w-4 text-green-600" /> : <WifiOff className="h-4 w-4 text-red-600" />}
-                    <span className={`text-sm ${m.connection_status ? 'text-green-700' : 'text-red-700'}`}>{m.connection_status ? 'Conectada' : 'Desconectada'}</span>
+                    {machine.connection_status ? <Wifi className="h-4 w-4 text-green-600" /> : <WifiOff className="h-4 w-4 text-red-600" />}
+                    <span className={`text-sm ${machine.connection_status ? 'text-green-700' : 'text-red-700'}`}>{machine.connection_status ? 'Conectada' : 'Desconectada'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-muted">
                     <Calendar className="h-4 w-4" />
-                    <span className="text-sm">Creada: {new Date(m.created_at).toLocaleString('es-ES')}</span>
+                    <span className="text-sm">Creada: {new Date(machine.created_at).toLocaleString('es-ES')}</span>
                   </div>
                   <div className="flex items-center gap-2 text-muted">
                     <Calendar className="h-4 w-4" />
-                    <span className="text-sm">Actualizada: {new Date(m.updated_at).toLocaleString('es-ES')}</span>
+                    <span className="text-sm">Actualizada: {new Date(machine.updated_at).toLocaleString('es-ES')}</span>
                   </div>
                 </div>
               </div>
 
               <div className="card p-6">
                 <h3 className="text-lg font-bold text-dark mb-4">Editar información</h3>
-                <form action={`/maquinas/${m.id}/update`} method="POST" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <form action={`/maquinas/${machine.id}/update`} method="POST" className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="label">Nombre</label>
-                    <input name="name" defaultValue={m.name} className="input-field" />
+                    <input name="name" defaultValue={machine.name} className="input-field" />
                   </div>
                   <div>
                     <label className="label">Estado</label>
-                    <select name="status" defaultValue={m.status} className="input-field">
+                    <select name="status" defaultValue={machine.status} className="input-field">
                       <option value="Inactive">Inactiva</option>
                       <option value="Active">Activa</option>
                       <option value="Maintenance">Mantenimiento</option>
@@ -126,11 +126,11 @@ async function MaquinaDetalleContent({ params, searchParams }: { params: { id: s
                   </div>
                   <div className="md:col-span-2">
                     <label className="label">Ubicación</label>
-                    <textarea name="location" defaultValue={m.location} className="input-field" rows={3} />
+                    <textarea name="location" defaultValue={machine.location} className="input-field" rows={3} />
                   </div>
                   <div>
                     <label className="label">Tipo</label>
-                    <select name="type" defaultValue={m.type} className="input-field">
+                    <select name="type" defaultValue={machine.type} className="input-field">
                       <option value="PULSES">PULSES</option>
                       <option value="MDB">MDB</option>
                       <option value="MDB-DEX">MDB-DEX</option>
@@ -138,14 +138,14 @@ async function MaquinaDetalleContent({ params, searchParams }: { params: { id: s
                   </div>
                   <div>
                     <label className="label">Empresa ID</label>
-                    <input type="number" name="enterprise_id" defaultValue={m.enterprise_id} className="input-field" min={1} />
+                    <input type="number" name="enterprise_id" defaultValue={machine.enterprise_id} className="input-field" min={1} />
                   </div>
                   <div className="flex items-center gap-2 md:col-span-2">
-                    <input type="checkbox" name="is_enabled" defaultChecked={m.is_enabled} className="h-4 w-4" />
+                    <input type="checkbox" name="is_enabled" defaultChecked={machine.is_enabled} className="h-4 w-4" />
                     <span className="text-sm text-dark">Habilitada</span>
                   </div>
                   <div className="md:col-span-2 flex items-center justify-end gap-3 pt-2">
-                    <a href={`/maquinas/${m.id}`} className="btn-secondary text-dark min-w-[110px]">Cancelar</a>
+                    <a href={`/maquinas/${machine.id}`} className="btn-secondary text-dark min-w-[110px]">Cancelar</a>
                     <button className="btn-primary min-w-[110px]" type="submit">Guardar cambios</button>
                   </div>
                 </form>
@@ -155,36 +155,36 @@ async function MaquinaDetalleContent({ params, searchParams }: { params: { id: s
             <div className="space-y-6">
               <div className="card p-6">
                 <h3 className="text-lg font-bold text-dark mb-4">Credenciales MQTT</h3>
-                {!m.mqtt_user ? (
+                {!machine.mqtt_user ? (
                   <p className="text-sm text-muted">No hay credenciales MQTT asociadas.</p>
                 ) : (
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 gap-2">
                       <div className="flex items-center gap-2">
                         <UserIcon className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm text-dark">{m.mqtt_user.username}</span>
+                        <span className="text-sm text-dark">{machine.mqtt_user.username}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <KeyRound className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm text-dark">{m.mqtt_user.client_id ?? '-'}</span>
+                        <span className="text-sm text-dark">{machine.mqtt_user.client_id ?? '-'}</span>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-xs text-muted">Superusuario</p>
-                        <p className="text-sm text-dark">{m.mqtt_user.is_superuser ? 'Sí' : 'No'}</p>
+                        <p className="text-sm text-dark">{machine.mqtt_user.is_superuser ? 'Sí' : 'No'}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted">Machine ID</p>
-                        <p className="text-sm text-dark">{m.mqtt_user.machine_id}</p>
+                        <p className="text-sm text-dark">{machine.mqtt_user.machine_id}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted">Creada</p>
-                        <p className="text-sm text-dark">{m.mqtt_user.created_at ? new Date(m.mqtt_user.created_at).toLocaleString('es-ES') : '-'}</p>
+                        <p className="text-sm text-dark">{machine.mqtt_user.created_at ? new Date(machine.mqtt_user.created_at).toLocaleString('es-ES') : '-'}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted">Actualizada</p>
-                        <p className="text-sm text-dark">{m.mqtt_user.updated_at ? new Date(m.mqtt_user.updated_at).toLocaleString('es-ES') : '-'}</p>
+                        <p className="text-sm text-dark">{machine.mqtt_user.updated_at ? new Date(machine.mqtt_user.updated_at).toLocaleString('es-ES') : '-'}</p>
                       </div>
                     </div>
                   </div>

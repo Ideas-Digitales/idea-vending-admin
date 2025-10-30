@@ -5,8 +5,11 @@ import { Building2, Plus, Search, MapPin, Users, Monitor, DollarSign, Eye, Edit,
 import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Sidebar from '@/components/Sidebar';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { useUser } from '@/lib/stores/authStore';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
+import { deleteEnterpriseAction } from '@/lib/actions/enterprise';
+import { notify } from '@/lib/adapters/notification.adapter';
 import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 import Pagination from '@/components/Pagination';
 
@@ -20,6 +23,11 @@ function EmpresasContent() {
   const [planFilter, setPlanFilter] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   
+  // Estados para el modal de eliminación
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [enterpriseToDelete, setEnterpriseToDelete] = useState<Enterprise | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   // Store state
   const {
     enterprises,
@@ -30,6 +38,7 @@ function EmpresasContent() {
     getTotalEnterprises,
     getFilteredEnterprisesCount
   } = useEnterpriseStore();
+
 
   // Función para realizar búsqueda
   const performSearch = useCallback(async (search?: string, page?: number) => {
@@ -60,12 +69,15 @@ function EmpresasContent() {
 
   // Efecto para realizar búsqueda con debounce
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      performSearch(searchTerm);
-    }, 500);
-    
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, performSearch]);
+    // Solo buscar si hay término de búsqueda
+    if (searchTerm.trim()) {
+      const timeoutId = setTimeout(() => {
+        performSearch(searchTerm);
+      }, 500);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchTerm]); // Solo depender de searchTerm, no de performSearch
 
   // Función para limpiar búsqueda
   const clearSearch = () => {
@@ -76,9 +88,10 @@ function EmpresasContent() {
   };
 
   useEffect(() => {
-    // Cargar empresas al montar el componente sin filtros
+    // Solo cargar empresas una vez al montar el componente
+    // ProtectedRoute ya maneja la autenticación
     fetchEnterprises();
-  }, [fetchEnterprises]);
+  }, []); // Sin dependencias para evitar bucles
 
   // Función para manejar cambio de página
   const handlePageChange = (page: number) => {
@@ -146,8 +159,44 @@ function EmpresasContent() {
   };
 
   const handleDeleteEnterprise = (enterpriseId: number) => {
-    // TODO: Implement delete functionality
-    console.log('Delete enterprise:', enterpriseId);
+    // Encontrar la empresa para mostrar en el modal
+    const enterprise = enterprises.find(e => Number(e.id) === enterpriseId);
+    if (!enterprise) return;
+    
+    // Mostrar modal de confirmación
+    setEnterpriseToDelete(enterprise);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteEnterprise = async () => {
+    if (!enterpriseToDelete) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      const result = await deleteEnterpriseAction(Number(enterpriseToDelete.id));
+      
+      if (result.success) {
+        notify.success('Empresa eliminada exitosamente');
+        // Recargar la lista de empresas
+        fetchEnterprises();
+        // Cerrar modal
+        setShowDeleteModal(false);
+        setEnterpriseToDelete(null);
+      } else {
+        notify.error(`Error al eliminar empresa: ${result.error}`);
+      }
+    } catch (error) {
+      notify.error('Error inesperado al eliminar empresa. Por favor, intenta nuevamente.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const cancelDeleteEnterprise = () => {
+    setShowDeleteModal(false);
+    setEnterpriseToDelete(null);
+    setIsDeleting(false);
   };
 
   return (
@@ -334,9 +383,18 @@ function EmpresasContent() {
                 </div>
                 <h3 className="text-lg font-semibold text-dark mb-2">Error al cargar empresas</h3>
                 <p className="text-muted mb-4">{error}</p>
-                <button onClick={() => fetchEnterprises()} className="btn-primary">
-                  Reintentar
-                </button>
+                {error?.includes('Token de autenticación') ? (
+                  <button 
+                    onClick={() => router.push('/login')} 
+                    className="btn-primary"
+                  >
+                    Ir al Login
+                  </button>
+                ) : (
+                  <button onClick={() => fetchEnterprises()} className="btn-primary">
+                    Reintentar
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -451,6 +509,17 @@ function EmpresasContent() {
 
         </main>
       </div>
+
+      {/* Modal de Confirmación de Eliminación */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteModal}
+        onClose={cancelDeleteEnterprise}
+        onConfirm={confirmDeleteEnterprise}
+        title="Eliminar Empresa"
+        message="¿Estás seguro de que deseas eliminar esta empresa? Todos los datos asociados se perderán permanentemente."
+        itemName={enterpriseToDelete?.name}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

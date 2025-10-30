@@ -1,11 +1,11 @@
 'use client';
 
 import { Monitor, MapPin, Eye, Edit, Trash2 } from 'lucide-react';
-import { type Maquina } from '../serveractions/machines';
+import { type Machine } from '@/lib/interfaces/machine.interface';
 import { getStatusColor, getStatusName } from '../utils/machineHelpers';
 
 interface MachineTableProps {
-  machines: Maquina[];
+  machines: Machine[];
   loading?: boolean;
 }
 
@@ -76,47 +76,47 @@ export default function MachineTable({ machines, loading }: MachineTableProps) {
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {machines.map((maquina) => (
-            <tr key={maquina.id} className="hover:bg-gray-50">
+          {machines.map((machine) => (
+            <tr key={machine.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
                   <div className="h-10 w-10 bg-primary rounded-full flex items-center justify-center mr-4">
                     <Monitor className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <div className="text-sm font-medium text-dark">{maquina.name}</div>
-                    <div className="text-sm text-muted">ID: {maquina.id}</div>
+                    <div className="text-sm font-medium text-dark">{machine.name}</div>
+                    <div className="text-sm text-muted">ID: {machine.id}</div>
                   </div>
                 </div>
               </td>
               <td className="px-6 py-4">
                 <div className="flex items-start">
                   <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-dark whitespace-pre-line">{maquina.location}</div>
+                  <div className="text-sm text-dark whitespace-pre-line">{machine.location}</div>
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                  {maquina.type || '-'}
+                  {machine.type || '-'}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(maquina.status)}`}>
-                  {getStatusName(maquina.status)}
+                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(machine.status)}`}>
+                  {getStatusName(machine.status)}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm">
-                {maquina.is_enabled ? (
+                {machine.is_enabled ? (
                   <span className="text-green-600">Sí</span>
                 ) : (
                   <span className="text-red-600">No</span>
                 )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
-                {new Date(maquina.created_at).toLocaleString('es-ES')}
+                {new Date(machine.created_at).toLocaleString('es-ES')}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
-                {new Date(maquina.updated_at).toLocaleString('es-ES')}
+                {new Date(machine.updated_at).toLocaleString('es-ES')}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-2">

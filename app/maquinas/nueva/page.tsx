@@ -2,18 +2,19 @@ import PageWrapper from "@/components/PageWrapper";
 import Sidebar from "@/components/Sidebar";
 import { Monitor } from "lucide-react";
 import { redirect } from "next/navigation";
-import { createMachineAction, type CreateMachinePayload } from "../serveractions/machines";
+import { createMachineAction } from "@/lib/actions/machines";
+import { type CreateMachineFormData } from "@/lib/schemas/machine.schema";
 
 async function NuevaMaquinaContent() {
   async function action(formData: FormData) {
     "use server";
 
-    const payload: CreateMachinePayload = {
+    const payload: CreateMachineFormData = {
       name: String(formData.get("name") || "").trim(),
-      status: (formData.get("status") as CreateMachinePayload["status"]) || "Inactive",
+      status: (formData.get("status") as CreateMachineFormData["status"]) || "Inactive",
       is_enabled: (formData.get("is_enabled") as string) === "on",
       location: String(formData.get("location") || "").trim(),
-      type: (formData.get("type") as CreateMachinePayload["type"]) || "MDB",
+      type: (formData.get("type") as CreateMachineFormData["type"]) || "MDB",
       enterprise_id: Number(formData.get("enterprise_id") || 0),
     };
 
@@ -22,9 +23,9 @@ async function NuevaMaquinaContent() {
       throw new Error("Faltan campos obligatorios");
     }
 
-    const res = await createMachineAction(payload);
-    if (!res.success) {
-      throw new Error(res.error || "No se pudo crear la máquina");
+    const result = await createMachineAction(payload);
+    if (!result.success) {
+      throw new Error(result.error || "No se pudo crear la máquina");
     }
 
     redirect("/maquinas?page=1");

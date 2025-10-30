@@ -1,15 +1,22 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Building2, Mail, Calendar, MapPin, Phone, User, Edit, Trash2, FileText } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
+import { deleteEnterpriseAction } from '@/lib/actions/enterprise';
+import { notify } from '@/lib/adapters/notification.adapter';
 import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 
 export default function EnterpriseDetailPage() {
+  const router = useRouter();
   const params = useParams();
   const enterpriseId = params.id as string;
+  
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Store state
   const {
@@ -47,6 +54,39 @@ export default function EnterpriseDetailPage() {
     
     // Forzar recarga completa de la página de empresas
     window.location.href = '/empresas';
+  };
+
+  const handleDelete = () => {
+    if (!enterprise) return;
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!enterprise) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      const result = await deleteEnterpriseAction(enterpriseId);
+      
+      if (result.success) {
+        notify.success('Empresa eliminada exitosamente');
+        // Redirigir a la lista de empresas
+        router.push('/empresas');
+      } else {
+        notify.error(`Error al eliminar empresa: ${result.error}`);
+      }
+    } catch (error) {
+      notify.error('Error inesperado al eliminar empresa. Por favor, intenta nuevamente.');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setIsDeleting(false);
   };
 
   if (isLoading || (!enterprise && !error)) {
@@ -136,7 +176,10 @@ export default function EnterpriseDetailPage() {
                   <Edit className="h-4 w-4" />
                   <span>Editar</span>
                 </button>
-                <button className="btn-danger flex items-center space-x-2">
+                <button 
+                  onClick={handleDelete}
+                  className="btn-danger flex items-center space-x-2"
+                >
                   <Trash2 className="h-4 w-4" />
                   <span>Eliminar</span>
                 </button>
@@ -236,6 +279,17 @@ export default function EnterpriseDetailPage() {
           </div>
         </main>
       </div>
+
+      {/* Modal de Confirmación de Eliminación */}
+      <ConfirmDeleteModal
+        isOpen={showDeleteModal}
+        onClose={cancelDelete}
+        onConfirm={confirmDelete}
+        title="Eliminar Empresa"
+        message="¿Estás seguro de que deseas eliminar esta empresa? Todos los datos asociados se perderán permanentemente."
+        itemName={enterprise?.name}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
