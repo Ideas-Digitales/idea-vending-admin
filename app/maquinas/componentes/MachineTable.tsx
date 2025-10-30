@@ -1,6 +1,6 @@
 'use client';
 
-import { Monitor, MapPin, Eye, Edit, Trash2, Wifi, WifiOff, AlertTriangle } from 'lucide-react';
+import { Monitor, MapPin, Eye, Edit, Trash2 } from 'lucide-react';
 import { type Maquina } from '../serveractions/machines';
 import { getStatusColor, getStatusName } from '../utils/machineHelpers';
 
@@ -10,15 +10,6 @@ interface MachineTableProps {
 }
 
 export default function MachineTable({ machines, loading }: MachineTableProps) {
-  const getStatusIcon = (status: string, connectionStatus: boolean) => {
-    if (!connectionStatus) return <WifiOff className="h-4 w-4" />;
-    
-    switch (status.toLowerCase()) {
-      case 'active': return <Wifi className="h-4 w-4" />;
-      case 'maintenance': return <AlertTriangle className="h-4 w-4" />;
-      default: return <Monitor className="h-4 w-4" />;
-    }
-  };
 
   if (machines.length === 0 && !loading) {
     return (
@@ -63,7 +54,13 @@ export default function MachineTable({ machines, loading }: MachineTableProps) {
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <div className="flex items-center">
-                Conexión
+                Habilitada
+                <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
+              </div>
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <div className="flex items-center">
+                Creada
                 <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
               </div>
             </th>
@@ -95,12 +92,12 @@ export default function MachineTable({ machines, loading }: MachineTableProps) {
               <td className="px-6 py-4">
                 <div className="flex items-start">
                   <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-dark">{maquina.location}</div>
+                  <div className="text-sm text-dark whitespace-pre-line">{maquina.location}</div>
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                  {maquina.type}
+                  {maquina.type || '-'}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
@@ -108,13 +105,15 @@ export default function MachineTable({ machines, loading }: MachineTableProps) {
                   {getStatusName(maquina.status)}
                 </span>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center">
-                  {getStatusIcon(maquina.status, maquina.connection_status)}
-                  <span className={`ml-2 text-sm ${maquina.connection_status ? 'text-green-600' : 'text-red-600'}`}>
-                    {maquina.connection_status ? 'Conectada' : 'Desconectada'}
-                  </span>
-                </div>
+              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                {maquina.is_enabled ? (
+                  <span className="text-green-600">Sí</span>
+                ) : (
+                  <span className="text-red-600">No</span>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
+                {new Date(maquina.created_at).toLocaleString('es-ES')}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                 {new Date(maquina.updated_at).toLocaleString('es-ES')}

@@ -9,9 +9,11 @@ export default function MachineSearchFilters() {
     searchTerm,
     statusFilter,
     typeFilter,
+    isEnabledFilter,
     setSearchTerm,
     setStatusFilter,
     setTypeFilter,
+    setIsEnabledFilter,
     clearFilters
   } = useMachineFilters();
 
@@ -59,14 +61,23 @@ export default function MachineSearchFilters() {
               onChange={(e) => setTypeFilter(e.target.value)}
             >
               <option value="">Todos los tipos</option>
+              <option value="PULSES">PULSES</option>
+              <option value="MDB">MDB</option>
               <option value="MDB-DEX">MDB-DEX</option>
-              <option value="EXECUTIVE">EXECUTIVE</option>
-              <option value="CASHLESS">CASHLESS</option>
+            </select>
+            <select 
+              className="input-field flex-1"
+              value={isEnabledFilter}
+              onChange={(e) => setIsEnabledFilter(e.target.value as '' | 'enabled' | 'disabled')}
+            >
+              <option value="">Todas</option>
+              <option value="enabled">Habilitadas (Sí)</option>
+              <option value="disabled">Deshabilitadas (No)</option>
             </select>
           </div>
         
           {/* Filtros activos */}
-          {(searchTerm || statusFilter || typeFilter) && (
+          {(searchTerm || statusFilter || typeFilter || isEnabledFilter) && (
             <div className="mt-4 flex flex-wrap gap-2">
               {searchTerm && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
@@ -96,6 +107,17 @@ export default function MachineSearchFilters() {
                   <button 
                     onClick={() => setTypeFilter('')}
                     className="ml-2 hover:text-green-600"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              {isEnabledFilter && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-amber-100 text-amber-800">
+                  Habilitada: {isEnabledFilter === 'enabled' ? 'Sí' : 'No'}
+                  <button 
+                    onClick={() => setIsEnabledFilter('')}
+                    className="ml-2 hover:text-amber-600"
                   >
                     ×
                   </button>

@@ -151,6 +151,51 @@ export async function createMachineFromForm(formData: FormData) {
   redirect('/maquinas?page=1');
 }
 
+async function fetchWithTimeout(url: string, options: any, timeoutMs = 10000): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+// Helper para construir el body de búsqueda del endpoint POST /machines/search
+function buildMachinesSearchPayload(filters: MachinesFilters | undefined) {
+  const hasSearch = !!filters?.search;
+  const hasStatus = filters?.status !== undefined && filters?.status !== '';
+  const hasType = filters?.type !== undefined && filters?.type !== '';
+  const hasEnabled = filters?.is_enabled !== undefined;
+
+  const payload: any = { filters: [] as any[] };
+
+  // search: { value, case_sensitive }
+  if (hasSearch) {
+    payload.search = {
+      value: String(filters!.search),
+      case_sensitive: false,
+    };
+  }
+
+  // filters: [{ field, operator, value }]
+  const filterItems: any[] = [];
+  if (hasStatus) {
+    filterItems.push({ field: 'status', operator: '=', value: String(filters!.status) });
+  }
+  if (hasType) {
+    filterItems.push({ field: 'type', operator: '=', value: String(filters!.type) });
+  }
+  if (hasEnabled) {
+    // API espera string "0" | "1"
+    filterItems.push({ field: 'is_enabled', operator: '=', value: filters!.is_enabled ? '1' : '0' });
+  }
+  // Siempre enviar filters (vacío o con items)
+  payload.filters = filterItems;
+
+  return payload;
+}
+
 // Server Action para obtener lista de máquinas
 export async function getMachinesAction(filters?: MachinesFilters): Promise<MachinesResponse> {
   try {
@@ -174,26 +219,63 @@ export async function getMachinesAction(filters?: MachinesFilters): Promise<Mach
       };
     }
 
-    // Construir query parameters
-    const queryParams = new URLSearchParams();
-    if (filters?.search) queryParams.append('search', filters.search);
-    if (filters?.status) queryParams.append('status', filters.status);
-    if (filters?.type) queryParams.append('type', filters.type);
-    if (filters?.is_enabled !== undefined) queryParams.append('is_enabled', filters.is_enabled.toString());
-    if (filters?.page) queryParams.append('page', filters.page.toString());
-    if (filters?.limit) queryParams.append('limit', filters.limit.toString());
+    // Query params solo para paginación
+    const qp = new URLSearchParams();
+    if (filters?.page) qp.append('page', filters.page.toString());
+    if (filters?.limit) qp.append('limit', filters.limit.toString());
 
-    const url = `${apiUrl}/machines${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    
-    console.log('Obteniendo máquinas desde:', url);
+    // Detectar si debemos usar POST /machines/search
+    const shouldUseSearch = Boolean(
+      (filters?.search && filters.search.trim() !== '') ||
+      (filters?.status && filters.status !== '') ||
+      (filters?.type && filters.type !== '') ||
+      (filters?.is_enabled !== undefined)
+    );
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    let response: Response;
+    if (shouldUseSearch) {
+      const url = `${apiUrl}/machines/search${qp.toString() ? `?${qp.toString()}` : ''}`;
+      const body = buildMachinesSearchPayload(filters);
+      console.log('Buscando máquinas (POST):', url, body);
+      response = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      // Reintento si el backend devuelve 500 y hay término de búsqueda
+      if (!response.ok && response.status >= 500 && filters?.search) {
+        try {
+          const retryBody = { ...body, search: { value: String(filters.search), case_sensitive: true } };
+          console.log('Reintentando búsqueda con case_sensitive=true:', url, retryBody);
+          response = await fetchWithTimeout(url, {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(retryBody),
+          });
+        } catch (_) {
+          // Ignorar errores del reintento; se manejarán abajo
+        }
+      }
+    } else {
+      const url = `${apiUrl}/machines${qp.toString() ? `?${qp.toString()}` : ''}`;
+      console.log('Obteniendo máquinas (GET):', url);
+      response = await fetchWithTimeout(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+    }
 
     if (!response.ok) {
       console.log('Error al obtener máquinas:', response.status, response.statusText);
@@ -206,10 +288,15 @@ export async function getMachinesAction(filters?: MachinesFilters): Promise<Mach
     }
 
     const data = await response.json();
-    console.log('Respuesta de máquinas:', data);
+    console.log('Respuesta de máquinas (raw):', data);
 
     // Mapear datos según la estructura de la API
     const machines = mapMachinesData(data);
+    try {
+      const rawArray = (data && (Array.isArray(data) ? data : (data.data || data.machines))) || [];
+      console.log('Debug machines -> raw[0..2]:', Array.isArray(rawArray) ? rawArray.slice(0, 3) : rawArray);
+      console.log('Debug machines -> mapped[0..2]:', machines.slice(0, 3));
+    } catch {}
 
     // Extraer información de paginación
     const pagination = data.links && data.meta ? {
@@ -358,11 +445,27 @@ function mapMachinesData(apiData: any): Maquina[] {
 }
 
 function mapMachineData(machineData: any): Maquina {
+  const isEnabledVal = (() => {
+    const v = machineData.is_enabled ?? machineData.enabled;
+    if (typeof v === 'string') {
+      if (v === '1') return true;
+      if (v === '0') return false;
+      return v.toLowerCase() === 'true';
+    }
+    if (typeof v === 'number') {
+      return v === 1;
+    }
+    if (typeof v === 'boolean') {
+      return v;
+    }
+    return false;
+  })();
+
   return {
     id: machineData.id || machineData.machine_id || machineData.machineId || 0,
     name: machineData.name || machineData.machine_name || 'Máquina Sin Nombre',
     status: mapMachineStatus(machineData.status || 'Inactive'),
-    is_enabled: Boolean(machineData.is_enabled ?? machineData.enabled ?? true),
+    is_enabled: isEnabledVal,
     location: machineData.location || machineData.address || 'Ubicación no especificada',
     client_id: machineData.client_id || machineData.clientId || null,
     created_at: machineData.created_at || machineData.createdAt || new Date().toISOString(),
@@ -386,16 +489,20 @@ function mapMachineData(machineData: any): Maquina {
 
 function mapMachineStatus(apiStatus: any): 'Active' | 'Inactive' | 'Maintenance' | 'OutOfService' {
   if (!apiStatus) return 'Inactive';
-  
-  const status = apiStatus.toString().toLowerCase();
-  
-  if (status.includes('active') || status === 'online' || status === 'running') {
-    return 'Active';
-  } else if (status.includes('maintenance') || status === 'repair' || status === 'service') {
-    return 'Maintenance';
-  } else if (status.includes('outofservice') || status.includes('out_of_service') || status.includes('out of service')) {
-    return 'OutOfService';
-  } else {
-    return 'Inactive';
-  }
+
+  const s = apiStatus.toString().trim().toLowerCase();
+
+  // Activa
+  if (s === 'active' || s === 'online' || s === 'running') return 'Active';
+
+  // Inactiva
+  if (s === 'inactive' || s === 'offline' || s === 'stopped') return 'Inactive';
+
+  // Mantenimiento
+  if (s === 'maintenance' || s === 'repair' || s === 'service' || s.includes('maintenance')) return 'Maintenance';
+
+  // Fuera de servicio
+  if (s === 'outofservice' || s === 'out_of_service' || s === 'out of service') return 'OutOfService';
+
+  return 'Inactive';
 }

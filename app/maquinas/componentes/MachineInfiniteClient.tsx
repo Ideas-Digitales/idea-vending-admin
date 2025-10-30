@@ -26,6 +26,7 @@ export default function MachineInfiniteClient({
     searchTerm,
     statusFilter,
     typeFilter,
+    isEnabledFilter,
     debouncedSearchTerm,
     setDebouncedSearchTerm
   } = useMachineFilters();
@@ -44,7 +45,8 @@ export default function MachineInfiniteClient({
     search: debouncedSearchTerm || undefined,
     status: statusFilter || undefined,
     type: typeFilter || undefined,
-  }), [debouncedSearchTerm, statusFilter, typeFilter]);
+    is_enabled: isEnabledFilter === '' ? undefined : isEnabledFilter === 'enabled',
+  }), [debouncedSearchTerm, statusFilter, typeFilter, isEnabledFilter]);
 
   // Hook de scroll infinito
   const {
@@ -61,12 +63,10 @@ export default function MachineInfiniteClient({
     filters: {},
   });
 
-  // Refrescar cuando cambien los filtros del servidor
+  // Refrescar cuando cambien los filtros del servidor (incluso cuando quedan vacíos)
   useEffect(() => {
-    if (debouncedSearchTerm || statusFilter || typeFilter) {
-      refresh(apiFilters);
-    }
-  }, [debouncedSearchTerm, statusFilter, typeFilter, apiFilters, refresh]);
+    refresh(apiFilters);
+  }, [debouncedSearchTerm, statusFilter, typeFilter, isEnabledFilter, apiFilters, refresh]);
 
   // Hook para detectar scroll al final
   useScrollToBottom(useCallback(() => {

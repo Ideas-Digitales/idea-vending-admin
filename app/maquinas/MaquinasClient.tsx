@@ -184,12 +184,9 @@ export default function MaquinasClient({ machines, pagination }: MaquinasClientP
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Habilitada</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ubicación</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creada</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actualizada</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conexión</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">&nbsp;</th>
                   </tr>
                 </thead>
@@ -237,23 +234,10 @@ export default function MaquinasClient({ machines, pagination }: MaquinasClientP
                           <div className="text-sm text-dark whitespace-pre-line">{m.location}</div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{m.client_id ?? "-"}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{new Date(m.created_at).toLocaleString("es-ES")}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">{new Date(m.updated_at).toLocaleString("es-ES")}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">{m.type || "-"}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{m.enterprise_id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          {m.connection_status ? (
-                            <Wifi className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <WifiOff className="h-4 w-4 text-red-600" />
-                          )}
-                          <span className={`ml-2 text-sm ${m.connection_status ? "text-green-600" : "text-red-600"}`}>
-                            {m.connection_status ? "Conectada" : "Desconectada"}
-                          </span>
-                        </div>
-                      </td>
+                      
                       <td className="px-4 py-4 whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
