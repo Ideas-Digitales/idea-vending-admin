@@ -29,46 +29,28 @@ export default function MachineTable({ machines, loading }: MachineTableProps) {
         <thead className="bg-gray-50">
           <tr>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div className="flex items-center">
-                Máquina
-                <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
-              </div>
+              ID
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div className="flex items-center">
-                Ubicación
-                <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
-              </div>
+              Nombre
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div className="flex items-center">
-                Tipo
-                <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
-              </div>
+              Estado
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div className="flex items-center">
-                Estado
-                <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
-              </div>
+              Habilitada
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div className="flex items-center">
-                Habilitada
-                <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
-              </div>
+              Ubicación
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div className="flex items-center">
-                Creada
-                <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
-              </div>
+              Creada
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div className="flex items-center">
-                Última Actualización
-                <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
-              </div>
+              Actualizada
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Tipo
             </th>
             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
               Acciones
@@ -78,27 +60,16 @@ export default function MachineTable({ machines, loading }: MachineTableProps) {
         <tbody className="bg-white divide-y divide-gray-200">
           {machines.map((machine) => (
             <tr key={machine.id} className="hover:bg-gray-50">
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark">
+                {machine.id}
+              </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
-                  <div className="h-10 w-10 bg-primary rounded-full flex items-center justify-center mr-4">
-                    <Monitor className="h-5 w-5 text-white" />
+                  <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center mr-3">
+                    <Monitor className="h-4 w-4 text-white" />
                   </div>
-                  <div>
-                    <div className="text-sm font-medium text-dark">{machine.name}</div>
-                    <div className="text-sm text-muted">ID: {machine.id}</div>
-                  </div>
+                  <div className="text-sm font-medium text-dark">{machine.name}</div>
                 </div>
-              </td>
-              <td className="px-6 py-4">
-                <div className="flex items-start">
-                  <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-dark whitespace-pre-line">{machine.location}</div>
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                  {machine.type || '-'}
-                </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(machine.status)}`}>
@@ -112,11 +83,22 @@ export default function MachineTable({ machines, loading }: MachineTableProps) {
                   <span className="text-red-600">No</span>
                 )}
               </td>
+              <td className="px-6 py-4">
+                <div className="flex items-start">
+                  <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-dark whitespace-pre-line">{machine.location}</div>
+                </div>
+              </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                 {new Date(machine.created_at).toLocaleString('es-ES')}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                 {new Date(machine.updated_at).toLocaleString('es-ES')}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                  {machine.type || '-'}
+                </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-2">

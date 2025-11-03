@@ -8,7 +8,7 @@ export class MachineAdapter {
     return {
       id: apiMachine.id || apiMachine.id || 0,
       name: apiMachine.name || apiMachine.machine_name || 'Máquina Sin Nombre',
-      status: this.mapMachineStatus(apiMachine.status || 'Inactive'),
+      status: apiMachine.status || 'Inactive',
       is_enabled: Boolean(apiMachine.is_enabled ?? apiMachine.enabled ?? true),
       location: apiMachine.location || apiMachine.address || 'Ubicación no especificada',
       client_id: apiMachine.client_id || apiMachine.clientId || null,
@@ -60,9 +60,11 @@ export class MachineAdapter {
 
     const status = apiStatus.toString().toLowerCase();
 
-    if (status.includes('active') || status === 'online' || status === 'running') {
+    if (status === 'active' || status === 'online' || status === 'running') {
       return 'Active';
-    } else if (status.includes('maintenance') || status === 'repair' || status === 'service') {
+    } else if (status === 'inactive' || status === 'offline' || status === 'outofservice') {
+      return 'Inactive';
+    } else if (status === 'maintenance' || status === 'repair' || status === 'service') {
       return 'Maintenance';
     } else {
       return 'Inactive';
@@ -96,30 +98,38 @@ export class MachineAdapter {
   /**
    * Obtiene el color del estado para la UI
    */
-  static getStatusColor(status: Machine['status']): string {
-    switch (status) {
-      case 'Active':
+  static getStatusColor(status: string): string {
+    const normalizedStatus = status.toLowerCase();
+    switch (normalizedStatus) {
+      case 'active':
         return 'bg-green-100 text-green-800';
-      case 'Maintenance':
+      case 'maintenance':
         return 'bg-yellow-100 text-yellow-800';
-      case 'Inactive':
-      default:
+      case 'inactive':
         return 'bg-red-100 text-red-800';
+      case 'outofservice':
+        return 'bg-gray-100 text-gray-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   }
 
   /**
-   * Obtiene el texto del estado en español
+   * Obtiene el texto del estado traducido al español
    */
-  static getStatusText(status: Machine['status']): string {
-    switch (status) {
-      case 'Active':
+  static getStatusText(status: string): string {
+    const normalizedStatus = status.toLowerCase();
+    switch (normalizedStatus) {
+      case 'active':
         return 'Activa';
-      case 'Maintenance':
-        return 'Mantenimiento';
-      case 'Inactive':
-      default:
+      case 'inactive':
         return 'Inactiva';
+      case 'maintenance':
+        return 'Mantenimiento';
+      case 'outofservice':
+        return 'Fuera de Servicio';
+      default:
+        return status;
     }
   }
 

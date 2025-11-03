@@ -59,7 +59,7 @@ export default function MaquinasInfiniteClient() {
     isLoading: false
   });
 
-  const debounceRef = useRef<NodeJS.Timeout>();
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Debounce search term
   useEffect(() => {
@@ -470,16 +470,25 @@ export default function MaquinasInfiniteClient() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Máquina
+                          ID
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Nombre
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Estado
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Conexión
+                          Habilitada
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Ubicación
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Creada
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actualizada
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Tipo
@@ -492,15 +501,15 @@ export default function MaquinasInfiniteClient() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {filteredMachines.map((machine) => (
                         <tr key={machine.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-dark">
+                            {machine.id}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center mr-3">
                                 <Monitor className="h-4 w-4 text-white" />
                               </div>
-                              <div>
-                                <div className="text-sm font-medium text-dark">{machine.name}</div>
-                                <div className="text-sm text-muted">ID: {machine.id}</div>
-                              </div>
+                              <div className="text-sm font-medium text-dark">{machine.name}</div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -508,26 +517,29 @@ export default function MaquinasInfiniteClient() {
                               {MachineAdapter.getStatusText(machine.status)}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              {machine.connection_status ? (
-                                <Wifi className={`h-4 w-4 ${MachineAdapter.getConnectionColor(machine.connection_status)}`} />
-                              ) : (
-                                <WifiOff className={`h-4 w-4 ${MachineAdapter.getConnectionColor(machine.connection_status)}`} />
-                              )}
-                              <span className={`ml-2 text-sm ${MachineAdapter.getConnectionColor(machine.connection_status)}`}>
-                                {MachineAdapter.getConnectionText(machine.connection_status)}
-                              </span>
-                            </div>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {machine.is_enabled ? (
+                              <span className="text-green-600">Sí</span>
+                            ) : (
+                              <span className="text-red-600">No</span>
+                            )}
                           </td>
                           <td className="px-6 py-4">
-                            <div className="flex items-center text-sm text-muted">
-                              <MapPin className="h-4 w-4 mr-1" />
-                              <span className="truncate max-w-xs">{machine.location}</span>
+                            <div className="flex items-start">
+                              <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+                              <div className="text-sm text-dark whitespace-pre-line">{machine.location}</div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
-                            {machine.type}
+                            {new Date(machine.created_at).toLocaleString('es-ES')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
+                            {new Date(machine.updated_at).toLocaleString('es-ES')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                              {machine.type || '-'}
+                            </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex items-center justify-end space-x-2">

@@ -2,7 +2,7 @@
 export interface Machine {
   id: number | string;
   name: string;
-  status: 'Active' | 'Inactive' | 'Maintenance';
+  status: string;
   is_enabled: boolean;
   location: string;
   client_id: number | null;
@@ -108,7 +108,7 @@ export interface UpdateMachine {
   name?: string;
   location?: string;
   type?: string;
-  status?: 'Active' | 'Inactive' | 'Maintenance';
+  status?: string;
   is_enabled?: boolean;
   client_id?: number | null;
 }

@@ -3,6 +3,7 @@ export const getStatusColor = (status: string) => {
     case 'active': return 'bg-green-100 text-green-800';
     case 'inactive': return 'bg-red-100 text-red-800';
     case 'maintenance': return 'bg-yellow-100 text-yellow-800';
+    case 'outofservice': return 'bg-gray-100 text-gray-800';
     default: return 'bg-gray-100 text-gray-800';
   }
 };
@@ -18,11 +19,18 @@ export const getStatusIcon = (status: string, connectionStatus: boolean) => {
 };
 
 export const getStatusName = (status: string) => {
-  switch (status.toLowerCase()) {
-    case 'active': return 'Activa';
-    case 'inactive': return 'Inactiva';
-    case 'maintenance': return 'Mantenimiento';
-    default: return status;
+  const normalizedStatus = status.toLowerCase();
+  switch (normalizedStatus) {
+    case 'active':
+      return 'Activa';
+    case 'inactive':
+      return 'Inactiva';
+    case 'maintenance':
+      return 'Mantenimiento';
+    case 'outofservice':
+      return 'Fuera de Servicio';
+    default:
+      return status;
   }
 };
 
