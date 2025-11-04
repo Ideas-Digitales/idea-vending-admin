@@ -32,12 +32,17 @@ export default function MaquinasInfiniteClient() {
     getTotalMaintenanceMachines,
     getTotalInactiveMachines,
     getTotalConnectedMachines,
+    pagination,
+    currentFilters,
+    hasNextPage,
+    hasPrevPage,
   } = useMachineStore();
 
   // Local UI state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [enabledFilter, setEnabledFilter] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [deleteDialog, setDeleteDialog] = useState<{
     isOpen: boolean;
@@ -78,19 +83,50 @@ export default function MaquinasInfiniteClient() {
     };
   }, [searchTerm]);
 
-  // Fetch machines when filters change
+  // Fetch machines when filters change (reset to page 1)
   useEffect(() => {
     const filters = {
       search: debouncedSearchTerm || undefined,
       status: statusFilter || undefined,
       type: typeFilter || undefined,
-      page: 1,
+      is_enabled: enabledFilter === '' ? undefined : enabledFilter === 'true',
+      page: 1, // Always reset to page 1 when filters change
       limit: 20
     };
 
+    console.log('🔍 Filtros aplicados:', {
+      search: debouncedSearchTerm,
+      status: statusFilter,
+      type: typeFilter,
+      enabledFilter: enabledFilter,
+      is_enabled: filters.is_enabled,
+      is_enabled_type: typeof filters.is_enabled
+    });
+
     setFilters(filters);
     fetchMachines(filters);
-  }, [debouncedSearchTerm, statusFilter, typeFilter, fetchMachines, setFilters]);
+  }, [debouncedSearchTerm, statusFilter, typeFilter, enabledFilter, fetchMachines, setFilters]);
+
+  const handlePageChange = useCallback(async (page: number) => {
+    const newFilters = {
+      ...currentFilters,
+      page,
+    };
+
+    setFilters(newFilters);
+    await fetchMachines(newFilters);
+  }, [currentFilters, setFilters, fetchMachines]);
+
+  const handlePageSizeChange = useCallback(async (limit: number) => {
+    const newFilters = {
+      ...currentFilters,
+      page: 1, // Reset to first page when changing page size
+      limit,
+    };
+
+    setFilters(newFilters);
+    await fetchMachines(newFilters);
+  }, [currentFilters, setFilters, fetchMachines]);
 
   // Load stats
   useEffect(() => {
@@ -138,10 +174,11 @@ export default function MaquinasInfiniteClient() {
 
       const matchesStatus = !statusFilter || machine.status === statusFilter;
       const matchesType = !typeFilter || machine.type === typeFilter;
+      const matchesEnabled = enabledFilter === '' || machine.is_enabled === (enabledFilter === 'true');
 
-      return matchesSearch && matchesStatus && matchesType;
+      return matchesSearch && matchesStatus && matchesType && matchesEnabled;
     });
-  }, [machines, searchTerm, statusFilter, typeFilter]);
+  }, [machines, searchTerm, statusFilter, typeFilter, enabledFilter]);
 
   const handleRefresh = useCallback(async () => {
     await refreshMachines();
@@ -181,6 +218,7 @@ export default function MaquinasInfiniteClient() {
     setSearchTerm('');
     setStatusFilter('');
     setTypeFilter('');
+    setEnabledFilter('');
     setDebouncedSearchTerm('');
   };
 
@@ -418,6 +456,7 @@ export default function MaquinasInfiniteClient() {
                     <option value="Active">Activa</option>
                     <option value="Inactive">Inactiva</option>
                     <option value="Maintenance">Mantenimiento</option>
+                    <option value="OutOfService">Fuera de Servicio</option>
                   </select>
                   <select
                     className="input-field min-w-[120px]"
@@ -426,14 +465,26 @@ export default function MaquinasInfiniteClient() {
                   >
                     <option value="">Todos los tipos</option>
                     <option value="MDB-DEX">MDB-DEX</option>
-                    <option value="Coinco">Coinco</option>
-                    <option value="Mars">Mars</option>
+                    <option value="MDB">MDB</option>
+                    <option value="PULSES">PULSES</option>
                   </select>
-                  {(searchTerm || statusFilter || typeFilter) && (
+                  <select
+                    className="input-field min-w-[120px]"
+                    value={enabledFilter}
+                    onChange={(e) => setEnabledFilter(e.target.value)}
+                  >
+                    <option value="">Todas</option>
+                    <option value="true">Habilitadas</option>
+                    <option value="false">Deshabilitadas</option>
+                  </select>
+                  {(searchTerm || statusFilter || typeFilter || enabledFilter) && (
                     <button
                       onClick={clearFilters}
-                      className="btn-secondary whitespace-nowrap"
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 whitespace-nowrap"
                     >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
                       Limpiar filtros
                     </button>
                   )}
@@ -454,11 +505,11 @@ export default function MaquinasInfiniteClient() {
                   <Monitor className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-dark mb-2">No hay máquinas</h3>
                   <p className="text-muted mb-4">
-                    {searchTerm || statusFilter || typeFilter
+                    {searchTerm || statusFilter || typeFilter || enabledFilter
                       ? 'No se encontraron máquinas que coincidan con los filtros aplicados.'
                       : 'Aún no hay máquinas registradas en el sistema.'}
                   </p>
-                  {!(searchTerm || statusFilter || typeFilter) && (
+                  {!(searchTerm || statusFilter || typeFilter || enabledFilter) && (
                     <Link href="/maquinas/nueva" className="btn-primary">
                       Crear primera máquina
                     </Link>
@@ -576,7 +627,121 @@ export default function MaquinasInfiniteClient() {
             </div>
 
             {/* Pagination */}
-            <UserStorePagination />
+            {pagination?.meta && (
+              <div className="card p-6 border-t border-gray-100">
+                <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+                  {/* Info de paginación */}
+                  <div className="text-sm font-medium text-gray-700">
+                    Mostrando <span className="font-semibold text-gray-900">{pagination.meta.from || 0}</span> a <span className="font-semibold text-gray-900">{pagination.meta.to || 0}</span> de <span className="font-semibold text-gray-900">{pagination.meta.total}</span> máquinas
+                  </div>
+                  
+                  {/* Controles de paginación */}
+                  <div className="flex items-center">
+                    <nav className="flex items-center" aria-label="Pagination">
+                      {/* Botón Primera página */}
+                      <button
+                        onClick={() => handlePageChange(1)}
+                        disabled={pagination.meta.current_page === 1 || isLoading}
+                        className={`relative inline-flex items-center px-3 py-2 text-sm font-medium border rounded-l-md transition-all duration-200 ${
+                          pagination.meta.current_page === 1 || isLoading
+                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400'
+                        }`}
+                      >
+                        Primera
+                      </button>
+                      
+                      {/* Botón Anterior */}
+                      <button
+                        onClick={() => handlePageChange(pagination.meta.current_page - 1)}
+                        disabled={!hasPrevPage() || isLoading}
+                        className={`relative inline-flex items-center px-3 py-2 text-sm font-medium border-t border-b border-r transition-all duration-200 ${
+                          !hasPrevPage() || isLoading
+                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400'
+                        }`}
+                      >
+                        ‹ Anterior
+                      </button>
+                      
+                      {/* Números de página */}
+                      {pagination.meta.links
+                        .filter(link => link.page && !isNaN(Number(link.label)))
+                        .map((link) => (
+                          <button
+                            key={link.page}
+                            onClick={() => handlePageChange(link.page!)}
+                            disabled={isLoading}
+                            className={`relative inline-flex items-center px-4 py-2 text-sm font-medium border-t border-b border-r transition-all duration-200 ${
+                              link.active
+                                ? 'z-10 bg-blue-600 border-blue-600 text-white'
+                                : isLoading
+                                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400'
+                            }`}
+                          >
+                            {link.label}
+                          </button>
+                        ))}
+                      
+                      {/* Botón Siguiente */}
+                      <button
+                        onClick={() => handlePageChange(pagination.meta.current_page + 1)}
+                        disabled={!hasNextPage() || isLoading}
+                        className={`relative inline-flex items-center px-3 py-2 text-sm font-medium border-t border-b border-r transition-all duration-200 ${
+                          !hasNextPage() || isLoading
+                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400'
+                        }`}
+                      >
+                        Siguiente ›
+                      </button>
+                      
+                      {/* Botón Última página */}
+                      <button
+                        onClick={() => handlePageChange(pagination.meta.last_page)}
+                        disabled={pagination.meta.current_page === pagination.meta.last_page || isLoading}
+                        className={`relative inline-flex items-center px-3 py-2 text-sm font-medium border rounded-r-md transition-all duration-200 ${
+                          pagination.meta.current_page === pagination.meta.last_page || isLoading
+                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400'
+                        }`}
+                      >
+                        Última
+                      </button>
+                    </nav>
+                  </div>
+                  
+                  {/* Selector de elementos por página */}
+                  <div className="flex items-center space-x-3 text-sm">
+                    <label htmlFor="page-size" className="font-medium text-gray-700">
+                      Mostrar:
+                    </label>
+                    <select
+                      id="page-size"
+                      value={pagination.meta.per_page}
+                      onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                      className="block w-auto rounded-md border-gray-300 py-1.5 pl-3 pr-8 text-sm font-medium text-gray-700 bg-white shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500"
+                      disabled={isLoading}
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                    <span className="font-medium text-gray-700">por página</span>
+                  </div>
+                </div>
+                
+                {/* Indicador de carga */}
+                {isLoading && (
+                  <div className="flex items-center justify-center mt-6 pt-4 border-t border-gray-100">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-300 border-t-primary"></div>
+                    <span className="ml-3 text-sm font-medium text-gray-700">Cargando...</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </main>
       </div>
