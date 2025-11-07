@@ -31,6 +31,10 @@ export const useAuthStore = create<AuthState>()(
 
       // Acción de login
       login: async (credentials) => {
+        console.log('🚨 STORE LOGIN LLAMADO');
+        console.log('🚨 Credentials en store:', JSON.stringify(credentials, null, 2));
+        console.trace('🚨 Stack trace del store login:');
+        
         set({ isLoading: true, error: null });
         
         try {
@@ -106,16 +110,29 @@ export const useAuthStore = create<AuthState>()(
       checkAuth: async () => {
         const currentState = get();
         
+        console.log('🔐 checkAuth llamado:', { 
+          isAuthenticated: currentState.isAuthenticated, 
+          hasUser: !!currentState.user,
+          isLoading: currentState.isLoading 
+        });
+        
         // Si ya está autenticado, no verificar de nuevo
         if (currentState.isAuthenticated && currentState.user) {
-          console.log('Usuario ya autenticado, saltando verificación');
+          console.log('🔐 Usuario ya autenticado, saltando verificación');
           return;
         }
 
+        // Si ya está cargando, no hacer otra verificación
+        if (currentState.isLoading) {
+          console.log('🔐 Ya está verificando, saltando...');
+          return;
+        }
+
+        console.log('🔐 Iniciando verificación de autenticación...');
         set({ isLoading: true });
 
         try {
-          console.log('Verificando autenticación...');
+          console.log('🔐 Llamando validateTokenAction...');
           const result = await validateTokenAction();
           
           if (result.success && result.user && result.token) {

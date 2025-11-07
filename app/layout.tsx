@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
+import EmergencyReset from "@/components/EmergencyReset";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -32,6 +33,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           {children}
+          <EmergencyReset />
           <ToastContainer
             position="top-right"
             autoClose={5000}

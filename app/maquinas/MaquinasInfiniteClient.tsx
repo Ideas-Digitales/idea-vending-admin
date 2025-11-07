@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { Monitor, Plus, Search, Edit, Trash2, Eye, Wifi, WifiOff, Loader2, AlertCircle, MapPin } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import MachineStylePagination from '@/components/MachineStylePagination';
 import { useMachineStore } from '@/lib/stores/machineStore';
-import UserStorePagination from '@/components/UserStorePagination';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { MachineAdapter } from '@/lib/adapters/machine.adapter';
 
@@ -627,120 +627,16 @@ export default function MaquinasInfiniteClient() {
             </div>
 
             {/* Pagination */}
-            {pagination?.meta && (
-              <div className="card p-6 border-t border-gray-100">
-                <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
-                  {/* Info de paginación */}
-                  <div className="text-sm font-medium text-gray-700">
-                    Mostrando <span className="font-semibold text-gray-900">{pagination.meta.from || 0}</span> a <span className="font-semibold text-gray-900">{pagination.meta.to || 0}</span> de <span className="font-semibold text-gray-900">{pagination.meta.total}</span> máquinas
-                  </div>
-                  
-                  {/* Controles de paginación */}
-                  <div className="flex items-center">
-                    <nav className="flex items-center" aria-label="Pagination">
-                      {/* Botón Primera página */}
-                      <button
-                        onClick={() => handlePageChange(1)}
-                        disabled={pagination.meta.current_page === 1 || isLoading}
-                        className={`relative inline-flex items-center px-3 py-2 text-sm font-medium border rounded-l-md transition-all duration-200 ${
-                          pagination.meta.current_page === 1 || isLoading
-                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400'
-                        }`}
-                      >
-                        Primera
-                      </button>
-                      
-                      {/* Botón Anterior */}
-                      <button
-                        onClick={() => handlePageChange(pagination.meta.current_page - 1)}
-                        disabled={!hasPrevPage() || isLoading}
-                        className={`relative inline-flex items-center px-3 py-2 text-sm font-medium border-t border-b border-r transition-all duration-200 ${
-                          !hasPrevPage() || isLoading
-                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400'
-                        }`}
-                      >
-                        ‹ Anterior
-                      </button>
-                      
-                      {/* Números de página */}
-                      {pagination.meta.links
-                        .filter(link => link.page && !isNaN(Number(link.label)))
-                        .map((link) => (
-                          <button
-                            key={link.page}
-                            onClick={() => handlePageChange(link.page!)}
-                            disabled={isLoading}
-                            className={`relative inline-flex items-center px-4 py-2 text-sm font-medium border-t border-b border-r transition-all duration-200 ${
-                              link.active
-                                ? 'z-10 bg-blue-600 border-blue-600 text-white'
-                                : isLoading
-                                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400'
-                            }`}
-                          >
-                            {link.label}
-                          </button>
-                        ))}
-                      
-                      {/* Botón Siguiente */}
-                      <button
-                        onClick={() => handlePageChange(pagination.meta.current_page + 1)}
-                        disabled={!hasNextPage() || isLoading}
-                        className={`relative inline-flex items-center px-3 py-2 text-sm font-medium border-t border-b border-r transition-all duration-200 ${
-                          !hasNextPage() || isLoading
-                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400'
-                        }`}
-                      >
-                        Siguiente ›
-                      </button>
-                      
-                      {/* Botón Última página */}
-                      <button
-                        onClick={() => handlePageChange(pagination.meta.last_page)}
-                        disabled={pagination.meta.current_page === pagination.meta.last_page || isLoading}
-                        className={`relative inline-flex items-center px-3 py-2 text-sm font-medium border rounded-r-md transition-all duration-200 ${
-                          pagination.meta.current_page === pagination.meta.last_page || isLoading
-                            ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400'
-                        }`}
-                      >
-                        Última
-                      </button>
-                    </nav>
-                  </div>
-                  
-                  {/* Selector de elementos por página */}
-                  <div className="flex items-center space-x-3 text-sm">
-                    <label htmlFor="page-size" className="font-medium text-gray-700">
-                      Mostrar:
-                    </label>
-                    <select
-                      id="page-size"
-                      value={pagination.meta.per_page}
-                      onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                      className="block w-auto rounded-md border-gray-300 py-1.5 pl-3 pr-8 text-sm font-medium text-gray-700 bg-white shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500"
-                      disabled={isLoading}
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                    <span className="font-medium text-gray-700">por página</span>
-                  </div>
-                </div>
-                
-                {/* Indicador de carga */}
-                {isLoading && (
-                  <div className="flex items-center justify-center mt-6 pt-4 border-t border-gray-100">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-300 border-t-primary"></div>
-                    <span className="ml-3 text-sm font-medium text-gray-700">Cargando...</span>
-                  </div>
-                )}
-              </div>
+            {pagination && (
+              <MachineStylePagination
+                pagination={pagination}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                isLoading={isLoading}
+                itemName="máquinas"
+                hasNextPage={hasNextPage}
+                hasPrevPage={hasPrevPage}
+              />
             )}
           </div>
         </main>

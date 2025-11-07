@@ -6,10 +6,41 @@ import {
   ProductsResponse,
   ProductsFilters,
   ProductResponse,
+  CreateProduct,
+  ProductFilter,
   PaginationLinks,
   PaginationMeta
 } from '../interfaces/product.interface';
 import { ProductAdapter } from '../adapters/product.adapter';
+import { createProductSchema, CreateProductFormData, updateProductSchema, UpdateProductFormData } from '../schemas/product.schema';
+
+// Helper function to build search payload - simplified for name search only
+function buildProductsSearchPayload(filters: ProductsFilters) {
+  const payload: any = {
+    page: filters.page || 1,
+    limit: filters.limit || 20,
+  };
+
+  // Add search object if present (searches in name field)
+  if (filters.searchObj?.value) {
+    payload.search = {
+      value: filters.searchObj.value,
+      case_sensitive: filters.searchObj.case_sensitive !== undefined ? filters.searchObj.case_sensitive : false
+    };
+  }
+
+  // Handle legacy search parameter
+  if (filters.search && !filters.searchObj?.value) {
+    payload.search = {
+      value: filters.search,
+      case_sensitive: false
+    };
+  }
+
+  console.log('🔍 Products search payload (simple):', JSON.stringify(payload, null, 2));
+  
+  return payload;
+}
 
 // Server Action para obtener lista de productos
 export async function getProductsAction(filters?: ProductsFilters): Promise<ProductsResponse> {
@@ -34,26 +65,45 @@ export async function getProductsAction(filters?: ProductsFilters): Promise<Prod
       };
     }
 
-    // Construir query parameters
-    const queryParams = new URLSearchParams();
-    if (filters?.search) queryParams.append('search', filters.search);
-    if (filters?.category) queryParams.append('category', filters.category);
-    if (filters?.is_active !== undefined) queryParams.append('is_active', filters.is_active.toString());
-    if (filters?.enterprise_id) queryParams.append('enterprise_id', filters.enterprise_id.toString());
-    if (filters?.page) queryParams.append('page', filters.page.toString());
-    if (filters?.limit) queryParams.append('limit', filters.limit.toString());
+    // Use POST search if there's any search term
+    const useSearch = filters && (
+      filters.searchObj?.value ||
+      filters.search
+    );
 
-    const url = `${apiUrl}/products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    
-    console.log('Obteniendo productos desde:', url);
+    let response: Response;
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    if (useSearch && filters) {
+      // Use POST /products/search for name search
+      const searchPayload = buildProductsSearchPayload(filters);
+
+      response = await fetch(`${apiUrl}/products/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(searchPayload),
+      });
+    } else {
+      // Use simple GET /products for basic requests
+      const queryParams = new URLSearchParams();
+      if (filters?.page) queryParams.append('page', filters.page.toString());
+      if (filters?.limit) queryParams.append('limit', filters.limit.toString());
+
+      const url = `${apiUrl}/products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      
+      console.log('Obteniendo productos desde:', url);
+
+      response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+    }
 
     if (!response.ok) {
       console.log('Error al obtener productos:', response.status, response.statusText);
@@ -129,6 +179,9 @@ export async function getProductAction(productId: string | number): Promise<Prod
       };
     }
 
+    console.log('Obteniendo producto individual:', productId);
+    console.log('URL completa:', `${apiUrl}/products/${productId}`);
+
     const response = await fetch(`${apiUrl}/products/${productId}`, {
       method: 'GET',
       headers: {
@@ -138,7 +191,9 @@ export async function getProductAction(productId: string | number): Promise<Prod
     });
 
     if (!response.ok) {
+      console.log('Error al obtener producto:', response.status, response.statusText);
       const errorData = await response.json().catch(() => ({}));
+      console.log('Datos de error:', errorData);
       return {
         success: false,
         error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
@@ -166,3 +221,220 @@ export async function getProductAction(productId: string | number): Promise<Prod
   }
 }
 
+// Server Action para crear un nuevo producto
+export async function createProductAction(productData: CreateProductFormData): Promise<ProductResponse> {
+  try {
+    // Validar datos con Zod
+    const validationResult = createProductSchema.safeParse(productData);
+    
+    if (!validationResult.success) {
+      const errors = validationResult.error.issues.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
+      return {
+        success: false,
+        error: `Datos inválidos: ${errors}`,
+      };
+    }
+
+    const validatedData = validationResult.data;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    
+    if (!apiUrl) {
+      return {
+        success: false,
+        error: 'API URL no configurada en variables de entorno',
+      };
+    }
+
+    // Obtener token de autenticación
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+
+    if (!token) {
+      return {
+        success: false,
+        error: 'Token de autenticación no encontrado',
+      };
+    }
+
+    console.log('Creando producto:', validatedData);
+
+    const response = await fetch(`${apiUrl}/products`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(validatedData),
+    });
+
+    if (!response.ok) {
+      console.log('Error al crear producto:', response.status, response.statusText);
+      
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+    console.log('Respuesta de creación de producto:', data);
+    
+    // La API puede devolver el producto directamente o dentro de un objeto "data"
+    const productResponseData = data.data || data;
+    const product = ProductAdapter.apiToApp(productResponseData);
+
+    return {
+      success: true,
+      product,
+    };
+
+  } catch (error) {
+    console.error('Error en createProductAction:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+    };
+  }
+}
+
+// Server Action para eliminar un producto
+export async function deleteProductAction(productId: string | number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    
+    if (!apiUrl) {
+      return {
+        success: false,
+        error: 'API URL no configurada en variables de entorno',
+      };
+    }
+
+    // Obtener token de autenticación
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+
+    if (!token) {
+      return {
+        success: false,
+        error: 'Token de autenticación no encontrado',
+      };
+    }
+
+    console.log('Eliminando producto:', productId);
+
+    const response = await fetch(`${apiUrl}/products/${productId}`, {
+      method: 'DELETE',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.log('Error al eliminar producto:', response.status, response.statusText);
+      
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    console.log('Producto eliminado exitosamente');
+
+    return {
+      success: true,
+    };
+
+  } catch (error) {
+    console.error('Error en deleteProductAction:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+    };
+  }
+}
+
+// Server Action para actualizar un producto
+export async function updateProductAction(productId: string | number, productData: UpdateProductFormData): Promise<ProductResponse> {
+  try {
+    // Validar datos con Zod
+    const validationResult = updateProductSchema.safeParse(productData);
+    
+    if (!validationResult.success) {
+      const errors = validationResult.error.issues.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
+      return {
+        success: false,
+        error: `Datos inválidos: ${errors}`,
+      };
+    }
+
+    const validatedData = validationResult.data;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    
+    if (!apiUrl) {
+      return {
+        success: false,
+        error: 'API URL no configurada en variables de entorno',
+      };
+    }
+
+    // Obtener token de autenticación
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+
+    if (!token) {
+      return {
+        success: false,
+        error: 'Token de autenticación no encontrado',
+      };
+    }
+
+    console.log('Actualizando producto con ID:', productId);
+    console.log('Datos a actualizar:', validatedData);
+    console.log('URL de actualización:', `${apiUrl}/products/${productId}`);
+
+    const response = await fetch(`${apiUrl}/products/${productId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(validatedData),
+    });
+
+    if (!response.ok) {
+      console.log('Error al actualizar producto:', response.status, response.statusText);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      const errorData = await response.json().catch(() => ({}));
+      console.log('Datos de error en actualización:', errorData);
+      return {
+        success: false,
+        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+    console.log('Respuesta de actualización de producto:', data);
+    
+    // La API puede devolver el producto directamente o dentro de un objeto "data"
+    const productResponseData = data.data || data;
+    const product = ProductAdapter.apiToApp(productResponseData);
+
+    return {
+      success: true,
+      product,
+    };
+
+  } catch (error) {
+    console.error('Error en updateProductAction:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+    };
+  }
+}

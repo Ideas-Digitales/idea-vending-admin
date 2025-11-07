@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore, useIsAuthenticated, useAuthLoading, useUser } from '@/lib/stores/authStore';
 import MachinePageSkeleton from './skeletons/MachinePageSkeleton';
@@ -24,6 +24,7 @@ export default function ProtectedRoute({
   const isLoading = useAuthLoading();
   const user = useUser();
   const { checkAuth } = useAuthStore();
+  const hasCheckedAuth = useRef(false);
 
   // Función para obtener el skeleton apropiado según la ruta
   const getPageSkeleton = () => {
@@ -48,12 +49,19 @@ export default function ProtectedRoute({
   };
 
   useEffect(() => {
-    // Solo verificar autenticación si no está ya autenticado
-    if (!isAuthenticated && !isLoading) {
-      console.log('ProtectedRoute: Verificando autenticación...');
+    // Resetear flag cuando el usuario se autentica
+    if (isAuthenticated) {
+      hasCheckedAuth.current = false;
+      return;
+    }
+
+    // Solo verificar autenticación UNA VEZ si no está ya autenticado
+    if (!isAuthenticated && !isLoading && !hasCheckedAuth.current) {
+      console.log('🔐 ProtectedRoute: Verificando autenticación (ÚNICA VEZ)...');
+      hasCheckedAuth.current = true;
       checkAuth();
     }
-  }, [checkAuth, isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading]); // REMOVIDO checkAuth de dependencias
 
   useEffect(() => {
     // Redirigir solo si definitivamente no está autenticado

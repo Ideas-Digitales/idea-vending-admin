@@ -6,10 +6,12 @@ import Link from 'next/link';
 import { Users, Plus, Search, Edit, Trash2, Eye, UserCheck, UserX, Loader2, AlertCircle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import UsersFiltersComponent from '@/components/UsersFilters';
+import MachineStylePagination from '@/components/MachineStylePagination';
 import { useUserStore } from '@/lib/stores/userStore';
-import UserStorePagination from '@/components/UserStorePagination';
 import UserPageSkeleton from '@/components/skeletons/UserPageSkeleton';
 import { notify } from '@/lib/adapters/notification.adapter';
+import { UsersFilters } from '@/lib/interfaces/user.interface';
 
 export default function UsuariosInfiniteClient() {
   const router = useRouter();
@@ -27,17 +29,21 @@ export default function UsuariosInfiniteClient() {
     isDeleting,
     deleteError,
     clearDeleteError,
-    getTotalUsers,
-    getTotalActiveUsers,
-    getTotalAdminUsers,
-    getTotalInactiveUsers,
+    pagination,
+    currentFilters,
+    hasNextPage,
+    hasPrevPage,
   } = useUserStore();
 
-  // Local UI state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  // Local UI state - Simple search
+  const [filters, setFiltersState] = useState<UsersFilters>({
+    page: 1,
+    limit: 20,
+    searchObj: {
+      value: '',
+      case_sensitive: false
+    }
+  });
   const [deleteDialog, setDeleteDialog] = useState<{
     isOpen: boolean;
     userId: number | null;
@@ -48,37 +54,6 @@ export default function UsuariosInfiniteClient() {
     userName: ''
   });
   
-  // Global stats state
-  const [globalStats, setGlobalStats] = useState({
-    totalActive: 0,
-    totalAdmins: 0,
-    totalInactive: 0,
-    isLoading: false,
-  });
-  
-  const filtersRef = useRef<HTMLDivElement>(null);
-  const mainRef = useRef<HTMLDivElement>(null);
-  
-  const loadGlobalStats = useCallback(async () => {
-    setGlobalStats(prev => ({ ...prev, isLoading: true }));
-    
-    try {
-      const [totalActive, totalAdmins, totalInactive] = await Promise.all([
-        getTotalActiveUsers(),
-        getTotalAdminUsers(),
-        getTotalInactiveUsers(),
-      ]);
-      
-      setGlobalStats({
-        totalActive,
-        totalAdmins,
-        totalInactive,
-        isLoading: false,
-      });
-    } catch (error) {
-      setGlobalStats(prev => ({ ...prev, isLoading: false }));
-    }
-  }, [getTotalActiveUsers, getTotalAdminUsers, getTotalInactiveUsers]);
 
   useEffect(() => {
     // Solo cargar usuarios si no hay datos y no estamos cargando
@@ -100,62 +75,62 @@ export default function UsuariosInfiniteClient() {
     }
   }, [deleteError]);
   
-  const hasLoadedStats = useRef(false);
-  useEffect(() => {
-    if (!hasLoadedStats.current) {
-      hasLoadedStats.current = true;
-      loadGlobalStats();
-    }
-  }, [loadGlobalStats]);
 
+  // Debounce filters to avoid excessive API calls
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
+      console.log('🔍 Applying filters:', filters);
+      fetchUsers(filters);
+      setFilters(filters);
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [filters, fetchUsers, setFilters]);
 
-  const apiFilters = useMemo(() => ({
-    search: debouncedSearchTerm || undefined,
-    role: roleFilter || undefined,
-    status: statusFilter || undefined,
-    page: 1,
-  }), [debouncedSearchTerm, roleFilter, statusFilter]);
+  // Handle filters change
+  const handleFiltersChange = useCallback((newFilters: UsersFilters) => {
+    setFiltersState(newFilters);
+  }, []);
 
-  const prevFiltersRef = useRef(apiFilters);
-  const applyFilters = useCallback((filters: typeof apiFilters) => {
-    const filtersChanged = JSON.stringify(prevFiltersRef.current) !== JSON.stringify(filters);
-    if (filtersChanged) {
-      setFilters(filters);
-      fetchUsers(filters);
-      prevFiltersRef.current = filters;
-    }
-  }, [setFilters, fetchUsers]);
-  
-  const apiFiltersString = JSON.stringify(apiFilters);
-  
-  useEffect(() => {
-    if (users.length > 0) {
-      applyFilters(apiFilters);
-    }
-  }, [apiFiltersString, applyFilters, users.length]);
+  // Handle clear all filters
+  const handleClearAllFilters = useCallback(() => {
+    const clearedFilters: UsersFilters = {
+      page: 1,
+      limit: 20,
+      searchObj: {
+        value: '',
+        case_sensitive: false
+      }
+    };
+    setFiltersState(clearedFilters);
+  }, []);
 
-  const displayedUsers = useMemo(() => {
-    if (!searchTerm) {
-      return users;
-    }
-    
-    if (searchTerm !== debouncedSearchTerm) {
-      return users.filter(user => 
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.rut.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    return users;
-  }, [users, searchTerm, debouncedSearchTerm]);
+  // Handle page change
+  const handlePageChange = useCallback(async (page: number) => {
+    const newFilters = {
+      ...currentFilters,
+      page,
+    };
+
+    setFilters(newFilters);
+    await fetchUsers(newFilters);
+  }, [currentFilters, setFilters, fetchUsers]);
+
+  // Handle page size change
+  const handlePageSizeChange = useCallback(async (limit: number) => {
+    const newFilters = {
+      ...currentFilters,
+      page: 1, // Reset to first page when changing page size
+      limit,
+    };
+
+    setFilters(newFilters);
+    await fetchUsers(newFilters);
+  }, [currentFilters, setFilters, fetchUsers]);
+
+
+  // Users are already filtered by the API, no need for client-side filtering
+  const displayedUsers = users;
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -200,8 +175,6 @@ export default function UsuariosInfiniteClient() {
       if (success) {
         notify.success(`Usuario "${deleteDialog.userName}" eliminado exitosamente`);
         setDeleteDialog({ isOpen: false, userId: null, userName: '' });
-        // Reload global stats after successful deletion
-        loadGlobalStats();
       } else {
         notify.error(`Error al eliminar el usuario "${deleteDialog.userName}"`);
       }
@@ -213,13 +186,6 @@ export default function UsuariosInfiniteClient() {
     clearDeleteError();
   };
 
-  const stats = {
-    total: getTotalUsers(),
-    active: globalStats.totalActive,
-    admins: globalStats.totalAdmins,
-    inactive: globalStats.totalInactive,
-    displayed: displayedUsers.length,
-  };
 
   const handleRefresh = () => {
     refreshUsers();
@@ -284,78 +250,70 @@ export default function UsuariosInfiniteClient() {
         </header>
 
         <div className="relative">
-          <div className="p-6 pb-0">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-              <div className="card p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <p className="text-sm font-semibold text-muted">Total Usuarios</p>
-                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">SERVIDOR</span>
+          {/* Stats Cards - Solo datos directos del API */}
+          {pagination?.meta && (
+            <div className="p-6 pb-0">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="card p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-sm font-semibold text-muted">Total Usuarios</p>
+                        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">API</span>
+                      </div>
+                      <p className="text-2xl font-bold text-dark">{pagination.meta.total}</p>
+                      <p className="text-xs text-muted mt-1">
+                        Mostrando {pagination.meta.from || 0} - {pagination.meta.to || 0}
+                      </p>
                     </div>
-                    <p className="text-2xl font-bold text-dark">{stats.total}</p>
-                    {stats.displayed !== stats.total && (
-                      <p className="text-xs text-muted mt-1">{stats.displayed} mostrados de {stats.total} total</p>
-                    )}
-                  </div>
-                  <div className="p-3 rounded-xl bg-blue-50 flex-shrink-0 ml-4">
-                    <Users className="h-6 w-6 text-blue-600" />
+                    <div className="p-3 rounded-xl bg-blue-50 flex-shrink-0 ml-4">
+                      <Users className="h-6 w-6 text-blue-600" />
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              <div className="card p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <p className="text-sm font-semibold text-muted">Usuarios Activos</p>
-                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">SERVIDOR</span>
+                
+                <div className="card p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-sm font-semibold text-muted">Página Actual</p>
+                        <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
+                      </div>
+                      <p className="text-2xl font-bold text-green-600">
+                        {pagination.meta.current_page} de {pagination.meta.last_page}
+                      </p>
+                      <p className="text-xs text-muted mt-1">
+                        {pagination.meta.per_page} por página
+                      </p>
                     </div>
-                    <p className="text-2xl font-bold text-green-600">
-                      {globalStats.isLoading ? '...' : stats.active}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-green-50 flex-shrink-0 ml-4">
-                    <UserCheck className="h-6 w-6 text-green-600" />
+                    <div className="p-3 rounded-xl bg-green-50 flex-shrink-0 ml-4">
+                      <Search className="h-6 w-6 text-green-600" />
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              <div className="card p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-sm font-semibold text-muted">Administradores</p>
-                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">SERVIDOR</span>
+                
+                <div className="card p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-sm font-semibold text-muted">En Esta Página</p>
+                        <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">API</span>
+                      </div>
+                      <p className="text-2xl font-bold text-purple-600">
+                        {users.length}
+                      </p>
+                      <p className="text-xs text-muted mt-1">
+                        Usuarios cargados
+                      </p>
                     </div>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {globalStats.isLoading ? '...' : stats.admins}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-purple-50">
-                    <Users className="h-6 w-6 text-purple-600" />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="card p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-sm font-semibold text-muted">Inactivos</p>
-                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">SERVIDOR</span>
+                    <div className="p-3 rounded-xl bg-purple-50 flex-shrink-0 ml-4">
+                      <UserCheck className="h-6 w-6 text-purple-600" />
                     </div>
-                    <p className="text-2xl font-bold text-red-600">
-                      {globalStats.isLoading ? '...' : stats.inactive}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-red-50">
-                    <UserX className="h-6 w-6 text-red-600" />
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {error && (
             <div className="px-6 py-4">
@@ -383,105 +341,13 @@ export default function UsuariosInfiniteClient() {
             </div>
           )}
 
-          {/* Search and Filters - Sticky */}
-          <div className="sticky top-20 z-50 bg-gray-50 py-4">
-            <div className="px-6">
-              <div className="card p-6 shadow-lg border-2 border-primary/20">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-dark">🔍 Buscar Usuarios</h3>
-                  <div className="flex items-center text-xs text-primary font-medium">
-                    <div className="w-2 h-2 bg-primary rounded-full mr-2 animate-pulse"></div>
-                    STICKY ACTIVO
-                  </div>
-                </div>
-                
-                {/* Barra de búsqueda principal - MÁS GRANDE */}
-                <div className="mb-6">
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Buscar usuarios por nombre, email o RUT..."
-                      className="w-full pl-12 pr-4 py-4 text-lg text-dark placeholder-gray-400 border-2 border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </div>
-                
-                {/* Filtros secundarios */}
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <select 
-                    className="input-field flex-1"
-                    value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value)}
-                  >
-                    <option value="">Todos los roles</option>
-                    <option value="admin">Administrador</option>
-                    <option value="operator">Operador</option>
-                    <option value="viewer">Visualizador</option>
-                  </select>
-                  <select 
-                    className="input-field flex-1"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    <option value="">Todos los estados</option>
-                    <option value="active">Activo</option>
-                    <option value="inactive">Inactivo</option>
-                  </select>
-                </div>
-              
-              {/* Filtros activos */}
-              {(searchTerm || roleFilter || statusFilter) && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {searchTerm && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                      Búsqueda: "{searchTerm}"
-                      <button 
-                        onClick={() => setSearchTerm('')}
-                        className="ml-2 hover:text-blue-600"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  )}
-                  {roleFilter && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
-                      Rol: {getRoleName(roleFilter)}
-                      <button 
-                        onClick={() => setRoleFilter('')}
-                        className="ml-2 hover:text-purple-600"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  )}
-                  {statusFilter && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                      Estado: {statusFilter === 'active' ? 'Activo' : 'Inactivo'}
-                      <button 
-                        onClick={() => setStatusFilter('')}
-                        className="ml-2 hover:text-green-600"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  )}
-                  <button 
-                    onClick={() => {
-                      setSearchTerm('');
-                      setRoleFilter('');
-                      setStatusFilter('');
-                    }}
-                    className="text-xs text-gray-500 hover:text-gray-700 underline"
-                  >
-                    Limpiar filtros
-                  </button>
-                </div>
-              )}
-              </div>
-            </div>
+          {/* Search and Filters */}
+          <div className="px-6 py-4">
+            <UsersFiltersComponent
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              onClearAll={handleClearAllFilters}
+            />
           </div>
 
           {/* Error State */}
@@ -681,8 +547,18 @@ export default function UsuariosInfiniteClient() {
             </div>
           )}
 
-          {/* Pagination Controls */}
-          <UserStorePagination className="px-6 py-4" />
+          {/* Pagination */}
+          {pagination && (
+            <MachineStylePagination
+              pagination={pagination}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+              isLoading={isLoading}
+              itemName="usuarios"
+              hasNextPage={hasNextPage}
+              hasPrevPage={hasPrevPage}
+            />
+          )}
 
           {/* Bottom spacing */}
           <div className="h-8"></div>

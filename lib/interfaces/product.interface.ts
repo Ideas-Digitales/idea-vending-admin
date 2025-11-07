@@ -88,12 +88,35 @@ export interface ProductResponse {
   error?: string;
 }
 
-// Filters interface
+// Filters interface - simplified for name search only
 export interface ProductsFilters {
   search?: string;
-  category?: string;
-  is_active?: boolean;
-  enterprise_id?: number;
   page?: number;
   limit?: number;
+  searchObj?: {
+    value?: string;
+    case_sensitive?: boolean;
+  };
+}
+
+// Create product interface
+export interface CreateProduct {
+  name: string;
+  enterprise_id: number;
+  description?: string;
+  price?: number;
+  category?: string;
+  stock?: number;
+  image?: string;
+  barcode?: string;
+  is_active?: boolean;
+}
+
+// Product filter interface for search - only name field
+export interface ProductFilter {
+  field?: 'name';
+  operator?: '<' | '<=' | '>' | '>=' | '==' | '!=' | 'like' | 'not like' | 'ilike' | 'not ilike' | 'in' | 'not in' | 'all in' | 'any in';
+  value?: string | number | boolean;
+  type?: 'and' | 'or';
+  nested?: ProductFilter[];
 }

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { Producto, ProductsFilters, PaginationLinks, PaginationMeta } from "../interfaces/product.interface";
-import { getProductsAction, getProductAction } from "../actions/products";
+import { getProductsAction, getProductAction, deleteProductAction, updateProductAction } from "../actions/products";
 
 interface ProductState {
   // Data state
@@ -109,18 +109,23 @@ export const useProductStore = create<ProductState>()(
   },
 
   fetchProduct: async (productId: string | number) => {
+    console.log('Store: fetchProduct llamado con ID:', productId);
     set({ isLoadingProduct: true, productError: null });
     
     try {
+      console.log('Store: Llamando getProductAction con ID:', productId);
       const response = await getProductAction(productId);
+      console.log('Store: Respuesta de getProductAction:', response);
       
       if (response.success && response.product) {
+        console.log('Store: Producto cargado exitosamente:', response.product);
         set({
           selectedProduct: response.product,
           isLoadingProduct: false,
           productError: null,
         });
       } else {
+        console.log('Store: Error al cargar producto:', response.error);
         set({
           productError: response.error || 'Error al cargar producto',
           isLoadingProduct: false,
@@ -206,28 +211,37 @@ export const useProductStore = create<ProductState>()(
     });
 
     try {
-      // TODO: Implement deleteProductAction when available
-      // For now, simulate success after a delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the actual delete API
+      const result = await deleteProductAction(productId);
       
-      // Success: keep the optimistic update and update pagination
-      const { pagination } = get();
-      const updatedPagination = pagination ? {
-        ...pagination,
-        meta: {
-          ...pagination.meta,
-          total: pagination.meta.total - 1
-        }
-      } : null;
+      if (result.success) {
+        // Success: keep the optimistic update and update pagination
+        const { pagination } = get();
+        const updatedPagination = pagination ? {
+          ...pagination,
+          meta: {
+            ...pagination.meta,
+            total: pagination.meta.total - 1
+          }
+        } : null;
 
-      set({ 
-        isDeleting: false,
-        deleteError: null,
-        pagination: updatedPagination
-      });
-      return true;
+        set({ 
+          isDeleting: false,
+          deleteError: null,
+          pagination: updatedPagination
+        });
+        return true;
+      } else {
+        // API returned error: revert the optimistic update
+        set({ 
+          products: products, // Restore original products
+          isDeleting: false,
+          deleteError: result.error || 'Error al eliminar producto'
+        });
+        return false;
+      }
     } catch (error) {
-      // Error: revert the optimistic update
+      // Network/unexpected error: revert the optimistic update
       set({ 
         products: products, // Restore original products
         isDeleting: false,
@@ -242,39 +256,86 @@ export const useProductStore = create<ProductState>()(
   },
 
   updateProduct: async (productId: string | number, productData: any) => {
+    console.log('Store: updateProduct llamado con ID:', productId);
+    console.log('Store: updateProduct datos:', productData);
+    
     const { products } = get();
     
-    // Optimistic update: find and update product in local state immediately
-    const productIndex = products.findIndex(p => p.id === productId);
-    if (productIndex === -1) {
-      set({ updateError: 'Producto no encontrado' });
-      return false;
-    }
-
-    const originalProduct = products[productIndex];
-    const optimisticProducts = [...products];
-    // Update the product with new data (merge with existing data)
-    optimisticProducts[productIndex] = { ...originalProduct, ...productData };
-    
+    // Set updating state without requiring the product to be in the list
     set({ 
-      products: optimisticProducts, 
       isUpdating: true, 
       updateError: null 
     });
 
-    try {
-      // TODO: Implement updateProductAction when available
-      // For now, simulate success after a delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    // Optimistic update: find and update product in local state if it exists
+    const productIndex = products.findIndex(p => p.id === productId);
+    if (productIndex !== -1) {
+      console.log('Store: Producto encontrado en lista local, aplicando actualización optimista');
+      const originalProduct = products[productIndex];
+      const optimisticProducts = [...products];
+      // Update the product with new data (merge with existing data)
+      optimisticProducts[productIndex] = { ...originalProduct, ...productData };
       
-      // Success: keep the optimistic update
       set({ 
-        isUpdating: false,
-        updateError: null 
+        products: optimisticProducts
       });
-      return true;
+    } else {
+      console.log('Store: Producto no está en lista local, continuando con actualización en servidor');
+    }
+
+    try {
+      // Call the actual update API
+      console.log('Store: Llamando updateProductAction con ID:', productId, 'y datos:', productData);
+      const result = await updateProductAction(productId, productData);
+      console.log('Store: Respuesta de updateProductAction:', result);
+      
+      if (result.success && result.product) {
+        // Success: update with the actual product data from API
+        const { products } = get();
+        const currentProductIndex = products.findIndex(p => p.id === productId);
+        
+        if (currentProductIndex !== -1) {
+          // Update in list if product exists
+          const updatedProducts = [...products];
+          updatedProducts[currentProductIndex] = result.product;
+          set({ 
+            products: updatedProducts,
+            selectedProduct: result.product,
+            isUpdating: false,
+            updateError: null 
+          });
+        } else {
+          // Just update selected product if not in list
+          set({ 
+            selectedProduct: result.product,
+            isUpdating: false,
+            updateError: null 
+          });
+        }
+        return true;
+      } else {
+        // API returned error: revert the optimistic update if product was in list
+        const { products } = get();
+        const currentProductIndex = products.findIndex(p => p.id === productId);
+        
+        if (currentProductIndex !== -1) {
+          // Revert optimistic update
+          set({ 
+            products: products, // This should revert to original state
+            isUpdating: false,
+            updateError: result.error || 'Error al actualizar producto'
+          });
+        } else {
+          // Just set error state
+          set({ 
+            isUpdating: false,
+            updateError: result.error || 'Error al actualizar producto'
+          });
+        }
+        return false;
+      }
     } catch (error) {
-      // Error: revert the optimistic update
+      // Network/unexpected error: revert the optimistic update
       set({ 
         products: products, // Restore original products
         isUpdating: false,
@@ -320,7 +381,7 @@ export const useProductStore = create<ProductState>()(
 
     // Si no, calcular desde todos los productos del servidor
     try {
-      const response = await getProductsAction({ is_active: true });
+      const response = await getProductsAction({});
       if (response.success && response.pagination?.meta) {
         const totalActive = response.pagination.meta.total;
         

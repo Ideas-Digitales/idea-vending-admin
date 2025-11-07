@@ -44,14 +44,43 @@ export default function LoginPage() {
   }, [error, clearError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log('🚨 HANDLE SUBMIT EJECUTADO');
+    console.log('🚨 Form data:', formData);
+    console.log('🚨 isAuthenticated:', isAuthenticated);
+    console.log('🚨 isLoading:', isLoading);
+    console.trace('🚨 Stack trace handleSubmit:');
+    
     e.preventDefault();
+    e.stopPropagation();
+    
+    // MÚLTIPLES VALIDACIONES PARA EVITAR AUTO-SUBMIT
+    if (isAuthenticated) {
+      console.log('🚨 Ya autenticado, cancelando submit');
+      return;
+    }
+    
+    if (isLoading) {
+      console.log('🚨 Ya cargando, cancelando submit');
+      return;
+    }
     
     if (!formData.email || !formData.password) {
+      console.log('🚨 Datos incompletos, cancelando submit');
+      return;
+    }
+    
+    if (formData.email.trim() === '' || formData.password.trim() === '') {
+      console.log('🚨 Datos vacíos, cancelando submit');
+      return;
+    }
+    
+    if (!formData.email.includes('@')) {
+      console.log('🚨 Email inválido, cancelando submit');
       return;
     }
 
     try {
-      console.log('Enviando formulario de login...');
+      console.log('✅ Enviando formulario de login VÁLIDO...');
       await login(formData);
       // La redirección ocurrirá automáticamente via useEffect
     } catch (err) {

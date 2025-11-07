@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { User } from "@/lib/interfaces/user.interface";
+import { loopPrevention } from "@/lib/utils/loopPrevention";
 
 // Re-export User for other modules
 export type { User };
@@ -24,6 +25,29 @@ export async function loginAction(
   credentials: LoginCredentials
 ): Promise<AuthResponse> {
   try {
+    // MECANISMO DE EMERGENCIA: Prevenir loops infinitos
+    if (loopPrevention.shouldPreventCall('loginAction')) {
+      return {
+        success: false,
+        error: "Loop prevention: Demasiadas llamadas a loginAction",
+      };
+    }
+
+    console.log('🚨 EMERGENCY: loginAction llamado');
+    console.log('🚨 Credentials recibidas:', JSON.stringify(credentials, null, 2));
+    console.log('🚨 Timestamp:', new Date().toISOString());
+    console.trace('🚨 Stack trace del loginAction:');
+    
+    // STOP INMEDIATO si las credenciales están vacías
+    if (!credentials || !credentials.email || !credentials.password || 
+        credentials.email.trim() === '' || credentials.password.trim() === '') {
+      console.log('🚨 EMERGENCY: Deteniendo login con credenciales vacías');
+      return {
+        success: false,
+        error: "Credenciales vacías - deteniendo loop",
+      };
+    }
+
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
     if (!apiUrl) {
@@ -227,6 +251,15 @@ export async function getUserInfo(
 // Server Action para validar token
 export async function validateTokenAction(): Promise<AuthResponse> {
   try {
+    // MECANISMO DE EMERGENCIA: Prevenir loops infinitos
+    if (loopPrevention.shouldPreventCall('validateTokenAction')) {
+      return {
+        success: false,
+        error: "Loop prevention: Demasiadas llamadas a validateTokenAction",
+      };
+    }
+
+    console.log('🔐 validateTokenAction: Verificando token...');
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
 

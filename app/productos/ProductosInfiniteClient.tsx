@@ -26,16 +26,10 @@ export default function ProductosInfiniteClient() {
     isDeleting,
     deleteError,
     clearDeleteError,
-    getTotalProducts,
-    getTotalActiveProducts,
-    getTotalLowStockProducts,
-    getTotalOutOfStockProducts,
   } = useProductStore();
 
   // Local UI state
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [deleteDialog, setDeleteDialog] = useState<{
     isOpen: boolean;
@@ -47,37 +41,6 @@ export default function ProductosInfiniteClient() {
     productName: ''
   });
   
-  // Global stats state
-  const [globalStats, setGlobalStats] = useState({
-    totalActive: 0,
-    totalLowStock: 0,
-    totalOutOfStock: 0,
-    isLoading: false,
-  });
-  
-  const filtersRef = useRef<HTMLDivElement>(null);
-  const mainRef = useRef<HTMLDivElement>(null);
-
-  const loadGlobalStats = useCallback(async () => {
-    setGlobalStats(prev => ({ ...prev, isLoading: true }));
-    
-    try {
-      const [totalActive, totalLowStock, totalOutOfStock] = await Promise.all([
-        getTotalActiveProducts(),
-        getTotalLowStockProducts(),
-        getTotalOutOfStockProducts(),
-      ]);
-      
-      setGlobalStats({
-        totalActive,
-        totalLowStock,
-        totalOutOfStock,
-        isLoading: false,
-      });
-    } catch (error) {
-      setGlobalStats(prev => ({ ...prev, isLoading: false }));
-    }
-  }, [getTotalActiveProducts, getTotalLowStockProducts, getTotalOutOfStockProducts]);
 
   useEffect(() => {
     // Solo cargar productos si no hay datos y no estamos cargando
@@ -99,13 +62,6 @@ export default function ProductosInfiniteClient() {
     }
   }, [deleteError]);
   
-  const hasLoadedStats = useRef(false);
-  useEffect(() => {
-    if (!hasLoadedStats.current) {
-      hasLoadedStats.current = true;
-      loadGlobalStats();
-    }
-  }, [loadGlobalStats]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -117,10 +73,8 @@ export default function ProductosInfiniteClient() {
 
   const apiFilters = useMemo(() => ({
     search: debouncedSearchTerm || undefined,
-    category: categoryFilter || undefined,
-    is_active: statusFilter ? statusFilter === 'active' : undefined,
     page: 1,
-  }), [debouncedSearchTerm, categoryFilter, statusFilter]);
+  }), [debouncedSearchTerm]);
 
   const prevFiltersRef = useRef(apiFilters);
   const applyFilters = useCallback((filters: typeof apiFilters) => {
@@ -194,8 +148,6 @@ export default function ProductosInfiniteClient() {
       if (success) {
         notify.success(`Producto "${deleteDialog.productName}" eliminado exitosamente`);
         setDeleteDialog({ isOpen: false, productId: null, productName: '' });
-        // Reload global stats after successful deletion
-        loadGlobalStats();
       } else {
         notify.error(`Error al eliminar el producto "${deleteDialog.productName}"`);
       }
@@ -207,13 +159,6 @@ export default function ProductosInfiniteClient() {
     clearDeleteError();
   };
 
-  const stats = {
-    total: getTotalProducts(),
-    active: globalStats.totalActive,
-    lowStock: globalStats.totalLowStock,
-    outOfStock: globalStats.totalOutOfStock,
-    displayed: displayedProducts.length,
-  };
 
   const handleRefresh = () => {
     refreshProducts();
@@ -278,20 +223,20 @@ export default function ProductosInfiniteClient() {
         </header>
 
         <div className="relative">
-          {/* Stats Cards */}
+          {/* Stats Cards - Solo datos básicos */}
           <div className="p-6 pb-0">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="card p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <p className="text-sm font-semibold text-muted">Total Productos</p>
-                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">SERVIDOR</span>
+                      <p className="text-sm font-semibold text-muted">Productos Cargados</p>
+                      <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">LOCAL</span>
                     </div>
-                    <p className="text-2xl font-bold text-dark">{stats.total}</p>
-                    {stats.displayed !== stats.total && (
-                      <p className="text-xs text-muted mt-1">{stats.displayed} mostrados de {stats.total} total</p>
-                    )}
+                    <p className="text-2xl font-bold text-dark">{products.length}</p>
+                    <p className="text-xs text-muted mt-1">
+                      En esta vista
+                    </p>
                   </div>
                   <div className="p-3 rounded-xl bg-blue-50 flex-shrink-0 ml-4">
                     <Package className="h-6 w-6 text-blue-600" />
@@ -303,156 +248,54 @@ export default function ProductosInfiniteClient() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <p className="text-sm font-semibold text-muted">Productos Activos</p>
-                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">SERVIDOR</span>
+                      <p className="text-sm font-semibold text-muted">Búsqueda Activa</p>
+                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">LOCAL</span>
                     </div>
                     <p className="text-2xl font-bold text-green-600">
-                      {globalStats.isLoading ? '...' : stats.active}
+                      {searchTerm ? 'Sí' : 'No'}
+                    </p>
+                    <p className="text-xs text-muted mt-1">
+                      {searchTerm ? `"${searchTerm}"` : 'Mostrando todos'}
                     </p>
                   </div>
                   <div className="p-3 rounded-xl bg-green-50 flex-shrink-0 ml-4">
-                    <ShoppingCart className="h-6 w-6 text-green-600" />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="card p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-sm font-semibold text-muted">Stock Bajo</p>
-                      <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
-                    </div>
-                    <p className="text-2xl font-bold text-yellow-600">
-                      {globalStats.isLoading ? '...' : stats.lowStock}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-yellow-50">
-                    <AlertTriangle className="h-6 w-6 text-yellow-600" />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="card p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="text-sm font-semibold text-muted">Sin Stock</p>
-                      <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
-                    </div>
-                    <p className="text-2xl font-bold text-red-600">
-                      {globalStats.isLoading ? '...' : stats.outOfStock}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-red-50">
-                    <Package className="h-6 w-6 text-red-600" />
+                    <Search className="h-6 w-6 text-green-600" />
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Search and Filters - Sticky */}
-          <div className="sticky top-20 z-50 bg-gray-50 py-4">
-            <div className="px-6">
-              <div className="card p-6 shadow-lg border-2 border-primary/20">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-bold text-dark">🔍 Buscar Productos</h3>
-                  <div className="flex items-center text-xs text-primary font-medium">
-                    <div className="w-2 h-2 bg-primary rounded-full mr-2 animate-pulse"></div>
-                    STICKY ACTIVO
-                  </div>
-                </div>
-                
-                {/* Barra de búsqueda principal - MÁS GRANDE */}
-                <div className="mb-6">
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Buscar productos por nombre, descripción o categoría..."
-                      className="w-full pl-12 pr-4 py-4 text-lg text-dark placeholder-gray-400 border-2 border-gray-200 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </div>
-                
-                {/* Filtros secundarios */}
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <select 
-                    className="input-field flex-1"
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
+          {/* Search */}
+          <div className="px-6 py-4">
+            <div className="flex items-center space-x-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-5 w-5" />
+                <input
+                  type="text"
+                  placeholder="Buscar productos por nombre..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white placeholder-gray-600"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   >
-                    <option value="">Todas las categorías</option>
-                    <option value="Bebidas">Bebidas</option>
-                    <option value="Snacks">Snacks</option>
-                    <option value="Dulces">Dulces</option>
-                    <option value="Saludable">Saludable</option>
-                    <option value="Lácteos">Lácteos</option>
-                    <option value="Panadería">Panadería</option>
-                  </select>
-                  <select 
-                    className="input-field flex-1"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    <option value="">Todos los estados</option>
-                    <option value="active">Activos</option>
-                    <option value="inactive">Inactivos</option>
-                  </select>
-                </div>
-              
-              {/* Filtros activos */}
-              {(searchTerm || categoryFilter || statusFilter) && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {searchTerm && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
-                      Búsqueda: "{searchTerm}"
-                      <button 
-                        onClick={() => setSearchTerm('')}
-                        className="ml-2 hover:text-blue-600"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  )}
-                  {categoryFilter && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
-                      Categoría: {categoryFilter}
-                      <button 
-                        onClick={() => setCategoryFilter('')}
-                        className="ml-2 hover:text-purple-600"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  )}
-                  {statusFilter && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                      Estado: {statusFilter === 'active' ? 'Activos' : 'Inactivos'}
-                      <button 
-                        onClick={() => setStatusFilter('')}
-                        className="ml-2 hover:text-green-600"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  )}
-                  <button 
-                    onClick={() => {
-                      setSearchTerm('');
-                      setCategoryFilter('');
-                      setStatusFilter('');
-                    }}
-                    className="text-xs text-gray-500 hover:text-gray-700 underline"
-                  >
-                    Limpiar filtros
+                    ×
                   </button>
-                </div>
-              )}
+                )}
               </div>
+
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="px-4 py-3 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors font-medium"
+                >
+                  Limpiar
+                </button>
+              )}
             </div>
           </div>
 
@@ -623,7 +466,11 @@ export default function ProductosInfiniteClient() {
                                   <Eye className="h-4 w-4" />
                                 </button>
                                 <button 
-                                  onClick={() => window.location.href = `/productos/${producto.id}/editar`}
+                                  onClick={() => {
+                                    console.log('Editando producto con ID:', producto.id);
+                                    console.log('Producto completo:', producto);
+                                    window.location.href = `/productos/${producto.id}/editar`;
+                                  }}
                                   className="text-green-600 hover:text-green-900 p-1"
                                   title="Editar producto"
                                 >

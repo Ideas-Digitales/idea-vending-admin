@@ -1,25 +1,40 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Package, Wrench, AlertCircle, Edit } from 'lucide-react';
+import { ArrowLeft, Package, Save, Loader2, Edit } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import Link from 'next/link';
 import { useProductStore } from '@/lib/stores/productStore';
+import { notify } from '@/lib/adapters/notification.adapter';
+import type { UpdateProductFormData } from '@/lib/schemas/product.schema';
 
 export default function EditProductPage() {
   const params = useParams();
   const productId = params.id as string;
+  
+  console.log('Parámetros de la URL:', params);
+  console.log('ID del producto extraído:', productId);
   
   // Store state
   const {
     selectedProduct: product,
     isLoadingProduct: isLoading,
     productError: error,
+    isUpdating,
+    updateError,
     fetchProduct,
+    updateProduct,
     clearProductError,
-    clearSelectedProduct
+    clearSelectedProduct,
+    clearUpdateError
   } = useProductStore();
+
+  // Form state
+  const [formData, setFormData] = useState<UpdateProductFormData>({
+    name: '',
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!productId) return;
@@ -32,17 +47,73 @@ export default function EditProductPage() {
     fetchProduct(productId);
   }, [productId, fetchProduct, clearSelectedProduct, clearProductError]);
 
+  // Inicializar formulario cuando se carga el producto
+  useEffect(() => {
+    if (product) {
+      setFormData({
+        name: product.name,
+      });
+    }
+  }, [product]);
+
   // Limpiar producto al desmontar el componente
   useEffect(() => {
     return () => {
       clearSelectedProduct();
       clearProductError();
+      clearUpdateError();
     };
-  }, [clearSelectedProduct, clearProductError]);
+  }, [clearSelectedProduct, clearProductError, clearUpdateError]);
+
+  // Mostrar errores de actualización
+  useEffect(() => {
+    if (updateError) {
+      notify.error(`Error al actualizar producto: ${updateError}`);
+    }
+  }, [updateError]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrors({});
+    clearUpdateError();
+
+    console.log('Formulario: Iniciando actualización');
+    console.log('Formulario: productId =', productId);
+    console.log('Formulario: formData =', formData);
+
+    try {
+      const success = await updateProduct(productId, formData);
+      console.log('Formulario: Resultado de updateProduct =', success);
+      
+      if (success) {
+        notify.success('Producto actualizado exitosamente');
+        // Redirect to product details
+        window.location.href = `/productos/${productId}`;
+      }
+    } catch (error) {
+      console.log('Formulario: Error en updateProduct =', error);
+      notify.error('Error al actualizar producto');
+    }
+  };
 
   const handleBack = () => {
     clearSelectedProduct();
     clearProductError();
+    clearUpdateError();
     window.location.href = `/productos/${productId}`;
   };
 
@@ -132,184 +203,65 @@ export default function EditProductPage() {
         {/* Content */}
         <main className="p-6">
           <div className="max-w-2xl mx-auto">
-            
-            {/* Development Notice */}
-            <div className="card p-8 text-center mb-6 border-2 border-dashed border-orange-200 bg-orange-50">
-              <div className="flex justify-center mb-4">
-                <div className="h-16 w-16 bg-orange-100 rounded-full flex items-center justify-center">
-                  <Wrench className="h-8 w-8 text-orange-600" />
-                </div>
-              </div>
-              
-              <h2 className="text-2xl font-bold text-orange-800 mb-3">
-                Funcionalidad en Desarrollo
-              </h2>
-              
-              <p className="text-orange-700 mb-4 leading-relaxed">
-                La funcionalidad para editar productos está actualmente en desarrollo. 
-                Los endpoints de la API aún no están disponibles.
-              </p>
-              
-              <div className="bg-white rounded-lg p-4 mb-6 border border-orange-200">
-                <div className="flex items-start space-x-3">
-                  <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-left">
-                    <h4 className="font-semibold text-orange-800 mb-2">Estado del desarrollo:</h4>
-                    <ul className="text-sm text-orange-700 space-y-1">
-                      <li>• Vista de interfaz: ✅ Completada</li>
-                      <li>• Carga de datos: ✅ Completada</li>
-                      <li>• Validación de formularios: ⏳ Pendiente</li>
-                      <li>• Endpoints de API: ⏳ Pendiente</li>
-                      <li>• Integración completa: ⏳ Pendiente</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button
-                  onClick={handleBack}
-                  className="btn-primary flex items-center justify-center space-x-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  <span>Volver a Detalles</span>
-                </button>
-                
-                <button
-                  disabled
-                  className="btn-secondary opacity-50 cursor-not-allowed flex items-center justify-center space-x-2"
-                >
-                  <Edit className="h-4 w-4" />
-                  <span>Guardar Cambios (Próximamente)</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Preview Form with Current Data (Disabled) */}
-            <div className="card p-6 opacity-60">
-              <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
+            <form onSubmit={handleSubmit} className="card p-6">
+              <h3 className="text-lg font-semibold text-dark mb-6 flex items-center">
                 <Package className="h-5 w-5 mr-2 text-primary" />
-                Vista Previa del Formulario de Edición
+                Información del Producto
               </h3>
               
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre del Producto *
-                    </label>
-                    <input
-                      type="text"
-                      disabled
-                      value={product.name}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Categoría *
-                    </label>
-                    <select
-                      disabled
-                      value={product.category || ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-                    >
-                      <option value="">Seleccionar categoría</option>
-                      <option value="Bebidas">Bebidas</option>
-                      <option value="Snacks">Snacks</option>
-                      <option value="Dulces">Dulces</option>
-                      <option value="Saludable">Saludable</option>
-                      <option value="Lácteos">Lácteos</option>
-                      <option value="Panadería">Panadería</option>
-                    </select>
-                  </div>
-                </div>
-
+              <div className="space-y-6">
+                {/* Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Descripción
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nombre del Producto *
                   </label>
-                  <textarea
-                    disabled
-                    rows={3}
-                    value={product.description || ''}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Precio *
-                    </label>
-                    <input
-                      type="number"
-                      disabled
-                      value={product.price || 0}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Stock Actual *
-                    </label>
-                    <input
-                      type="number"
-                      disabled
-                      value={product.stock || 0}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Código de Barras
-                    </label>
-                    <input
-                      type="text"
-                      disabled
-                      value={product.barcode || ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
                   <input
-                    type="checkbox"
-                    disabled
-                    id="is_active"
-                    className="rounded border-gray-300 cursor-not-allowed"
-                    checked={product.is_active || false}
-                    readOnly
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Ej: Coca Cola 350ml"
+                    className={`input-field ${errors.name ? 'border-red-500' : ''}`}
+                    required
+                    disabled={isUpdating}
                   />
-                  <label htmlFor="is_active" className="text-sm text-gray-700">
-                    Producto activo
-                  </label>
+                  {errors.name && (
+                    <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+                  )}
                 </div>
 
-                {/* Additional Info */}
-                <div className="pt-4 border-t border-gray-200">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                    <div>
-                      <span className="font-medium">ID:</span> {product.id}
-                    </div>
-                    <div>
-                      <span className="font-medium">Empresa:</span> {product.enterprise_id}
-                    </div>
-                    <div>
-                      <span className="font-medium">Creado:</span> {new Date(product.created_at).toLocaleDateString('es-ES')}
-                    </div>
-                    <div>
-                      <span className="font-medium">Actualizado:</span> {new Date(product.updated_at).toLocaleDateString('es-ES')}
-                    </div>
-                  </div>
+                {/* Actions */}
+                <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    className="btn-secondary flex items-center justify-center space-x-2"
+                    disabled={isUpdating}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>Cancelar</span>
+                  </button>
+                  
+                  <button
+                    type="submit"
+                    className="btn-primary flex items-center justify-center space-x-2"
+                    disabled={isUpdating || !formData.name.trim()}
+                  >
+                    {isUpdating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Actualizando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        <span>Guardar Cambios</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
-            </div>
-
+            </form>
           </div>
         </main>
       </div>

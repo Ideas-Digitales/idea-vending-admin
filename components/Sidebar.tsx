@@ -75,12 +75,6 @@ export default function Sidebar() {
       icon: BarChart3,
       current: pathname === '/reportes',
       permission: 'view_reports'
-    },
-    {
-      name: 'Pruebas',
-      href: '/test',
-      icon: Settings,
-      current: pathname === '/test'
     }
   ];
 

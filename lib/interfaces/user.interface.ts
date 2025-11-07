@@ -122,12 +122,22 @@ export interface UsersResponse {
   };
 }
 
+export interface UserFilter {
+  field?: 'name' | 'email' | 'rut';
+  operator?: '<' | '<=' | '>' | '>=' | '==' | '!=' | 'like' | 'not like' | 'ilike' | 'not ilike' | 'in' | 'not in' | 'all in' | 'any in';
+  value?: string | number | boolean;
+  type?: 'and' | 'or';
+  nested?: UserFilter[];
+}
+
 export interface UsersFilters {
   search?: string;
-  role?: string;
-  status?: string;
   page?: number;
   limit?: number;
+  searchObj?: {
+    value?: string;
+    case_sensitive?: boolean;
+  };
 }
 
 // Interface para crear usuario (datos que se envían a la API)

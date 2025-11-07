@@ -6,11 +6,40 @@ import {
   UserResponse, 
   UsersResponse, 
   UsersFilters, 
+  UserFilter,
   CreateUser
 } from '@/lib/interfaces/user.interface';
 import { UserAdapter } from '@/lib/adapters/user.adapter';
 import type { ApiUsersResponse } from '@/lib/interfaces/user.interface';
 import type { CreateUserFormData } from '@/lib/schemas/user.schema';
+
+// Helper function to build search payload - simplified for name search only
+function buildUsersSearchPayload(filters: UsersFilters) {
+  const payload: any = {
+    page: filters.page || 1,
+    limit: filters.limit || 20,
+  };
+
+  // Add search object if present (searches in name, email, rut fields)
+  if (filters.searchObj?.value) {
+    payload.search = {
+      value: filters.searchObj.value,
+      case_sensitive: false
+    };
+  }
+
+  // Handle legacy search parameter
+  if (filters.search && !filters.searchObj?.value) {
+    payload.search = {
+      value: filters.search,
+      case_sensitive: false
+    };
+  }
+
+  console.log('🔍 Users search payload (simple):', JSON.stringify(payload, null, 2));
+  
+  return payload;
+}
 
 // Server Action para obtener lista de usuarios
 export async function getUsersAction(filters?: UsersFilters): Promise<UsersResponse> {
@@ -35,23 +64,43 @@ export async function getUsersAction(filters?: UsersFilters): Promise<UsersRespo
       };
     }
 
-    // Construir query parameters
-    const queryParams = new URLSearchParams();
-    if (filters?.search) queryParams.append('search', filters.search);
-    if (filters?.role) queryParams.append('role', filters.role);
-    if (filters?.status) queryParams.append('status', filters.status);
-    if (filters?.page) queryParams.append('page', filters.page.toString());
-    if (filters?.limit) queryParams.append('limit', filters.limit.toString());
+    // Use POST search if there's any search term
+    const useSearch = filters && (
+      filters.searchObj?.value ||
+      filters.search
+    );
 
-    const url = `${apiUrl}/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    let response: Response;
+
+    if (useSearch && filters) {
+      // Use POST /users/search for search functionality
+      const searchPayload = buildUsersSearchPayload(filters);
+      
+      response = await fetch(`${apiUrl}/users/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(searchPayload),
+      });
+    } else {
+      // Use simple GET /users for basic requests
+      const queryParams = new URLSearchParams();
+      if (filters?.page) queryParams.append('page', filters.page.toString());
+      if (filters?.limit) queryParams.append('limit', filters.limit.toString());
+
+      const url = `${apiUrl}/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      
+      response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
