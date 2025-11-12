@@ -53,6 +53,7 @@ export default function UserDetailPage() {
       case 'admin': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'operator': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'viewer': return 'bg-green-100 text-green-800 border-green-200';
+      case 'customer': return 'bg-orange-100 text-orange-800 border-orange-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -68,6 +69,7 @@ export default function UserDetailPage() {
       case 'admin': return 'Administrador';
       case 'operator': return 'Operador';
       case 'viewer': return 'Visualizador';
+      case 'customer': return 'Cliente';
       default: return role;
     }
   };
@@ -182,16 +184,7 @@ export default function UserDetailPage() {
                   <div>
                     <h2 className="text-2xl font-bold text-dark">{user.name}</h2>
                     <p className="text-muted">{user.email}</p>
-                    <div className="flex items-center space-x-3 mt-2">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getRoleColor(user.role)}`}>
-                        <Shield className="h-3 w-3 mr-1" />
-                        {getRoleName(user.role)}
-                      </span>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(user.status)}`}>
-                        <Activity className="h-3 w-3 mr-1" />
-                        {user.status === 'active' ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </div>
+                  
                   </div>
                 </div>
               </div>
@@ -232,12 +225,34 @@ export default function UserDetailPage() {
                   Información de Cuenta
                 </h3>
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getRoleColor(user.role)}`}>
-                      {getRoleName(user.role)}
-                    </span>
-                  </div>
+                  {/* Roles del Sistema */}
+                  {user.roles && user.roles.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Roles del Sistema</label>
+                      <div className="flex flex-wrap gap-2">
+                        {user.roles.map((role, index) => (
+                          <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-800 border border-blue-200">
+                            {role.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empresas Asociadas */}
+                  {user.enterprises && user.enterprises.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Empresas Asociadas</label>
+                      <div className="flex flex-wrap gap-2">
+                        {user.enterprises.map((enterprise, index) => (
+                          <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-50 text-purple-800 border border-purple-200">
+                            {enterprise.name} <span className="text-xs text-gray-500 ml-1">(ID: {enterprise.id})</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(user.status)}`}>
@@ -255,6 +270,7 @@ export default function UserDetailPage() {
               </div>
 
             </div>
+
 
             {/* Permissions */}
             <div className="card p-6">

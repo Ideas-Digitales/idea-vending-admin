@@ -9,26 +9,67 @@ async function NuevaMaquinaContent() {
   async function action(formData: FormData) {
     "use server";
 
+    // Extraer y validar datos del formulario
+    const name = String(formData.get("name") || "").trim();
+    const statusRaw = formData.get("status");
+    const status = statusRaw && String(statusRaw).trim() ? String(statusRaw).trim() : "Inactive";
+    const is_enabled = formData.get("is_enabled") === "on";
+    const location = String(formData.get("location") || "").trim();
+    const typeRaw = formData.get("type");
+    const type = typeRaw && String(typeRaw).trim() ? String(typeRaw).trim() : "MDB";
+    const enterprise_id = Number(formData.get("enterprise_id") || 0);
+
+    // Validación de campos requeridos
+    if (!name) {
+      throw new Error("El nombre es requerido");
+    }
+    if (!location) {
+      throw new Error("La ubicación es requerida");
+    }
+    if (!enterprise_id || enterprise_id <= 0) {
+      throw new Error("El ID de empresa es requerido y debe ser mayor a 0");
+    }
+    if (!status || !['Active', 'Inactive', 'Maintenance', 'OutOfService'].includes(status)) {
+      throw new Error("El estado debe ser válido");
+    }
+    if (!type || !['PULSES', 'MDB', 'MDB-DEX'].includes(type)) {
+      throw new Error("El tipo debe ser válido");
+    }
+
     const payload: CreateMachineFormData = {
-      name: String(formData.get("name") || "").trim(),
-      status: (formData.get("status") as CreateMachineFormData["status"]) || "Inactive",
-      is_enabled: (formData.get("is_enabled") as string) === "on",
-      location: String(formData.get("location") || "").trim(),
-      type: (formData.get("type") as CreateMachineFormData["type"]) || "MDB",
-      enterprise_id: Number(formData.get("enterprise_id") || 0),
+      name,
+      status: status as CreateMachineFormData["status"],
+      is_enabled,
+      location,
+      type: type as CreateMachineFormData["type"],
+      enterprise_id,
+      client_id: null, // Campo opcional
     };
 
-    // Validación mínima
-    if (!payload.name || !payload.location || !payload.enterprise_id) {
-      throw new Error("Faltan campos obligatorios");
-    }
+    console.log('Valores extraídos del formulario:');
+    console.log('- name:', name);
+    console.log('- status:', status);
+    console.log('- is_enabled:', is_enabled);
+    console.log('- location:', location);
+    console.log('- type:', type);
+    console.log('- enterprise_id:', enterprise_id);
+    console.log('Payload completo a enviar:', payload);
+    
+    try {
+      const result = await createMachineAction(payload);
+      console.log('Resultado del API:', result);
+      
+      if (!result.success) {
+        console.error('Error del API:', result.error);
+        throw new Error(result.error || "No se pudo crear la máquina");
+      }
 
-    const result = await createMachineAction(payload);
-    if (!result.success) {
-      throw new Error(result.error || "No se pudo crear la máquina");
+      redirect("/maquinas?page=1");
+    } catch (error) {
+      console.error('Error al crear máquina:', error);
+      // Re-lanzar el error para que se muestre en la UI
+      throw error;
     }
-
-    redirect("/maquinas?page=1");
   }
 
   return (
@@ -42,24 +83,24 @@ async function NuevaMaquinaContent() {
                 <Monitor className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-dark">Nueva Máquina</h1>
-                <p className="text-muted">Crea una máquina usando datos reales</p>
+                <h1 className="text-2xl font-bold text-black">Nueva Máquina</h1>
+                <p className="text-gray-600">Crea una máquina usando datos reales</p>
               </div>
             </div>
           </div>
         </header>
 
         <main className="flex-1 p-6 overflow-auto">
-          <form action={action} className="card p-6 max-w-2xl">
+          <form action={action} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 max-w-2xl">
             <div className="grid grid-cols-1 gap-6">
               <div>
-                <label className="label">Nombre</label>
-                <input name="name" className="input-field" placeholder="Nombre de la máquina" required />
+                <label className="block text-sm font-medium text-black mb-2">Nombre</label>
+                <input name="name" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black" placeholder="Nombre de la máquina" required />
               </div>
 
               <div>
-                <label className="label">Estado</label>
-                <select name="status" className="input-field" defaultValue="Inactive">
+                <label className="block text-sm font-medium text-black mb-2">Estado</label>
+                <select name="status" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black select-custom" defaultValue="Inactive" required>
                   <option value="Inactive">Inactiva</option>
                   <option value="Active">Activa</option>
                   <option value="Maintenance">Mantenimiento</option>
@@ -68,21 +109,21 @@ async function NuevaMaquinaContent() {
               </div>
 
               <div>
-                <label className="label">Habilitada</label>
+                <label className="block text-sm font-medium text-black mb-2">Habilitada</label>
                 <div className="flex items-center space-x-2">
                   <input type="checkbox" name="is_enabled" className="h-4 w-4" defaultChecked />
-                  <span className="text-sm text-muted">La máquina estará habilitada</span>
+                  <span className="text-sm text-gray-600">La máquina estará habilitada</span>
                 </div>
               </div>
 
               <div>
-                <label className="label">Ubicación</label>
-                <textarea name="location" className="input-field" rows={3} placeholder="Dirección o descripción" required />
+                <label className="block text-sm font-medium text-black mb-2">Ubicación</label>
+                <textarea name="location" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black" rows={3} placeholder="Dirección o descripción" required />
               </div>
 
               <div>
-                <label className="label">Tipo</label>
-                <select name="type" className="input-field" defaultValue="MDB">
+                <label className="block text-sm font-medium text-black mb-2">Tipo</label>
+                <select name="type" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black select-custom" defaultValue="MDB" required>
                   <option value="PULSES">PULSES</option>
                   <option value="MDB">MDB</option>
                   <option value="MDB-DEX">MDB-DEX</option>
@@ -90,13 +131,13 @@ async function NuevaMaquinaContent() {
               </div>
 
               <div>
-                <label className="label">Empresa ID</label>
-                <input type="number" name="enterprise_id" className="input-field" min={1} placeholder="ID de la empresa" required />
+                <label className="block text-sm font-medium text-black mb-2">Empresa ID</label>
+                <input type="number" name="enterprise_id" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black" min={1} placeholder="ID de la empresa" required />
               </div>
 
               <div className="flex items-center justify-end gap-3">
-                <a href="/maquinas" className="btn-secondary">Cancelar</a>
-                <button type="submit" className="btn-primary">Crear Máquina</button>
+                <a href="/maquinas" className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancelar</a>
+                <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors">Crear Máquina</button>
               </div>
             </div>
           </form>
@@ -107,9 +148,5 @@ async function NuevaMaquinaContent() {
 }
 
 export default function NuevaMaquinaPage() {
-  return (
-    <PageWrapper requiredPermissions={["manage_machines"]}>
-      <NuevaMaquinaContent />
-    </PageWrapper>
-  );
+  return <NuevaMaquinaContent />;
 }

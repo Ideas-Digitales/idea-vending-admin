@@ -276,7 +276,7 @@ export default function ProductosInfiniteClient() {
                   placeholder="Buscar productos por nombre..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white placeholder-gray-600"
+                  className="w-full pl-12 pr-4 py-3 text-lg text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white placeholder-gray-600"
                 />
                 {searchTerm && (
                   <button
@@ -288,14 +288,6 @@ export default function ProductosInfiniteClient() {
                 )}
               </div>
 
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="px-4 py-3 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors font-medium"
-                >
-                  Limpiar
-                </button>
-              )}
             </div>
           </div>
 

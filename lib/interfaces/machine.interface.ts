@@ -1,15 +1,27 @@
+// MQTT User interface
+export interface MqttUser {
+  id: number;
+  username: string;
+  is_superuser: boolean;
+  user_id: number | null;
+  original_password: string;
+  client_id: string;
+  connection_status: boolean;
+}
+
 // Machine interfaces
 export interface Machine {
-  id: number | string;
+  id: number;
   name: string;
   status: string;
-  is_enabled: boolean;
   location: string;
-  client_id: number | null;
   created_at: string;
   updated_at: string;
   type: string;
   enterprise_id: number;
+  client_id?: number | null;
+  mqtt_user?: MqttUser;
+  is_enabled: boolean;
   connection_status: boolean;
 }
 
@@ -35,6 +47,9 @@ export interface ApiMachine {
   enterpriseId?: number;
   connection_status?: boolean;
   connected?: boolean;
+  mqtt_user?: MqttUser | null;
+  // Campos adicionales que pueden venir de la API
+  [key: string]: any;
 }
 
 export interface ApiMachinesResponse {
@@ -100,6 +115,8 @@ export interface CreateMachine {
   name: string;
   location: string;
   type: string;
+  status: string;
+  is_enabled: boolean;
   enterprise_id: number;
   client_id?: number | null;
 }

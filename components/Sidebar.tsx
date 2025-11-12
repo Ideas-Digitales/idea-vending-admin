@@ -24,7 +24,7 @@ export default function Sidebar() {
   // SOLUCIÓN TEMPORAL: Forzar permisos correctos para admin (evitar setState durante render)
   useEffect(() => {
     if (user && user.role === 'admin' && Array.isArray(user.permissions) && !user.permissions.includes('manage_enterprises')) {
-      const correctPermissions = ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'manage_enterprises', 'view_reports'];
+      const correctPermissions = ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'manage_enterprises'];
       updateUser({ permissions: correctPermissions });
     }
   }, [user?.role, JSON.stringify(user?.permissions || [])]);
@@ -68,13 +68,6 @@ export default function Sidebar() {
       icon: Building2,
       current: pathname === '/empresas',
       permission: 'manage_enterprises'
-    },
-    {
-      name: 'Reportes',
-      href: '/reportes',
-      icon: BarChart3,
-      current: pathname === '/reportes',
-      permission: 'view_reports'
     }
   ];
 

@@ -137,7 +137,7 @@ export default function CreateProductPage() {
               <div className="space-y-6">
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Nombre del Producto *
                   </label>
                   <input
@@ -156,7 +156,7 @@ export default function CreateProductPage() {
                 
                 {/* Enterprise */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-black mb-2">
                     Empresa *
                   </label>
                   {isLoadingEnterprises ? (

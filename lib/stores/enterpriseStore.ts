@@ -1,452 +1,288 @@
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { create } from 'zustand';
 import {
   Enterprise,
   EnterprisesFilters,
-  PaginationLinks,
   PaginationMeta,
-} from "../interfaces/enterprise.interface";
+  PaginationLinks,
+} from '../interfaces/enterprise.interface';
 import {
   getEnterprisesAction,
   getEnterpriseAction,
   createEnterpriseAction,
   updateEnterpriseAction,
   deleteEnterpriseAction,
-} from "../actions/enterprise";
-import {
-  CreateEnterpriseFormData,
-  UpdateEnterpriseFormData,
-} from "../schemas/enterprise.schema";
+} from '../actions/enterprise';
+import { CreateEnterpriseFormData, UpdateEnterpriseFormData } from '../schemas/enterprise.schema';
 
 interface EnterpriseState {
-  // Data state
+  // Estado de datos
   enterprises: Enterprise[];
   selectedEnterprise: Enterprise | null;
-  currentFilters: EnterprisesFilters;
-
-  // Pagination state
   pagination: {
-    links: PaginationLinks;
     meta: PaginationMeta;
+    links: PaginationLinks;
   } | null;
 
-  // Global stats cache
-  globalStats: {
-    totalActive: number;
-    totalByRegion: Record<string, number>;
-    lastUpdated: number;
-  } | null;
-
-  // Loading states
+  // Estados de carga
   isLoading: boolean;
   isLoadingEnterprise: boolean;
-  isRefreshing: boolean;
-  isDeleting: boolean;
   isUpdating: boolean;
+  isDeleting: boolean;
 
-  // Error states
+  // Estados de error
   error: string | null;
   enterpriseError: string | null;
-  deleteError: string | null;
   updateError: string | null;
+  deleteError: string | null;
 
-  // Actions
+  // Filtros actuales
+  currentFilters: EnterprisesFilters;
+
+  // Acciones
   fetchEnterprises: (filters?: EnterprisesFilters) => Promise<void>;
   fetchEnterprise: (enterpriseId: string | number) => Promise<void>;
-  refreshEnterprises: () => Promise<void>;
-  createEnterprise: (
-    enterpriseData: CreateEnterpriseFormData
-  ) => Promise<boolean>;
+  createEnterprise: (enterpriseData: CreateEnterpriseFormData) => Promise<boolean>;
+  updateEnterprise: (enterpriseId: string | number, enterpriseData: UpdateEnterpriseFormData) => Promise<boolean>;
   deleteEnterprise: (enterpriseId: string | number) => Promise<boolean>;
-  updateEnterprise: (
-    enterpriseId: string | number,
-    enterpriseData: UpdateEnterpriseFormData
-  ) => Promise<boolean>;
-  setFilters: (filters: EnterprisesFilters) => void;
-  initializeEnterprises: (enterprises: Enterprise[], pagination?: any) => void;
-  clearError: () => void;
-  clearEnterpriseError: () => void;
-  clearDeleteError: () => void;
-  clearUpdateError: () => void;
   clearSelectedEnterprise: () => void;
-
-  // Computed getters
-  getTotalEnterprises: () => number;
-  getFilteredEnterprisesCount: () => number;
-  getTotalActiveEnterprises: () => Promise<number>;
-  hasNextPage: () => boolean;
-  hasPrevPage: () => boolean;
+  clearEnterpriseError: () => void;
+  clearErrors: () => void;
+  setFilters: (filters: EnterprisesFilters) => void;
 }
 
-export const useEnterpriseStore = create<EnterpriseState>()(
-  persist(
-    (set, get) => ({
-      // Initial state
-      enterprises: [],
-      selectedEnterprise: null,
-      currentFilters: {},
-      pagination: null,
-      globalStats: null,
-      isLoading: false,
-      isLoadingEnterprise: false,
-      isRefreshing: false,
-      isDeleting: false,
-      isUpdating: false,
-      error: null,
-      enterpriseError: null,
-      deleteError: null,
-      updateError: null,
+export const useEnterpriseStore = create<EnterpriseState>((set, get) => ({
+  // Estado inicial
+  enterprises: [],
+  selectedEnterprise: null,
+  pagination: null,
+  isLoading: false,
+  isLoadingEnterprise: false,
+  isUpdating: false,
+  isDeleting: false,
+  error: null,
+  enterpriseError: null,
+  updateError: null,
+  deleteError: null,
+  currentFilters: {},
 
-      // Actions
-      fetchEnterprises: async (filters?: EnterprisesFilters) => {
-        set({ isLoading: true, error: null });
+  // Obtener lista de empresas
+  fetchEnterprises: async (filters?: EnterprisesFilters) => {
+    set({ isLoading: true, error: null });
 
-        try {
-          const response = await getEnterprisesAction(filters);
+    try {
+      const response = await getEnterprisesAction(filters);
 
-          if (response.success && response.enterprises) {
-            set({
-              enterprises: response.enterprises,
-              pagination: response.pagination || null,
-              currentFilters: filters || {},
-              isLoading: false,
-              error: null,
-            });
-          } else {
-            set({
-              error: response.error || "Error al cargar empresas",
-              isLoading: false,
-            });
-          }
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : "Error inesperado",
-            isLoading: false,
-          });
-        }
-      },
-
-      fetchEnterprise: async (enterpriseId: string | number) => {
-        set({ isLoadingEnterprise: true, enterpriseError: null });
-
-        try {
-          const response = await getEnterpriseAction(enterpriseId);
-
-          if (response.success && response.enterprise) {
-            set({
-              selectedEnterprise: response.enterprise,
-              isLoadingEnterprise: false,
-              enterpriseError: null,
-            });
-          } else {
-            set({
-              enterpriseError: response.error || "Error al cargar empresa",
-              isLoadingEnterprise: false,
-            });
-          }
-        } catch (error) {
-          set({
-            enterpriseError:
-              error instanceof Error ? error.message : "Error inesperado",
-            isLoadingEnterprise: false,
-          });
-        }
-      },
-
-      refreshEnterprises: async () => {
-        const { currentFilters } = get();
-        set({ isRefreshing: true });
-
-        try {
-          const response = await getEnterprisesAction(currentFilters);
-
-          if (response.success && response.enterprises) {
-            set({
-              enterprises: response.enterprises,
-              pagination: response.pagination || null,
-              isRefreshing: false,
-              error: null,
-            });
-          } else {
-            set({
-              error: response.error || "Error al actualizar empresas",
-              isRefreshing: false,
-            });
-          }
-        } catch (error) {
-          set({
-            error: error instanceof Error ? error.message : "Error inesperado",
-            isRefreshing: false,
-          });
-        }
-      },
-
-      setFilters: (filters: EnterprisesFilters) => {
-        set({ currentFilters: filters });
-      },
-
-      initializeEnterprises: (enterprises: Enterprise[], pagination?: any) => {
+      if (response.success && response.enterprises) {
         set({
-          enterprises,
-          pagination: pagination || null,
+          enterprises: response.enterprises,
+          pagination: response.pagination || null,
+          currentFilters: filters || {},
           isLoading: false,
           error: null,
         });
-      },
-
-      clearError: () => {
-        set({ error: null });
-      },
-
-      clearEnterpriseError: () => {
-        set({ enterpriseError: null });
-      },
-
-      clearSelectedEnterprise: () => {
-        set({ selectedEnterprise: null, enterpriseError: null });
-      },
-
-      createEnterprise: async (enterpriseData: CreateEnterpriseFormData) => {
-        set({ isUpdating: true, updateError: null });
-
-        try {
-          const response = await createEnterpriseAction(enterpriseData);
-
-          if (response.success && response.enterprise) {
-            const { enterprises, pagination } = get();
-            const updatedEnterprises = [response.enterprise, ...enterprises];
-
-            const updatedPagination = pagination
-              ? {
-                  ...pagination,
-                  meta: {
-                    ...pagination.meta,
-                    total: pagination.meta.total + 1,
-                  },
-                }
-              : null;
-
-            set({
-              enterprises: updatedEnterprises,
-              pagination: updatedPagination,
-              isUpdating: false,
-              updateError: null,
-            });
-
-            return true;
-          } else {
-            set({
-              updateError: response.error || "Error al crear empresa",
-              isUpdating: false,
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            updateError:
-              error instanceof Error ? error.message : "Error inesperado",
-            isUpdating: false,
-          });
-          return false;
-        }
-      },
-
-      deleteEnterprise: async (enterpriseId: string | number) => {
-        const { enterprises } = get();
-
-        const enterpriseToDelete = enterprises.find(
-          (e) => e.id === enterpriseId
-        );
-        if (!enterpriseToDelete) {
-          set({ deleteError: "Empresa no encontrada" });
-          return false;
-        }
-
-        const optimisticEnterprises = enterprises.filter(
-          (e) => e.id !== enterpriseId
-        );
-
+      } else {
         set({
-          enterprises: optimisticEnterprises,
-          isDeleting: true,
-          deleteError: null,
+          enterprises: [],
+          pagination: null,
+          isLoading: false,
+          error: response.error || 'Error al cargar empresas',
+        });
+      }
+    } catch (error) {
+      console.error('Error en fetchEnterprises:', error);
+      set({
+        enterprises: [],
+        pagination: null,
+        isLoading: false,
+        error: 'Error de conexión al cargar empresas',
+      });
+    }
+  },
+
+  // Obtener una empresa específica
+  fetchEnterprise: async (enterpriseId: string | number) => {
+    set({ isLoadingEnterprise: true, enterpriseError: null, selectedEnterprise: null });
+
+    try {
+      const response = await getEnterpriseAction(enterpriseId);
+
+      if (response.success && response.enterprise) {
+        set({
+          selectedEnterprise: response.enterprise,
+          isLoadingEnterprise: false,
+          enterpriseError: null,
+        });
+      } else {
+        set({
+          selectedEnterprise: null,
+          isLoadingEnterprise: false,
+          enterpriseError: response.error || 'Error al cargar empresa',
+        });
+      }
+    } catch (error) {
+      console.error('Error en fetchEnterprise:', error);
+      set({
+        selectedEnterprise: null,
+        isLoadingEnterprise: false,
+        enterpriseError: 'Error de conexión al cargar empresa',
+      });
+    }
+  },
+
+  // Crear nueva empresa
+  createEnterprise: async (enterpriseData: CreateEnterpriseFormData) => {
+    set({ isUpdating: true, updateError: null });
+
+    try {
+      const response = await createEnterpriseAction(enterpriseData);
+
+      if (response.success && response.enterprise) {
+        // Agregar la nueva empresa a la lista
+        const { enterprises, pagination } = get();
+        const newEnterprises = [response.enterprise, ...enterprises];
+        
+        set({
+          enterprises: newEnterprises,
+          selectedEnterprise: response.enterprise,
+          isUpdating: false,
+          updateError: null,
+          // Actualizar el total en paginación si existe
+          pagination: pagination ? {
+            ...pagination,
+            meta: {
+              ...pagination.meta,
+              total: pagination.meta.total + 1,
+            },
+          } : null,
         });
 
-        try {
-          const response = await deleteEnterpriseAction(enterpriseId);
+        return true;
+      } else {
+        set({
+          isUpdating: false,
+          updateError: response.error || 'Error al crear empresa',
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error('Error en createEnterprise:', error);
+      set({
+        isUpdating: false,
+        updateError: 'Error de conexión al crear empresa',
+      });
+      return false;
+    }
+  },
 
-          if (response.success) {
-            const { pagination } = get();
-            const updatedPagination = pagination
-              ? {
-                  ...pagination,
-                  meta: {
-                    ...pagination.meta,
-                    total: pagination.meta.total - 1,
-                  },
-                }
-              : null;
+  // Actualizar empresa
+  updateEnterprise: async (enterpriseId: string | number, enterpriseData: UpdateEnterpriseFormData) => {
+    set({ isUpdating: true, updateError: null });
 
-            set({
-              isDeleting: false,
-              deleteError: null,
-              pagination: updatedPagination,
-            });
-            return true;
-          } else {
-            set({
-              enterprises: enterprises,
-              isDeleting: false,
-              deleteError: response.error || "Error al eliminar empresa",
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            enterprises: enterprises,
-            isDeleting: false,
-            deleteError:
-              error instanceof Error ? error.message : "Error inesperado",
-          });
-          return false;
-        }
-      },
+    try {
+      const response = await updateEnterpriseAction(enterpriseId, enterpriseData);
 
-      clearDeleteError: () => {
-        set({ deleteError: null });
-      },
-
-      updateEnterprise: async (
-        enterpriseId: string | number,
-        enterpriseData: UpdateEnterpriseFormData
-      ) => {
-        const { enterprises } = get();
-
-        const enterpriseIndex = enterprises.findIndex(
-          (e) => e.id === enterpriseId
+      if (response.success && response.enterprise) {
+        // Actualizar en la lista
+        const { enterprises, selectedEnterprise } = get();
+        const updatedEnterprises = enterprises.map(enterprise =>
+          enterprise.id === response.enterprise!.id ? response.enterprise! : enterprise
         );
-        if (enterpriseIndex === -1) {
-          set({ updateError: "Empresa no encontrada" });
-          return false;
-        }
-
-        const originalEnterprise = enterprises[enterpriseIndex];
-        const optimisticEnterprises = [...enterprises];
-        optimisticEnterprises[enterpriseIndex] = {
-          ...originalEnterprise,
-          ...enterpriseData,
-        };
 
         set({
-          enterprises: optimisticEnterprises,
-          isUpdating: true,
+          enterprises: updatedEnterprises,
+          selectedEnterprise: selectedEnterprise?.id === response.enterprise.id 
+            ? response.enterprise 
+            : selectedEnterprise,
+          isUpdating: false,
           updateError: null,
         });
 
-        try {
-          const response = await updateEnterpriseAction(
-            enterpriseId,
-            enterpriseData
-          );
-
-          if (response.success && response.enterprise) {
-            const updatedEnterprises = [...get().enterprises];
-            updatedEnterprises[enterpriseIndex] = response.enterprise;
-
-            set({
-              enterprises: updatedEnterprises,
-              isUpdating: false,
-              updateError: null,
-            });
-            return true;
-          } else {
-            set({
-              enterprises: enterprises,
-              isUpdating: false,
-              updateError: response.error || "Error al actualizar empresa",
-            });
-            return false;
-          }
-        } catch (error) {
-          set({
-            enterprises: enterprises,
-            isUpdating: false,
-            updateError:
-              error instanceof Error ? error.message : "Error inesperado",
-          });
-          return false;
-        }
-      },
-
-      clearUpdateError: () => {
-        set({ updateError: null });
-      },
-
-      // Computed getters
-      getTotalEnterprises: () => {
-        const { pagination } = get();
-        return pagination?.meta?.total || 0;
-      },
-
-      getFilteredEnterprisesCount: () => {
-        const { enterprises } = get();
-        return enterprises.length;
-      },
-
-      hasNextPage: () => {
-        const { pagination } = get();
-        return !!pagination?.links?.next;
-      },
-
-      hasPrevPage: () => {
-        const { pagination } = get();
-        return !!pagination?.links?.prev;
-      },
-
-      // Global stats functions
-      getTotalActiveEnterprises: async () => {
-        const { globalStats } = get();
-
-        // Si tenemos stats en cache y son recientes (menos de 5 minutos), usarlas
-        if (
-          globalStats &&
-          Date.now() - globalStats.lastUpdated < 5 * 60 * 1000
-        ) {
-          return globalStats.totalActive;
-        }
-
-        // Si no, calcular desde todas las empresas del servidor
-        try {
-          const response = await getEnterprisesAction({});
-          if (response.success && response.pagination?.meta) {
-            const totalActive = response.pagination.meta.total;
-
-            // Actualizar cache
-            set((state) => ({
-              globalStats: {
-                ...state.globalStats,
-                totalActive,
-                lastUpdated: Date.now(),
-              } as typeof state.globalStats,
-            }));
-
-            return totalActive;
-          }
-        } catch (error) {
-          console.error("Error getting total active enterprises:", error);
-        }
-
-        return 0;
-      },
-    }),
-    {
-      name: "enterprise-store",
-      partialize: (state) => ({
-        enterprises: state.enterprises,
-        pagination: state.pagination,
-        currentFilters: state.currentFilters,
-        globalStats: state.globalStats,
-      }),
+        return true;
+      } else {
+        set({
+          isUpdating: false,
+          updateError: response.error || 'Error al actualizar empresa',
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error('Error en updateEnterprise:', error);
+      set({
+        isUpdating: false,
+        updateError: 'Error de conexión al actualizar empresa',
+      });
+      return false;
     }
-  )
-);
+  },
+
+  // Eliminar empresa
+  deleteEnterprise: async (enterpriseId: string | number) => {
+    set({ isDeleting: true, deleteError: null });
+
+    try {
+      // Actualización optimista
+      const { enterprises, pagination } = get();
+      const originalEnterprises = [...enterprises];
+      const filteredEnterprises = enterprises.filter(enterprise => enterprise.id !== enterpriseId);
+      
+      set({ enterprises: filteredEnterprises });
+
+      const response = await deleteEnterpriseAction(enterpriseId);
+
+      if (response.success) {
+        set({
+          isDeleting: false,
+          deleteError: null,
+          selectedEnterprise: null,
+          // Actualizar el total en paginación si existe
+          pagination: pagination ? {
+            ...pagination,
+            meta: {
+              ...pagination.meta,
+              total: Math.max(0, pagination.meta.total - 1),
+            },
+          } : null,
+        });
+
+        return true;
+      } else {
+        // Revertir actualización optimista
+        set({
+          enterprises: originalEnterprises,
+          isDeleting: false,
+          deleteError: response.error || 'Error al eliminar empresa',
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error('Error en deleteEnterprise:', error);
+      // Revertir actualización optimista
+      const { enterprises } = get();
+      set({
+        isDeleting: false,
+        deleteError: 'Error de conexión al eliminar empresa',
+      });
+      return false;
+    }
+  },
+
+  // Limpiar empresa seleccionada
+  clearSelectedEnterprise: () => {
+    set({ selectedEnterprise: null, enterpriseError: null });
+  },
+
+  // Limpiar error específico de empresa
+  clearEnterpriseError: () => {
+    set({ enterpriseError: null });
+  },
+
+  // Limpiar errores
+  clearErrors: () => {
+    set({ error: null, enterpriseError: null, updateError: null, deleteError: null });
+  },
+
+  // Establecer filtros
+  setFilters: (filters: EnterprisesFilters) => {
+    set({ currentFilters: filters });
+  },
+}));

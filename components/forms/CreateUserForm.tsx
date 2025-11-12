@@ -60,7 +60,7 @@ export default function CreateUserForm({
       email: initialData?.email || '',
       rut: initialData?.rut || '',
       role: initialData ? mapUserRoleToSchemaRole(initialData.role) : 'admin',
-      status: (initialData?.status === 'active' || initialData?.status === 'inactive') ? initialData.status : 'active',
+      status: (initialData?.status === 'active' || initialData?.status === 'inactive') ? initialData.status : 'inactive', // Cambiar default a 'inactive' para modo crear
       password: '',
       confirmPassword: ''
     }
@@ -74,7 +74,7 @@ export default function CreateUserForm({
         email: initialData.email,
         rut: initialData.rut,
         role: mapUserRoleToSchemaRole(initialData.role),
-        status: (initialData.status === 'active' || initialData.status === 'inactive') ? initialData.status : 'active',
+        status: (initialData.status === 'active' || initialData.status === 'inactive') ? initialData.status : 'inactive',
         password: '',
         confirmPassword: ''
       });
@@ -95,7 +95,7 @@ export default function CreateUserForm({
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <User className="h-6 w-6 text-blue-600" />
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-black">
             {title || (mode === 'edit' ? 'Editar Usuario' : 'Crear Nuevo Usuario')}
           </h2>
         </div>
@@ -106,14 +106,14 @@ export default function CreateUserForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Nombre */}
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="name" className="block text-sm font-medium text-black mb-2">
               Nombre Completo *
             </label>
             <input
               {...register('name')}
               type="text"
               id="name"
-              className={`w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.name ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="Ingrese el nombre completo"
@@ -126,7 +126,7 @@ export default function CreateUserForm({
 
           {/* Email */}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="email" className="block text-sm font-medium text-black mb-2">
               Correo Electrónico *
             </label>
             <div className="relative">
@@ -134,7 +134,7 @@ export default function CreateUserForm({
                 {...register('email')}
                 type="email"
                 id="email"
-                className={`w-full px-3 py-2 pl-10 border rounded-md shadow-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full px-3 py-2 pl-10 border rounded-md shadow-sm text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.email ? 'border-red-300' : 'border-gray-300'
                 }`}
                 placeholder="usuario@ejemplo.com"
@@ -149,14 +149,14 @@ export default function CreateUserForm({
 
           {/* RUT */}
           <div>
-            <label htmlFor="rut" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="rut" className="block text-sm font-medium text-black mb-2">
               RUT *
             </label>
             <input
               {...register('rut')}
               type="text"
               id="rut"
-              className={`w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.rut ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="12345678-9"
@@ -169,13 +169,13 @@ export default function CreateUserForm({
 
           {/* Rol */}
           <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="role" className="block text-sm font-medium text-black mb-2">
               Rol *
             </label>
             <select
               {...register('role')}
               id="role"
-              className={`w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.role ? 'border-red-300' : 'border-gray-300'
               }`}
               disabled={isLoading}
@@ -191,13 +191,13 @@ export default function CreateUserForm({
 
           {/* Estado */}
           <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="status" className="block text-sm font-medium text-black mb-2">
               Estado *
             </label>
             <select
               {...register('status')}
               id="status"
-              className={`w-full px-3 py-2 border rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                 errors.status ? 'border-red-300' : 'border-gray-300'
               }`}
               disabled={isLoading}
@@ -213,14 +213,14 @@ export default function CreateUserForm({
 
         {/* Contraseñas */}
         <div className="border-t pt-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
+          <h3 className="text-lg font-medium text-black mb-4">
             {mode === 'edit' ? 'Cambiar Contraseña (Opcional)' : 'Credenciales de Acceso'}
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Contraseña */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-black mb-2">
                 {mode === 'edit' ? 'Nueva Contraseña' : 'Contraseña *'}
               </label>
               <div className="relative">
@@ -228,7 +228,7 @@ export default function CreateUserForm({
                   {...register('password')}
                   type={showPassword ? 'text' : 'password'}
                   id="password"
-                  className={`w-full px-3 py-2 pl-10 pr-10 border rounded-md shadow-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 pl-10 pr-10 border rounded-md shadow-sm text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     errors.password ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder={mode === 'edit' ? 'Dejar vacío para mantener actual' : 'Ingrese la contraseña'}
@@ -251,7 +251,7 @@ export default function CreateUserForm({
 
             {/* Confirmar Contraseña */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-black mb-2">
                 {mode === 'edit' ? 'Confirmar Nueva Contraseña' : 'Confirmar Contraseña *'}
               </label>
               <div className="relative">
@@ -259,7 +259,7 @@ export default function CreateUserForm({
                   {...register('confirmPassword')}
                   type={showConfirmPassword ? 'text' : 'password'}
                   id="confirmPassword"
-                  className={`w-full px-3 py-2 pl-10 pr-10 border rounded-md shadow-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  className={`w-full px-3 py-2 pl-10 pr-10 border rounded-md shadow-sm text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder={mode === 'edit' ? 'Confirme la nueva contraseña' : 'Confirme la contraseña'}

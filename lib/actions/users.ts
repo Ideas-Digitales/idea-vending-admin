@@ -13,18 +13,29 @@ import { UserAdapter } from '@/lib/adapters/user.adapter';
 import type { ApiUsersResponse } from '@/lib/interfaces/user.interface';
 import type { CreateUserFormData } from '@/lib/schemas/user.schema';
 
-// Helper function to build search payload - simplified for name search only
+// Helper function to build search payload for POST /users/search
 function buildUsersSearchPayload(filters: UsersFilters) {
   const payload: any = {
     page: filters.page || 1,
     limit: filters.limit || 20,
   };
 
+  // Add advanced filters if present
+  if (filters.filters && filters.filters.length > 0) {
+    payload.filters = filters.filters.map(filter => ({
+      field: filter.field,
+      operator: filter.operator,
+      value: filter.value,
+      type: filter.type || 'and',
+      ...(filter.nested && { nested: filter.nested })
+    }));
+  }
+
   // Add search object if present (searches in name, email, rut fields)
   if (filters.searchObj?.value) {
     payload.search = {
       value: filters.searchObj.value,
-      case_sensitive: false
+      case_sensitive: filters.searchObj.case_sensitive ?? false
     };
   }
 
@@ -36,7 +47,7 @@ function buildUsersSearchPayload(filters: UsersFilters) {
     };
   }
 
-  console.log('🔍 Users search payload (simple):', JSON.stringify(payload, null, 2));
+  console.log('🔍 Users search payload:', JSON.stringify(payload, null, 2));
   
   return payload;
 }
@@ -64,10 +75,11 @@ export async function getUsersAction(filters?: UsersFilters): Promise<UsersRespo
       };
     }
 
-    // Use POST search if there's any search term
+    // Use POST search if there's any search term or advanced filters
     const useSearch = filters && (
       filters.searchObj?.value ||
-      filters.search
+      filters.search ||
+      (filters.filters && filters.filters.length > 0)
     );
 
     let response: Response;
@@ -76,7 +88,7 @@ export async function getUsersAction(filters?: UsersFilters): Promise<UsersRespo
       // Use POST /users/search for search functionality
       const searchPayload = buildUsersSearchPayload(filters);
       
-      response = await fetch(`${apiUrl}/users/search`, {
+      response = await fetch(`${apiUrl}/users/search?include=roles`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -90,8 +102,9 @@ export async function getUsersAction(filters?: UsersFilters): Promise<UsersRespo
       const queryParams = new URLSearchParams();
       if (filters?.page) queryParams.append('page', filters.page.toString());
       if (filters?.limit) queryParams.append('limit', filters.limit.toString());
+      queryParams.append('include', 'roles');
 
-      const url = `${apiUrl}/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const url = `${apiUrl}/users?${queryParams.toString()}`;
       
       response = await fetch(url, {
         method: 'GET',
@@ -173,7 +186,7 @@ export async function getUserAction(userId: string | number): Promise<UserRespon
       };
     }
 
-    const response = await fetch(`${apiUrl}/users/${userId}`, {
+    const response = await fetch(`${apiUrl}/users/${userId}?include=roles,permissions,enterprises`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -190,6 +203,7 @@ export async function getUserAction(userId: string | number): Promise<UserRespon
     }
 
     const data = await response.json();
+    console.log('Respuesta del API para usuario individual:', data);
     
     let userData = data;
     if (data.user) {
@@ -198,6 +212,7 @@ export async function getUserAction(userId: string | number): Promise<UserRespon
       userData = data.data;
     }
     
+    console.log('Datos del usuario con includes:', userData);
     const user = UserAdapter.apiToApp(userData);
 
     return {
@@ -244,8 +259,12 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
       rut: userData.rut,
       password: userData.password,
       password_confirmation: userData.confirmPassword,
-      role: userData.role
+      role: userData.role,
+      status: userData.status
     };
+    
+    console.log('📝 Datos del formulario recibidos:', userData);
+    console.log('📤 Datos a enviar al API:', createUserData);
     
     const response = await fetch(`${apiUrl}/users`, {
       method: 'POST',
@@ -258,9 +277,10 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
     });
 
     if (!response.ok) {
-      console.log('Error al crear usuario:', response.status, response.statusText);
+      console.log('❌ Error al crear usuario:', response.status, response.statusText);
       
       const errorData = await response.json().catch(() => ({}));
+      console.log('❌ Datos de error del API:', errorData);
       
       // Manejar errores específicos
       if (response.status === 422) {
@@ -294,7 +314,19 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
 
     const data = await response.json();
     
-    const user = UserAdapter.apiToApp(data.user || data);
+    console.log('✅ Respuesta exitosa del API:', data);
+    
+    // Extraer datos del usuario de la respuesta
+    let userResponseData = data;
+    if (data.data) {
+      userResponseData = data.data;
+    } else if (data.user) {
+      userResponseData = data.user;
+    }
+    
+    console.log('👤 Usuario creado (datos extraídos):', userResponseData);
+    
+    const user = UserAdapter.apiToApp(userResponseData);
 
     revalidatePath('/usuarios');
 

@@ -6,7 +6,7 @@ export class MachineAdapter {
    */
   static apiToApp(apiMachine: ApiMachine): Machine {
     return {
-      id: apiMachine.id || apiMachine.id || 0,
+      id: apiMachine.id || 0,
       name: apiMachine.name || apiMachine.machine_name || 'Máquina Sin Nombre',
       status: apiMachine.status || 'Inactive',
       is_enabled: Boolean(apiMachine.is_enabled ?? apiMachine.enabled ?? true),
@@ -17,6 +17,7 @@ export class MachineAdapter {
       type: apiMachine.type || apiMachine.machine_type || 'MDB-DEX',
       enterprise_id: apiMachine.enterprise_id || apiMachine.enterpriseId || 1,
       connection_status: Boolean(apiMachine.connection_status ?? apiMachine.connected ?? false),
+      mqtt_user: apiMachine.mqtt_user || null,
     };
   }
 

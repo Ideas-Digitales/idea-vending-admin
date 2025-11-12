@@ -108,24 +108,34 @@ export default function MaquinasInfiniteClient() {
   }, [debouncedSearchTerm, statusFilter, typeFilter, enabledFilter, fetchMachines, setFilters]);
 
   const handlePageChange = useCallback(async (page: number) => {
-    const newFilters = {
-      ...currentFilters,
-      page,
-    };
+    try {
+      const newFilters = {
+        ...currentFilters,
+        page,
+      };
 
-    setFilters(newFilters);
-    await fetchMachines(newFilters);
+      setFilters(newFilters);
+      await fetchMachines(newFilters);
+    } catch (error) {
+      console.error('Error al cambiar página:', error);
+      // El error ya se maneja en el store
+    }
   }, [currentFilters, setFilters, fetchMachines]);
 
   const handlePageSizeChange = useCallback(async (limit: number) => {
-    const newFilters = {
-      ...currentFilters,
-      page: 1, // Reset to first page when changing page size
-      limit,
-    };
+    try {
+      const newFilters = {
+        ...currentFilters,
+        page: 1, // Reset to first page when changing page size
+        limit,
+      };
 
-    setFilters(newFilters);
-    await fetchMachines(newFilters);
+      setFilters(newFilters);
+      await fetchMachines(newFilters);
+    } catch (error) {
+      console.error('Error al cambiar tamaño de página:', error);
+      // El error ya se maneja en el store
+    }
   }, [currentFilters, setFilters, fetchMachines]);
 
   // Load stats
@@ -448,7 +458,7 @@ export default function MaquinasInfiniteClient() {
                 </div>
                 <div className="flex gap-4">
                   <select
-                    className="input-field min-w-[140px]"
+                    className="input-field min-w-[140px] select-custom"
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
                   >
@@ -459,7 +469,7 @@ export default function MaquinasInfiniteClient() {
                     <option value="OutOfService">Fuera de Servicio</option>
                   </select>
                   <select
-                    className="input-field min-w-[120px]"
+                    className="input-field min-w-[120px] select-custom"
                     value={typeFilter}
                     onChange={(e) => setTypeFilter(e.target.value)}
                   >
@@ -469,7 +479,7 @@ export default function MaquinasInfiniteClient() {
                     <option value="PULSES">PULSES</option>
                   </select>
                   <select
-                    className="input-field min-w-[120px]"
+                    className="input-field min-w-[120px] select-custom"
                     value={enabledFilter}
                     onChange={(e) => setEnabledFilter(e.target.value)}
                   >

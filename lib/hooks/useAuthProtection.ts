@@ -21,6 +21,7 @@ export function useAuthProtection({
   const [isInitializing, setIsInitializing] = useState(true);
   const hasCheckedAuth = useRef(false);
 
+
   // Solo verificar autenticación una vez al montar el componente
   useEffect(() => {
     if (!hasCheckedAuth.current && !isAuthenticated && !isLoading) {

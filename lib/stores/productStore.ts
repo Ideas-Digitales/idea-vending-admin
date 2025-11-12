@@ -49,6 +49,7 @@ interface ProductState {
   clearDeleteError: () => void;
   clearUpdateError: () => void;
   clearSelectedProduct: () => void;
+  clearCache: () => void;
   
   // Computed getters
   getTotalProducts: () => number;
@@ -259,16 +260,19 @@ export const useProductStore = create<ProductState>()(
     console.log('Store: updateProduct llamado con ID:', productId);
     console.log('Store: updateProduct datos:', productData);
     
-    const { products } = get();
+    const { products, currentFilters } = get();
     
-    // Set updating state without requiring the product to be in the list
+    // Store original products for potential revert
+    const originalProducts = [...products];
+    const productIndex = products.findIndex(p => p.id === productId);
+    
+    // Set updating state
     set({ 
       isUpdating: true, 
       updateError: null 
     });
 
     // Optimistic update: find and update product in local state if it exists
-    const productIndex = products.findIndex(p => p.id === productId);
     if (productIndex !== -1) {
       console.log('Store: Producto encontrado en lista local, aplicando actualización optimista');
       const originalProduct = products[productIndex];
@@ -290,54 +294,55 @@ export const useProductStore = create<ProductState>()(
       console.log('Store: Respuesta de updateProductAction:', result);
       
       if (result.success && result.product) {
-        // Success: update with the actual product data from API
-        const { products } = get();
-        const currentProductIndex = products.findIndex(p => p.id === productId);
+        // Success: refresh the entire product list to ensure consistency
+        console.log('Store: Actualización exitosa, refrescando lista completa');
         
-        if (currentProductIndex !== -1) {
-          // Update in list if product exists
-          const updatedProducts = [...products];
-          updatedProducts[currentProductIndex] = result.product;
-          set({ 
-            products: updatedProducts,
-            selectedProduct: result.product,
-            isUpdating: false,
-            updateError: null 
-          });
-        } else {
-          // Just update selected product if not in list
+        try {
+          // Refresh the product list to get the latest data
+          const refreshResponse = await getProductsAction(currentFilters);
+          
+          if (refreshResponse.success && refreshResponse.products) {
+            set({ 
+              products: refreshResponse.products,
+              pagination: refreshResponse.pagination || null,
+              selectedProduct: result.product,
+              isUpdating: false,
+              updateError: null 
+            });
+          } else {
+            // If refresh fails, at least update the selected product
+            set({ 
+              selectedProduct: result.product,
+              isUpdating: false,
+              updateError: null 
+            });
+          }
+        } catch (refreshError) {
+          console.error('Store: Error al refrescar lista después de actualización:', refreshError);
+          // If refresh fails, at least update the selected product
           set({ 
             selectedProduct: result.product,
             isUpdating: false,
             updateError: null 
           });
         }
+        
         return true;
       } else {
-        // API returned error: revert the optimistic update if product was in list
-        const { products } = get();
-        const currentProductIndex = products.findIndex(p => p.id === productId);
-        
-        if (currentProductIndex !== -1) {
-          // Revert optimistic update
-          set({ 
-            products: products, // This should revert to original state
-            isUpdating: false,
-            updateError: result.error || 'Error al actualizar producto'
-          });
-        } else {
-          // Just set error state
-          set({ 
-            isUpdating: false,
-            updateError: result.error || 'Error al actualizar producto'
-          });
-        }
+        // API returned error: revert the optimistic update
+        console.log('Store: Error en actualización, revirtiendo cambios optimistas');
+        set({ 
+          products: originalProducts, // Restore original products
+          isUpdating: false,
+          updateError: result.error || 'Error al actualizar producto'
+        });
         return false;
       }
     } catch (error) {
       // Network/unexpected error: revert the optimistic update
+      console.log('Store: Error de red, revirtiendo cambios optimistas');
       set({ 
-        products: products, // Restore original products
+        products: originalProducts, // Restore original products
         isUpdating: false,
         updateError: error instanceof Error ? error.message : 'Error inesperado' 
       });
@@ -347,6 +352,16 @@ export const useProductStore = create<ProductState>()(
 
   clearUpdateError: () => {
     set({ updateError: null });
+  },
+
+  // Clear cache to force fresh data
+  clearCache: () => {
+    set({ 
+      globalStats: null,
+      products: [],
+      pagination: null,
+      selectedProduct: null
+    });
   },
 
   // Computed getters

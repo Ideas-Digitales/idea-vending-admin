@@ -1,207 +1,295 @@
-import { notFound } from "next/navigation";
-import PageWrapper from "@/components/PageWrapper";
-import Sidebar from "@/components/Sidebar";
-import { getMachineAction } from "@/lib/actions/machines";
-import { Monitor, Wifi, WifiOff, Calendar, MapPin, KeyRound, User as UserIcon, ChevronLeft } from "lucide-react";
+'use client';
 
-function getStatusChip(status: string) {
-  const s = status.toLowerCase();
-  if (s === "active") return { label: "Activa", cls: "bg-green-100 text-green-800" };
-  if (s === "maintenance") return { label: "Mantenimiento", cls: "bg-yellow-100 text-yellow-800" };
-  if (s === "outofservice") return { label: "Fuera de Servicio", cls: "bg-orange-100 text-orange-800" };
-  return { label: "Inactiva", cls: "bg-red-100 text-red-800" };
-}
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Sidebar from '@/components/Sidebar';
+import { getMachineAction } from '@/lib/actions/machines';
+import { Machine } from '@/lib/interfaces/machine.interface';
+import { Monitor, ArrowLeft, Wifi, WifiOff, MapPin, Calendar, Settings, Building2, Shield, Activity, Edit } from 'lucide-react';
 
-async function MaquinaDetalleContent({ params, searchParams }: { params: { id: string }, searchParams?: { updated?: string; error?: string } }) {
-  const result = await getMachineAction(params.id);
-  if (!result.success || !result.machine) {
-    notFound();
+export default function MaquinaDetallePage() {
+  const params = useParams();
+  const router = useRouter();
+  const [machine, setMachine] = useState<Machine | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const machineId = params.id as string;
+
+  const handleBack = () => {
+    // Forzar recarga completa de la página de máquinas
+    window.location.href = '/maquinas';
+  };
+
+  useEffect(() => {
+    async function loadMachine() {
+      try {
+        setLoading(true);
+        const result = await getMachineAction(machineId, { include: 'mqttUser' });
+        
+        if (result.success && result.machine) {
+          setMachine(result.machine);
+        } else {
+          setError(result.error || 'Máquina no encontrada');
+        }
+      } catch (err) {
+        setError('Error al cargar la máquina');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (machineId) {
+      loadMachine();
+    }
+  }, [machineId]);
+
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active': return 'bg-green-100 text-green-800 border-green-200';
+      case 'maintenance': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'outofservice': return 'bg-orange-100 text-orange-800 border-orange-200';
+      default: return 'bg-red-100 text-red-800 border-red-200';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active': return 'Activa';
+      case 'maintenance': return 'Mantenimiento';
+      case 'outofservice': return 'Fuera de Servicio';
+      default: return 'Inactiva';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex">
+        <Sidebar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted">Cargando detalles de la máquina...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
-  const machine = result.machine;
-  const status = getStatusChip(machine.status);
+
+  if (error || !machine) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex">
+        <Sidebar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-red-500 mb-4">
+              <Monitor className="h-12 w-12 mx-auto" />
+            </div>
+            <h3 className="text-lg font-semibold text-dark mb-2">Error al cargar máquina</h3>
+            <p className="text-muted mb-4">{error}</p>
+            <button 
+              onClick={handleBack}
+              className="btn-primary"
+            >
+              Volver a la lista
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
-      <div className="flex-1 flex flex-col">
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="h-10 w-10 bg-primary rounded-lg flex items-center justify-center">
-                <Monitor className="h-6 w-6 text-white" />
+      
+      <div className="flex-1 min-h-screen overflow-auto">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={handleBack}
+                  className="p-2 text-gray-600 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+                <div className="h-10 w-10 bg-primary rounded-lg flex items-center justify-center">
+                  <Monitor className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-dark">Detalles de la Máquina</h1>
+                  <p className="text-muted">Información completa y gestión de la máquina</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-dark">Detalle de Máquina</h1>
-                <p className="text-muted">Información completa y credenciales MQTT</p>
+              
+              <div className="flex items-center space-x-3">
+                <button 
+                  onClick={() => window.location.href = `/maquinas/${machine.id}/editar`}
+                  className="btn-secondary flex items-center space-x-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  <span>Editar</span>
+                </button>
               </div>
             </div>
-            <a href="/maquinas" className="btn-secondary flex items-center gap-2">
-              <ChevronLeft className="h-4 w-4" /> Volver
-            </a>
           </div>
         </header>
 
-        <main className="flex-1 p-6 overflow-auto">
-          {searchParams?.updated && (
-            <div className="mb-4">
-              <div className={`card p-4 border ${searchParams.updated === '1' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                <div className="flex items-center justify-between">
-                  <p className={`text-sm ${searchParams.updated === '1' ? 'text-green-800' : 'text-red-800'} font-medium`}>
-                    {searchParams.updated === '1' ? 'Máquina actualizada correctamente.' : decodeURIComponent(searchParams.error || 'No se pudo actualizar la máquina.')}
+        {/* Content */}
+        <main className="p-6">
+          <div className="max-w-4xl mx-auto space-y-6">
+            
+            {/* Profile Card */}
+            <div className="card p-6">
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <div className="h-16 w-16 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center">
+                    <Monitor className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-dark">{machine.name}</h2>
+                    <p className="text-muted">ID: {machine.id}</p>
+                    
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Information Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* Machine Information */}
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
+                  <Monitor className="h-5 w-5 mr-2 text-primary" />
+                  Información de la Máquina
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-1">Nombre</label>
+                    <p className="text-dark">{machine.name}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-1">Ubicación</label>
+                    <p className="text-dark flex items-start">
+                      <MapPin className="h-4 w-4 mr-2 text-gray-600 mt-0.5" />
+                      <span className="whitespace-pre-line">{machine.location}</span>
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-1">Tipo</label>
+                    <p className="text-dark">{machine.type}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-1">ID Empresa</label>
+                    <p className="text-dark">{machine.enterprise_id}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Information */}
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
+                  <Activity className="h-5 w-5 mr-2 text-primary" />
+                  Estado y Conexión
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <div className="flex items-center">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(machine.status)}`}>
+                        <Activity className="h-3 w-3 mr-1" />
+                        {getStatusLabel(machine.status)}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center">
+                      {machine?.mqtt_user?.connection_status ? (
+                        <div className="flex items-center text-green-500">
+                          <Wifi className="h-5 w-5 mr-2" />
+                          <span>Conectado</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center text-red-500">
+                          <WifiOff className="h-5 w-5 mr-2" />
+                          <span>Desconectado</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-1">Fecha de Creación</label>
+                  <p className="text-dark flex items-center">
+                    <Calendar className="h-4 w-4 mr-2 text-gray-600" />
+                    {new Date(machine.created_at).toLocaleDateString('es-ES')}
                   </p>
-                  <a href={`/maquinas/${params.id}`} className={`${searchParams.updated === '1' ? 'text-green-700' : 'text-red-700'} text-sm hover:underline`}>Cerrar</a>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-1">Última Actualización</label>
+                  <p className="text-dark flex items-center">
+                    <Calendar className="h-4 w-4 mr-2 text-gray-600" />
+                    {new Date(machine.updated_at).toLocaleDateString('es-ES')}
+                  </p>
                 </div>
               </div>
             </div>
-          )}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <div className="xl:col-span-2 space-y-6">
+
+            {/* MQTT Credentials */}
+            {machine.mqtt_user && (
               <div className="card p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 bg-primary rounded-xl flex items-center justify-center">
-                      <Monitor className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-dark">{machine.name}</h2>
-                      <p className="text-sm text-muted">ID: {machine.id}</p>
-                    </div>
-                  </div>
-                  <span className={`px-3 py-1 text-xs font-semibold rounded-full ${status.cls}`}>{status.label}</span>
-                </div>
-
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-start">
-                    <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-0.5" />
-                    <div>
-                      <p className="text-xs text-muted">Ubicación</p>
-                      <p className="text-sm text-dark whitespace-pre-line">{machine.location}</p>
-                    </div>
+                <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
+                  <Shield className="h-5 w-5 mr-2 text-primary" />
+                  Credenciales MQTT
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-black mb-1">Usuario</label>
+                    <p className="text-dark">{machine.mqtt_user.username}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted">Tipo</p>
-                    <p className="text-sm text-dark">{machine.type || '-'}</p>
+                    <label className="block text-sm font-medium text-black mb-1">Client ID</label>
+                    <p className="text-dark">{machine.mqtt_user.client_id || 'No asignado'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted">Empresa ID</p>
-                    <p className="text-sm text-dark">{machine.enterprise_id}</p>
+                    <label className="block text-sm font-medium text-black mb-1">Superusuario</label>
+                    <p className="text-dark">{machine.mqtt_user.is_superuser ? 'Sí' : 'No'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted">Cliente ID</p>
-                    <p className="text-sm text-dark">{machine.client_id ?? '-'}</p>
-                  </div>
-                </div>
-
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2">
-                    {machine.connection_status ? <Wifi className="h-4 w-4 text-green-600" /> : <WifiOff className="h-4 w-4 text-red-600" />}
-                    <span className={`text-sm ${machine.connection_status ? 'text-green-700' : 'text-red-700'}`}>{machine.connection_status ? 'Conectada' : 'Desconectada'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted">
-                    <Calendar className="h-4 w-4" />
-                    <span className="text-sm">Creada: {new Date(machine.created_at).toLocaleString('es-ES')}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted">
-                    <Calendar className="h-4 w-4" />
-                    <span className="text-sm">Actualizada: {new Date(machine.updated_at).toLocaleString('es-ES')}</span>
+                    <label className="block text-sm font-medium text-black mb-1">ID Máquina</label>
+                    <p className="text-dark">{machine.id}</p>
                   </div>
                 </div>
               </div>
-
-              <div className="card p-6">
-                <h3 className="text-lg font-bold text-dark mb-4">Editar información</h3>
-                <form action={`/maquinas/${machine.id}/update`} method="POST" className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">Nombre</label>
-                    <input name="name" defaultValue={machine.name} className="input-field" />
-                  </div>
-                  <div>
-                    <label className="label">Estado</label>
-                    <select name="status" defaultValue={machine.status} className="input-field">
-                      <option value="Inactive">Inactiva</option>
-                      <option value="Active">Activa</option>
-                      <option value="Maintenance">Mantenimiento</option>
-                      <option value="OutOfService">Fuera de Servicio</option>
-                    </select>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="label">Ubicación</label>
-                    <textarea name="location" defaultValue={machine.location} className="input-field" rows={3} />
-                  </div>
-                  <div>
-                    <label className="label">Tipo</label>
-                    <select name="type" defaultValue={machine.type} className="input-field">
-                      <option value="PULSES">PULSES</option>
-                      <option value="MDB">MDB</option>
-                      <option value="MDB-DEX">MDB-DEX</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">Empresa ID</label>
-                    <input type="number" name="enterprise_id" defaultValue={machine.enterprise_id} className="input-field" min={1} />
-                  </div>
-                  <div className="flex items-center gap-2 md:col-span-2">
-                    <input type="checkbox" name="is_enabled" defaultChecked={machine.is_enabled} className="h-4 w-4" />
-                    <span className="text-sm text-dark">Habilitada</span>
-                  </div>
-                  <div className="md:col-span-2 flex items-center justify-end gap-3 pt-2">
-                    <a href={`/maquinas/${machine.id}`} className="btn-secondary text-dark min-w-[110px]">Cancelar</a>
-                    <button className="btn-primary min-w-[110px]" type="submit">Guardar cambios</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="card p-6">
-                <h3 className="text-lg font-bold text-dark mb-4">Credenciales MQTT</h3>
-                {!machine.mqtt_user ? (
-                  <p className="text-sm text-muted">No hay credenciales MQTT asociadas.</p>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-2">
-                      <div className="flex items-center gap-2">
-                        <UserIcon className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm text-dark">{machine.mqtt_user.username}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <KeyRound className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm text-dark">{machine.mqtt_user.client_id ?? '-'}</span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-xs text-muted">Superusuario</p>
-                        <p className="text-sm text-dark">{machine.mqtt_user.is_superuser ? 'Sí' : 'No'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted">Machine ID</p>
-                        <p className="text-sm text-dark">{machine.mqtt_user.machine_id}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted">Creada</p>
-                        <p className="text-sm text-dark">{machine.mqtt_user.created_at ? new Date(machine.mqtt_user.created_at).toLocaleString('es-ES') : '-'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted">Actualizada</p>
-                        <p className="text-sm text-dark">{machine.mqtt_user.updated_at ? new Date(machine.mqtt_user.updated_at).toLocaleString('es-ES') : '-'}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+            )}
+            
+            {/* Advanced MQTT Data Section */}
+            <div className="card p-6 mt-6">
+              <h3 className="text-lg font-medium text-black mb-4">Datos MQTT Avanzados</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-gray-600">Usuario MQTT</label>
+                  <p className="text-black">{machine?.mqtt_user?.username}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Client ID</label>
+                  <p className="text-black">{machine?.mqtt_user?.client_id}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Contraseña Original</label>
+                  <p className="text-black">{machine?.mqtt_user?.original_password}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Superusuario</label>
+                  <p className="text-black">{machine?.mqtt_user?.is_superuser ? 'Sí' : 'No'}</p>
+                </div>
               </div>
             </div>
           </div>
         </main>
       </div>
     </div>
-  );
-}
-
-export default function MaquinaDetallePage(props: any) {
-  return (
-    <PageWrapper requiredPermissions={["read", "manage_machines"]}>
-      <MaquinaDetalleContent {...props} />
-    </PageWrapper>
   );
 }

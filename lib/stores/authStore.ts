@@ -119,6 +119,10 @@ export const useAuthStore = create<AuthState>()(
         // Si ya está autenticado, no verificar de nuevo
         if (currentState.isAuthenticated && currentState.user) {
           console.log('🔐 Usuario ya autenticado, saltando verificación');
+          // Asegurar que isLoading esté en false
+          if (currentState.isLoading) {
+            set({ isLoading: false });
+          }
           return;
         }
 

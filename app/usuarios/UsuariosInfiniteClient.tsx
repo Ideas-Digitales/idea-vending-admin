@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Users, Plus, Search, Edit, Trash2, Eye, UserCheck, UserX, Loader2, AlertCircle } from 'lucide-react';
+import { Users, Plus, Search, Edit, Trash2, Eye, UserX, Loader2, AlertCircle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import UsersFiltersComponent from '@/components/UsersFilters';
@@ -35,14 +35,15 @@ export default function UsuariosInfiniteClient() {
     hasPrevPage,
   } = useUserStore();
 
-  // Local UI state - Simple search
+  // Local UI state - Complete filters
   const [filters, setFiltersState] = useState<UsersFilters>({
     page: 1,
     limit: 20,
     searchObj: {
       value: '',
       case_sensitive: false
-    }
+    },
+    filters: []
   });
   const [deleteDialog, setDeleteDialog] = useState<{
     isOpen: boolean;
@@ -100,32 +101,43 @@ export default function UsuariosInfiniteClient() {
       searchObj: {
         value: '',
         case_sensitive: false
-      }
+      },
+      filters: []
     };
     setFiltersState(clearedFilters);
   }, []);
 
   // Handle page change
   const handlePageChange = useCallback(async (page: number) => {
-    const newFilters = {
-      ...currentFilters,
-      page,
-    };
+    try {
+      const newFilters = {
+        ...currentFilters,
+        page,
+      };
 
-    setFilters(newFilters);
-    await fetchUsers(newFilters);
+      setFilters(newFilters);
+      await fetchUsers(newFilters);
+    } catch (error) {
+      console.error('Error al cambiar página de usuarios:', error);
+      // El error ya se maneja en el store
+    }
   }, [currentFilters, setFilters, fetchUsers]);
 
   // Handle page size change
   const handlePageSizeChange = useCallback(async (limit: number) => {
-    const newFilters = {
-      ...currentFilters,
-      page: 1, // Reset to first page when changing page size
-      limit,
-    };
+    try {
+      const newFilters = {
+        ...currentFilters,
+        page: 1, // Reset to first page when changing page size
+        limit,
+      };
 
-    setFilters(newFilters);
-    await fetchUsers(newFilters);
+      setFilters(newFilters);
+      await fetchUsers(newFilters);
+    } catch (error) {
+      console.error('Error al cambiar tamaño de página de usuarios:', error);
+      // El error ya se maneja en el store
+    }
   }, [currentFilters, setFilters, fetchUsers]);
 
 
@@ -135,8 +147,9 @@ export default function UsuariosInfiniteClient() {
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'admin': return 'bg-purple-100 text-purple-800';
-      case 'customer': return 'bg-blue-100 text-blue-800';
-      case 'technician': return 'bg-green-100 text-green-800';
+      case 'operator': return 'bg-blue-100 text-blue-800';
+      case 'viewer': return 'bg-green-100 text-green-800';
+      case 'customer': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -152,6 +165,7 @@ export default function UsuariosInfiniteClient() {
       case 'admin': return 'Administrador';
       case 'operator': return 'Operador';
       case 'viewer': return 'Visualizador';
+      case 'customer': return 'Cliente';
       default: return role;
     }
   };
@@ -250,70 +264,6 @@ export default function UsuariosInfiniteClient() {
         </header>
 
         <div className="relative">
-          {/* Stats Cards - Solo datos directos del API */}
-          {pagination?.meta && (
-            <div className="p-6 pb-0">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="card p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="text-sm font-semibold text-muted">Total Usuarios</p>
-                        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">API</span>
-                      </div>
-                      <p className="text-2xl font-bold text-dark">{pagination.meta.total}</p>
-                      <p className="text-xs text-muted mt-1">
-                        Mostrando {pagination.meta.from || 0} - {pagination.meta.to || 0}
-                      </p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-blue-50 flex-shrink-0 ml-4">
-                      <Users className="h-6 w-6 text-blue-600" />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="card p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="text-sm font-semibold text-muted">Página Actual</p>
-                        <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
-                      </div>
-                      <p className="text-2xl font-bold text-green-600">
-                        {pagination.meta.current_page} de {pagination.meta.last_page}
-                      </p>
-                      <p className="text-xs text-muted mt-1">
-                        {pagination.meta.per_page} por página
-                      </p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-green-50 flex-shrink-0 ml-4">
-                      <Search className="h-6 w-6 text-green-600" />
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="card p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="text-sm font-semibold text-muted">En Esta Página</p>
-                        <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">API</span>
-                      </div>
-                      <p className="text-2xl font-bold text-purple-600">
-                        {users.length}
-                      </p>
-                      <p className="text-xs text-muted mt-1">
-                        Usuarios cargados
-                      </p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-purple-50 flex-shrink-0 ml-4">
-                      <UserCheck className="h-6 w-6 text-purple-600" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {error && (
             <div className="px-6 py-4">
@@ -342,7 +292,7 @@ export default function UsuariosInfiniteClient() {
           )}
 
           {/* Search and Filters */}
-          <div className="px-6 py-4">
+          <div className="px-6">
             <UsersFiltersComponent
               filters={filters}
               onFiltersChange={handleFiltersChange}
@@ -445,12 +395,6 @@ export default function UsuariosInfiniteClient() {
                             <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
                           </div>
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          <div className="flex items-center">
-                            Permisos
-                            <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">API</span>
-                          </div>
-                        </th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Acciones
                         </th>
@@ -476,9 +420,19 @@ export default function UsuariosInfiniteClient() {
                             <div className="text-sm text-dark">{user.rut}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(user.role)}`}>
-                              {getRoleName(user.role)}
-                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {user.roles && user.roles.length > 0 ? (
+                                user.roles.map((role, index) => (
+                                  <span key={index} className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-800 border border-blue-200">
+                                    {role.name}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                                  Sin roles
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(user.status)}`}>
@@ -487,20 +441,6 @@ export default function UsuariosInfiniteClient() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                             {new Date(user.lastLogin).toLocaleString('es-ES')}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-wrap gap-1">
-                              {user.permissions.slice(0, 2).map((permission) => (
-                                <span key={permission} className="inline-flex px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
-                                  {permission}
-                                </span>
-                              ))}
-                              {user.permissions.length > 2 && (
-                                <span className="inline-flex px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
-                                  +{user.permissions.length - 2}
-                                </span>
-                              )}
-                            </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex items-center justify-end space-x-2">
@@ -549,15 +489,17 @@ export default function UsuariosInfiniteClient() {
 
           {/* Pagination */}
           {pagination && (
-            <MachineStylePagination
-              pagination={pagination}
-              onPageChange={handlePageChange}
-              onPageSizeChange={handlePageSizeChange}
-              isLoading={isLoading}
-              itemName="usuarios"
-              hasNextPage={hasNextPage}
-              hasPrevPage={hasPrevPage}
-            />
+            <div className="px-6 mt-6">
+              <MachineStylePagination
+                pagination={pagination}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+                isLoading={isLoading}
+                itemName="usuarios"
+                hasNextPage={hasNextPage}
+                hasPrevPage={hasPrevPage}
+              />
+            </div>
           )}
 
           {/* Bottom spacing */}

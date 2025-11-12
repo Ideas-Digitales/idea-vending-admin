@@ -46,7 +46,7 @@ export default function MachineSearchFilters() {
           {/* Filtros secundarios */}
           <div className="flex flex-col sm:flex-row gap-4">
             <select 
-              className="input-field flex-1"
+              className="input-field flex-1 select-custom"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -56,7 +56,7 @@ export default function MachineSearchFilters() {
               <option value="Maintenance">Mantenimiento</option>
             </select>
             <select 
-              className="input-field flex-1"
+              className="input-field flex-1 select-custom"
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
             >
@@ -66,7 +66,7 @@ export default function MachineSearchFilters() {
               <option value="MDB-DEX">MDB-DEX</option>
             </select>
             <select 
-              className="input-field flex-1"
+              className="input-field flex-1 select-custom"
               value={isEnabledFilter}
               onChange={(e) => setIsEnabledFilter(e.target.value as '' | 'enabled' | 'disabled')}
             >

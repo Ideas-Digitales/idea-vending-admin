@@ -66,9 +66,9 @@ export default function EditarUsuarioPage() {
 
       if (result.success) {
         notify.success('Usuario actualizado exitosamente');
+        // Recargar los datos del usuario para mostrar los cambios actualizados
+        await fetchUser(userId);
         await refreshUsers();
-        // Forzar recarga completa de la página de usuarios
-        window.location.href = '/usuarios';
       } else {
         notify.error(`Error al actualizar usuario: ${result.error}`);
       }

@@ -3,6 +3,7 @@
 import { Monitor, MapPin, Eye, Edit, Trash2 } from 'lucide-react';
 import { type Machine } from '@/lib/interfaces/machine.interface';
 import { getStatusColor, getStatusName } from '../utils/machineHelpers';
+import { useRouter } from 'next/navigation';
 
 interface MachineTableProps {
   machines: Machine[];
@@ -10,6 +11,19 @@ interface MachineTableProps {
 }
 
 export default function MachineTable({ machines, loading }: MachineTableProps) {
+  const router = useRouter();
+
+  const handleViewMachine = (machineId: number | string) => {
+    router.push(`/maquinas/${machineId}`);
+  };
+
+  const handleEditMachine = (machineId: number | string) => {
+    router.push(`/maquinas/${machineId}/update`);
+  };
+
+  const handleDeleteMachine = (machineId: number | string) => {
+    router.push(`/maquinas/${machineId}/delete`);
+  };
 
   if (machines.length === 0 && !loading) {
     return (
@@ -103,18 +117,21 @@ export default function MachineTable({ machines, loading }: MachineTableProps) {
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-2">
                   <button 
+                    onClick={() => handleViewMachine(machine.id)}
                     className="text-blue-600 hover:text-blue-900 p-1"
                     title="Ver detalles"
                   >
                     <Eye className="h-4 w-4" />
                   </button>
                   <button 
+                    onClick={() => handleEditMachine(machine.id)}
                     className="text-green-600 hover:text-green-900 p-1"
                     title="Editar máquina"
                   >
                     <Edit className="h-4 w-4" />
                   </button>
                   <button 
+                    onClick={() => handleDeleteMachine(machine.id)}
                     className="text-red-600 hover:text-red-900 p-1"
                     title="Eliminar máquina"
                   >

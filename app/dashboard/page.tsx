@@ -3,23 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  BarChart3, 
   Users, 
   ShoppingCart, 
-  DollarSign, 
   Settings, 
-  LogOut,
-  Menu,
-  X,
-  Bell,
-  Search,
   Monitor,
   AlertTriangle,
   Activity,
-  TrendingUp,
-  Zap,
-  Shield,
-  Clock
+  Zap
 } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Sidebar from '@/components/Sidebar';
@@ -132,12 +122,9 @@ function DashboardContent() {
                 <h1 className="text-2xl font-bold text-dark">Dashboard</h1>
                 <p className="text-muted">Bienvenido de vuelta, {user?.name}</p>
               </div>
-              <div className="flex items-center space-x-4">
-                <Bell className="h-5 w-5 text-gray-400" />
-                <div className="text-right">
-                  <p className="text-sm font-medium text-dark">{user?.email}</p>
-                  <p className="text-xs text-muted">{user?.role}</p>
-                </div>
+              <div className="text-right">
+                <p className="text-sm font-medium text-dark">{user?.email}</p>
+                <p className="text-xs text-muted">{user?.role}</p>
               </div>
             </div>
           </div>
@@ -202,140 +189,6 @@ function DashboardContent() {
             </div>
           )}
 
-          {/* Visual Charts Section */}
-          {!loading && !error && dashboardStats && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              {/* Machine Status Chart */}
-              <div className="card p-6">
-                <h3 className="text-lg font-bold text-dark mb-6 flex items-center">
-                  <BarChart3 className="h-5 w-5 mr-2 text-blue-600" />
-                  Estado de Máquinas
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-                      <span className="text-sm font-medium text-dark">Activas</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg font-bold text-green-600">{dashboardStats.machines.active}</span>
-                      <div className="w-24 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-green-500 h-2 rounded-full transition-all duration-1000"
-                          style={{ width: `${(dashboardStats.machines.active / dashboardStats.machines.total) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-                      <span className="text-sm font-medium text-dark">Inactivas</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg font-bold text-red-600">{dashboardStats.machines.inactive}</span>
-                      <div className="w-24 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-red-500 h-2 rounded-full transition-all duration-1000"
-                          style={{ width: `${(dashboardStats.machines.inactive / dashboardStats.machines.total) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
-                      <span className="text-sm font-medium text-dark">Mantenimiento</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg font-bold text-yellow-600">{dashboardStats.machines.maintenance}</span>
-                      <div className="w-24 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-yellow-500 h-2 rounded-full transition-all duration-1000"
-                          style={{ width: `${(dashboardStats.machines.maintenance / dashboardStats.machines.total) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-4 h-4 bg-gray-500 rounded-full"></div>
-                      <span className="text-sm font-medium text-dark">Fuera de Servicio</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg font-bold text-gray-600">{dashboardStats.machines.outOfService}</span>
-                      <div className="w-24 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-gray-500 h-2 rounded-full transition-all duration-1000"
-                          style={{ width: `${(dashboardStats.machines.outOfService / dashboardStats.machines.total) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* User Distribution Chart */}
-              <div className="card p-6">
-                <h3 className="text-lg font-bold text-dark mb-6 flex items-center">
-                  <Users className="h-5 w-5 mr-2 text-purple-600" />
-                  Distribución de Usuarios
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-4 h-4 bg-purple-500 rounded-full"></div>
-                      <span className="text-sm font-medium text-dark">Administradores</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg font-bold text-purple-600">{dashboardStats.users.admins}</span>
-                      <div className="w-24 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-purple-500 h-2 rounded-full transition-all duration-1000"
-                          style={{ width: `${(dashboardStats.users.admins / dashboardStats.users.total) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-                      <span className="text-sm font-medium text-dark">Operadores</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg font-bold text-blue-600">{dashboardStats.users.operators}</span>
-                      <div className="w-24 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
-                          style={{ width: `${(dashboardStats.users.operators / dashboardStats.users.total) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-                      <span className="text-sm font-medium text-dark">Activos</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-lg font-bold text-green-600">{dashboardStats.users.active}</span>
-                      <div className="w-24 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-green-500 h-2 rounded-full transition-all duration-1000"
-                          style={{ width: `${(dashboardStats.users.active / dashboardStats.users.total) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Quick Actions */}
           <div className="mb-8">
@@ -364,53 +217,6 @@ function DashboardContent() {
             </div>
           </div>
 
-          {/* System Status Summary */}
-          {!loading && !error && dashboardStats && (
-            <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6 border border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-dark flex items-center">
-                  <Activity className="h-5 w-5 mr-2 text-green-500" />
-                  Estado del Sistema
-                </h3>
-                <div className="flex items-center space-x-2">
-                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm text-green-600 font-medium">Sistema Operativo</span>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                  <div className="flex items-center justify-center mb-2">
-                    <Monitor className="h-8 w-8 text-blue-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-blue-600 mb-1">
-                    {Math.round((dashboardStats.machines.active / dashboardStats.machines.total) * 100)}%
-                  </p>
-                  <p className="text-sm text-muted">Disponibilidad de Máquinas</p>
-                </div>
-                
-                <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                  <div className="flex items-center justify-center mb-2">
-                    <Users className="h-8 w-8 text-purple-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-purple-600 mb-1">
-                    {Math.round((dashboardStats.users.active / dashboardStats.users.total) * 100)}%
-                  </p>
-                  <p className="text-sm text-muted">Usuarios Activos</p>
-                </div>
-                
-                <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                  <div className="flex items-center justify-center mb-2">
-                    <Shield className="h-8 w-8 text-orange-600" />
-                  </div>
-                  <p className="text-2xl font-bold text-orange-600 mb-1">
-                    {dashboardStats.machines.inactive + dashboardStats.machines.maintenance + dashboardStats.machines.outOfService}
-                  </p>
-                  <p className="text-sm text-muted">Máquinas No Operativas</p>
-                </div>
-              </div>
-            </div>
-          )}
         </main>
       </div>
     </div>

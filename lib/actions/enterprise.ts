@@ -4,15 +4,22 @@ import { cookies } from 'next/headers';
 import {
   Enterprise,
   EnterprisesResponse,
-  EnterprisesFilters,
   EnterpriseResponse,
-  PaginationLinks,
-  PaginationMeta
+  EnterprisesFilters,
+  CreateEnterpriseData,
+  UpdateEnterpriseData,
 } from '../interfaces/enterprise.interface';
 import { EnterpriseAdapter } from '../adapters/enterprise.adapter';
-import { createEnterpriseSchema, updateEnterpriseSchema, CreateEnterpriseFormData, UpdateEnterpriseFormData } from '../schemas/enterprise.schema';
+import { 
+  createEnterpriseSchema, 
+  updateEnterpriseSchema,
+  CreateEnterpriseFormData,
+  UpdateEnterpriseFormData 
+} from '../schemas/enterprise.schema';
 
-// Server Action para obtener lista de empresas
+/**
+ * Obtener lista de empresas con búsqueda
+ */
 export async function getEnterprisesAction(filters?: EnterprisesFilters): Promise<EnterprisesResponse> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -20,11 +27,10 @@ export async function getEnterprisesAction(filters?: EnterprisesFilters): Promis
     if (!apiUrl) {
       return {
         success: false,
-        error: 'API URL no configurada en variables de entorno',
+        error: 'API URL no configurada',
       };
     }
 
-    // Obtener token de autenticación
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
 
@@ -35,153 +41,145 @@ export async function getEnterprisesAction(filters?: EnterprisesFilters): Promis
       };
     }
 
-    // Si hay búsqueda, usar POST con payload
-    if (filters?.search) {
-      const payload = {
-        filters: [
-          {
-            field: "name",
-            operator: "ilike",
-            value: `%${filters.search}%`
-          },
-          {
-            type: "or",
-            field: "rut",
-            operator: "ilike",
-            value: `%${filters.search}%`
-          }
-        ],
-        ...(filters.include && filters.include.length > 0 && {
-          includes: filters.include.map(relation => ({ relation }))
-        })
-      };
-
-      // Query parameters solo para paginación
-      const queryParams = new URLSearchParams();
-      if (filters?.page) queryParams.append('page', filters.page.toString());
-      if (filters?.limit) queryParams.append('limit', filters.limit.toString());
-
-      const url = `${apiUrl}/enterprises/search${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      
-      
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        console.error('❌ Search Error response:', response.status, response.statusText);
-        const errorData = await response.json().catch(() => ({}));
-        console.error('❌ Search Error data:', errorData);
-        return {
-          success: false,
-          error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
-        };
-      }
-
-      const data = await response.json();
-
-      const enterprises = EnterpriseAdapter.apiEnterprisesToApp(data);
-      const pagination = data.links && data.meta ? {
-        links: {
-          first: data.links.first,
-          last: data.links.last,
-          prev: data.links.prev,
-          next: data.links.next,
-        },
-        meta: {
-          current_page: data.meta.current_page,
-          from: data.meta.from,
-          last_page: data.meta.last_page,
-          per_page: data.meta.per_page,
-          to: data.meta.to,
-          total: data.meta.total,
-          path: data.meta.path || '',
-          links: data.meta.links || [],
-        }
-      } : undefined;
-
-      return {
-        success: true,
-        enterprises,
-        pagination,
-      };
+    // Si hay búsqueda, usar POST /enterprises/search
+    if (filters?.search && filters.search.trim()) {
+      return await searchEnterprisesAction(filters);
     }
 
-    // Si no hay búsqueda, usar GET tradicional
-    const queryParams = new URLSearchParams();
-    if (filters?.page) queryParams.append('page', filters.page.toString());
-    if (filters?.limit) queryParams.append('limit', filters.limit.toString());
-    if (filters?.include && filters.include.length > 0) {
-      queryParams.append('include', filters.include.join(','));
-    }
+    // Si no hay búsqueda, usar GET /enterprises
+    const url = new URL(`${apiUrl}/enterprises`);
+    if (filters?.page) url.searchParams.append('page', filters.page.toString());
+    if (filters?.limit) url.searchParams.append('limit', filters.limit.toString());
 
-    const url = `${apiUrl}/enterprises${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    
-    const response = await fetch(url, {
+    console.log('🏢 Obteniendo empresas:', url.toString());
+
+    const response = await fetch(url.toString(), {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
         'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
       },
     });
 
     if (!response.ok) {
-      console.error('❌ Error response:', response.status, response.statusText);
-      const errorData = await response.json().catch(() => ({}));
-      console.error('❌ Error data:', errorData);
+      console.error('❌ Error en respuesta del API:', response.status, response.statusText);
       return {
         success: false,
-        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+        error: `Error del servidor: ${response.status} ${response.statusText}`,
       };
     }
 
     const data = await response.json();
+    console.log('✅ Respuesta del API de empresas:', data);
 
-    // Mapear datos según la estructura de la API
-    const enterprises = EnterpriseAdapter.apiEnterprisesToApp(data);
-
-    // Extraer información de paginación
-    const pagination = data.links && data.meta ? {
-      links: {
-        first: data.links.first,
-        last: data.links.last,
-        prev: data.links.prev,
-        next: data.links.next,
-      },
-      meta: {
-        current_page: data.meta.current_page,
-        from: data.meta.from,
-        last_page: data.meta.last_page,
-        path: data.meta.path,
-        per_page: data.meta.per_page,
-        to: data.meta.to,
-        total: data.meta.total,
-        links: data.meta.links,
-      }
-    } : undefined;
+    // Extraer empresas y paginación según la estructura real del API
+    const enterprisesData = data.data || [];
+    const enterprises = EnterpriseAdapter.apiEnterprisesToApp(enterprisesData);
 
     return {
       success: true,
       enterprises,
-      pagination,
+      pagination: {
+        meta: data.meta || {},
+        links: data.links || {},
+      },
     };
 
   } catch (error) {
-    console.error('Error en getEnterprisesAction:', error);
+    console.error('❌ Error en getEnterprisesAction:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+      error: error instanceof Error ? error.message : 'Error de conexión',
     };
   }
 }
 
-// Server Action para obtener una empresa específica
+/**
+ * Buscar empresas usando POST /enterprises/search
+ */
+export async function searchEnterprisesAction(filters: EnterprisesFilters): Promise<EnterprisesResponse> {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    
+    if (!apiUrl) {
+      return {
+        success: false,
+        error: 'API URL no configurada',
+      };
+    }
+
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+
+    if (!token) {
+      return {
+        success: false,
+        error: 'Token de autenticación no encontrado',
+      };
+    }
+
+    // Construir payload para búsqueda
+    const searchPayload = {
+      page: filters.page || 1,
+      limit: filters.limit || 10,
+      filters: [
+        {
+          field: 'name',
+          operator: 'ilike',
+          value: `%${filters.search}%`
+        }
+      ]
+    };
+
+    console.log('🔍 Buscando empresas:', searchPayload);
+
+    const response = await fetch(`${apiUrl}/enterprises/search`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(searchPayload),
+    });
+
+    if (!response.ok) {
+      console.error('❌ Error en búsqueda de empresas:', response.status, response.statusText);
+      return {
+        success: false,
+        error: `Error del servidor: ${response.status} ${response.statusText}`,
+      };
+    }
+
+    const data = await response.json();
+    console.log('✅ Respuesta de búsqueda de empresas:', data);
+
+    // Extraer empresas y paginación según la estructura real del API
+    const enterprisesData = data.data || [];
+    const enterprises = EnterpriseAdapter.apiEnterprisesToApp(enterprisesData);
+
+    return {
+      success: true,
+      enterprises,
+      pagination: {
+        meta: data.meta || {},
+        links: data.links || {},
+      },
+    };
+
+  } catch (error) {
+    console.error('❌ Error en searchEnterprisesAction:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error de conexión',
+    };
+  }
+}
+
+/**
+ * Obtener una empresa por ID
+ */
 export async function getEnterpriseAction(enterpriseId: string | number): Promise<EnterpriseResponse> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -189,11 +187,10 @@ export async function getEnterpriseAction(enterpriseId: string | number): Promis
     if (!apiUrl) {
       return {
         success: false,
-        error: 'API URL no configurada en variables de entorno',
+        error: 'API URL no configurada',
       };
     }
 
-    // Obtener token de autenticación
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
 
@@ -204,26 +201,29 @@ export async function getEnterpriseAction(enterpriseId: string | number): Promis
       };
     }
 
+    console.log('🏢 Obteniendo empresa:', enterpriseId);
+
     const response = await fetch(`${apiUrl}/enterprises/${enterpriseId}`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
         'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
       },
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      console.error('❌ Error en respuesta del API:', response.status, response.statusText);
       return {
         success: false,
-        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+        error: `Error del servidor: ${response.status} ${response.statusText}`,
       };
     }
 
     const data = await response.json();
-    
-    // La API puede devolver la empresa directamente o dentro de un objeto "data"
-    const enterpriseData = data.data || data;
+    console.log('✅ Respuesta del API de empresa:', data);
+
+    const enterpriseData = data.data || data.enterprise || data;
     const enterprise = EnterpriseAdapter.apiToApp(enterpriseData);
 
     return {
@@ -232,39 +232,40 @@ export async function getEnterpriseAction(enterpriseId: string | number): Promis
     };
 
   } catch (error) {
-    console.error('Error en getEnterpriseAction:', error);
+    console.error('❌ Error en getEnterpriseAction:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+      error: error instanceof Error ? error.message : 'Error de conexión',
     };
   }
 }
 
-// Server Action para crear una nueva empresa
+/**
+ * Crear una nueva empresa
+ */
 export async function createEnterpriseAction(enterpriseData: CreateEnterpriseFormData): Promise<EnterpriseResponse> {
   try {
+    console.log('🏢 Creando empresa:', enterpriseData);
+
     // Validar datos con Zod
     const validationResult = createEnterpriseSchema.safeParse(enterpriseData);
-    
     if (!validationResult.success) {
-      const errors = validationResult.error.issues.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
+      console.error('❌ Error de validación:', validationResult.error.issues);
       return {
         success: false,
-        error: `Datos inválidos: ${errors}`,
+        error: validationResult.error.issues.map((e: any) => e.message).join(', '),
       };
     }
 
-    const validatedData = validationResult.data;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     
     if (!apiUrl) {
       return {
         success: false,
-        error: 'API URL no configurada en variables de entorno',
+        error: 'API URL no configurada',
       };
     }
 
-    // Obtener token de autenticación
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
 
@@ -275,32 +276,33 @@ export async function createEnterpriseAction(enterpriseData: CreateEnterpriseFor
       };
     }
 
-    console.log('Creando empresa con datos:', validatedData);
+    const payload = EnterpriseAdapter.formToApi(validationResult.data);
+    console.log('📤 Payload a enviar:', payload);
 
     const response = await fetch(`${apiUrl}/enterprises`, {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${token}`,
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify(validatedData),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      console.error('❌ Error en respuesta del API:', response.status, response.statusText);
+      const errorData = await response.json().catch(() => null);
       return {
         success: false,
-        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+        error: errorData?.message || `Error del servidor: ${response.status}`,
       };
     }
 
     const data = await response.json();
-    console.log('Respuesta de creación de empresa:', data);
-    
-    // La API puede devolver la empresa directamente o dentro de un objeto "data"
-    const enterpriseData_response = data.data || data;
-    const enterprise = EnterpriseAdapter.apiToApp(enterpriseData_response);
+    console.log('✅ Empresa creada:', data);
+
+    const enterpriseResult = data.data || data.enterprise || data;
+    const enterprise = EnterpriseAdapter.apiToApp(enterpriseResult);
 
     return {
       success: true,
@@ -308,42 +310,43 @@ export async function createEnterpriseAction(enterpriseData: CreateEnterpriseFor
     };
 
   } catch (error) {
-    console.error('Error en createEnterpriseAction:', error);
+    console.error('❌ Error en createEnterpriseAction:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+      error: error instanceof Error ? error.message : 'Error de conexión',
     };
   }
 }
 
-// Server Action para actualizar una empresa
+/**
+ * Actualizar una empresa
+ */
 export async function updateEnterpriseAction(
-  enterpriseId: string | number,
+  enterpriseId: string | number, 
   enterpriseData: UpdateEnterpriseFormData
 ): Promise<EnterpriseResponse> {
   try {
+    console.log('🏢 Actualizando empresa:', enterpriseId, enterpriseData);
+
     // Validar datos con Zod
     const validationResult = updateEnterpriseSchema.safeParse(enterpriseData);
-    
     if (!validationResult.success) {
-      const errors = validationResult.error.issues.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
+      console.error('❌ Error de validación:', validationResult.error.issues);
       return {
         success: false,
-        error: `Datos inválidos: ${errors}`,
+        error: validationResult.error.issues.map((e: any) => e.message).join(', '),
       };
     }
 
-    const validatedData = validationResult.data;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     
     if (!apiUrl) {
       return {
         success: false,
-        error: 'API URL no configurada en variables de entorno',
+        error: 'API URL no configurada',
       };
     }
 
-    // Obtener token de autenticación
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
 
@@ -353,31 +356,31 @@ export async function updateEnterpriseAction(
         error: 'Token de autenticación no encontrado',
       };
     }
-
 
     const response = await fetch(`${apiUrl}/enterprises/${enterpriseId}`, {
       method: 'PATCH',
       headers: {
+        'Authorization': `Bearer ${token}`,
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify(validatedData),
+      body: JSON.stringify(validationResult.data),
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      console.error('❌ Error en respuesta del API:', response.status, response.statusText);
+      const errorData = await response.json().catch(() => null);
       return {
         success: false,
-        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+        error: errorData?.message || `Error del servidor: ${response.status}`,
       };
     }
 
     const data = await response.json();
-    
-    // La API puede devolver la empresa directamente o dentro de un objeto "data"
-    const enterpriseData_response = data.data || data;
-    const enterprise = EnterpriseAdapter.apiToApp(enterpriseData_response);
+    console.log('✅ Empresa actualizada:', data);
+
+    const enterpriseResult = data.data || data.enterprise || data;
+    const enterprise = EnterpriseAdapter.apiToApp(enterpriseResult);
 
     return {
       success: true,
@@ -385,27 +388,30 @@ export async function updateEnterpriseAction(
     };
 
   } catch (error) {
-    console.error('Error en updateEnterpriseAction:', error);
+    console.error('❌ Error en updateEnterpriseAction:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+      error: error instanceof Error ? error.message : 'Error de conexión',
     };
   }
 }
 
-// Server Action para eliminar una empresa
+/**
+ * Eliminar una empresa
+ */
 export async function deleteEnterpriseAction(enterpriseId: string | number): Promise<{ success: boolean; error?: string }> {
   try {
+    console.log('🏢 Eliminando empresa:', enterpriseId);
+
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     
     if (!apiUrl) {
       return {
         success: false,
-        error: 'API URL no configurada en variables de entorno',
+        error: 'API URL no configurada',
       };
     }
 
-    // Obtener token de autenticación
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
 
@@ -416,35 +422,33 @@ export async function deleteEnterpriseAction(enterpriseId: string | number): Pro
       };
     }
 
-    console.log('Eliminando empresa:', enterpriseId);
-
     const response = await fetch(`${apiUrl}/enterprises/${enterpriseId}`, {
       method: 'DELETE',
       headers: {
-        'Accept': 'application/json',
         'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
       },
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      console.error('❌ Error en respuesta del API:', response.status, response.statusText);
       return {
         success: false,
-        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
+        error: `Error del servidor: ${response.status} ${response.statusText}`,
       };
     }
 
-    console.log('Empresa eliminada exitosamente');
+    console.log('✅ Empresa eliminada exitosamente');
 
     return {
       success: true,
     };
 
   } catch (error) {
-    console.error('Error en deleteEnterpriseAction:', error);
+    console.error('❌ Error en deleteEnterpriseAction:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
+      error: error instanceof Error ? error.message : 'Error de conexión',
     };
   }
 }

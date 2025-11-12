@@ -6,10 +6,12 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   rut: string;
-  role: 'admin' | 'operator' | 'viewer' | 'No role';
+  role: 'admin' | 'operator' | 'viewer' | 'customer' | 'No role';
   status: 'active' | 'inactive' | 'No status';
   lastLogin: string;
   permissions: string[];
+  roles?: Array<{ name: string }>;
+  enterprises?: Array<{ id: number; name: string }>;
 }
 
 // Interface for data coming from the API/backend
@@ -22,6 +24,10 @@ export interface UserApiData {
   status: string;
   created_at: string;
   updated_at: string;
+  last_login?: string;
+  roles?: Array<{ name: string }>;
+  permissions?: Array<{ name: string }> | string[];
+  enterprises?: Array<{ id: number; name: string }>;
 }
 
 // API response interfaces
@@ -138,6 +144,7 @@ export interface UsersFilters {
     value?: string;
     case_sensitive?: boolean;
   };
+  filters?: UserFilter[];
 }
 
 // Interface para crear usuario (datos que se envían a la API)
@@ -148,4 +155,5 @@ export interface CreateUser {
   password: string;
   password_confirmation: string;
   role: string;
+  status: string;
 }

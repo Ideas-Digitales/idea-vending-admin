@@ -113,9 +113,13 @@ export async function getMachinesAction(filters?: MachinesFilters): Promise<Mach
 }
 
 // Server Action para obtener una máquina específica
-export async function getMachineAction(machineId: string | number): Promise<MachineResponse> {
+export async function getMachineAction(machineId: string | number, options: { include?: string } = {}): Promise<MachineResponse> {
   try {
+    console.log('getMachineAction llamada con ID:', machineId);
+    console.log('Tipo de machineId:', typeof machineId);
+    
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    console.log('API URL:', apiUrl);
 
     if (!apiUrl) {
       return {
@@ -129,13 +133,17 @@ export async function getMachineAction(machineId: string | number): Promise<Mach
     const token = cookieStore.get('auth-token')?.value;
 
     if (!token) {
+      console.log('Token no encontrado');
       return {
         success: false,
         error: 'Token de autenticación no encontrado',
       };
     }
 
-    const response = await fetch(`${apiUrl}/machines/${machineId}`, {
+    const url = `${apiUrl}/machines/${machineId}${options.include ? `?include=${options.include}` : ''}`;
+    console.log('Haciendo petición a:', url);
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -143,19 +151,23 @@ export async function getMachineAction(machineId: string | number): Promise<Mach
       },
     });
 
+    console.log('Respuesta status:', response.status);
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
-      };
+      const errorData = await response.json();
+      console.error('Error fetching machine:', errorData);
+      return { success: false, error: errorData.message || 'Error fetching machine' };
     }
 
     const data = await response.json();
+    console.log('Datos recibidos de la API:', data);
 
-    // La API puede devolver la máquina directamente o dentro de un objeto "data"
+    // La API devuelve la máquina dentro de un objeto "data"
     const machineData = data.data || data;
+    console.log('Datos de máquina procesados:', machineData);
+    
     const machine = MachineAdapter.apiToApp(machineData);
+    console.log('Máquina adaptada:', machine);
 
     return {
       success: true,
@@ -211,6 +223,8 @@ export async function createMachineAction(machineData: CreateMachineFormData): P
       name: validatedData.name,
       location: validatedData.location,
       type: validatedData.type,
+      status: validatedData.status,
+      is_enabled: validatedData.is_enabled,
       enterprise_id: validatedData.enterprise_id,
       client_id: validatedData.client_id
     };

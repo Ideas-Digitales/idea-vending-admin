@@ -15,6 +15,11 @@ export const createMachineSchema = z.object({
   type: z.string()
     .min(1, 'El tipo de máquina es requerido'),
 
+  status: z.enum(['Active', 'Inactive', 'Maintenance', 'OutOfService'])
+    .default('Inactive'),
+
+  is_enabled: z.boolean().default(true),
+
   enterprise_id: z.number()
     .int('El ID de empresa debe ser un número entero')
     .positive('El ID de empresa debe ser positivo'),
@@ -42,9 +47,7 @@ export const updateMachineSchema = z.object({
     .min(1, 'El tipo de máquina es requerido')
     .optional(),
 
-  status: z.enum(['Active', 'Inactive', 'Maintenance'], {
-    errorMap: () => ({ message: 'El estado debe ser Active, Inactive o Maintenance' })
-  }).optional(),
+  status: z.enum(['Active', 'Inactive', 'Maintenance', 'OutOfService']).optional(),
 
   is_enabled: z.boolean().optional(),
 
@@ -62,7 +65,7 @@ export type UpdateMachineFormData = z.infer<typeof updateMachineSchema>;
 // Schema para filtros de búsqueda
 export const machineFiltersSchema = z.object({
   search: z.string().optional(),
-  status: z.enum(['Active', 'Inactive', 'Maintenance']).optional(),
+  status: z.enum(['Active', 'Inactive', 'Maintenance', 'OutOfService']).optional(),
   type: z.string().optional(),
   is_enabled: z.boolean().optional(),
   enterprise_id: z.number().int().positive().optional(),
