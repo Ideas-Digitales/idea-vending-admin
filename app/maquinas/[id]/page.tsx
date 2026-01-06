@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { getMachineAction } from '@/lib/actions/machines';
 import { Machine } from '@/lib/interfaces/machine.interface';
-import { Monitor, ArrowLeft, Wifi, WifiOff, MapPin, Calendar, Settings, Building2, Shield, Activity, Edit } from 'lucide-react';
+import { Monitor, ArrowLeft, Wifi, WifiOff, MapPin, Calendar, Settings, Building2, Shield, Activity, Edit, Package } from 'lucide-react';
 
 export default function MaquinaDetallePage() {
   const params = useParams();
@@ -125,6 +125,13 @@ export default function MaquinaDetallePage() {
               </div>
               
               <div className="flex items-center space-x-3">
+                <button 
+                  onClick={() => window.location.href = `/maquinas/${machine.id}/slots`}
+                  className="btn-secondary flex items-center space-x-2"
+                >
+                  <Package className="h-4 w-4" />
+                  <span>Gestionar Slots</span>
+                </button>
                 <button 
                   onClick={() => window.location.href = `/maquinas/${machine.id}/editar`}
                   className="btn-secondary flex items-center space-x-2"

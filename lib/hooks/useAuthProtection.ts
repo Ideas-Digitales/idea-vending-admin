@@ -19,16 +19,23 @@ export function useAuthProtection({
   const user = useUser();
   const { checkAuth } = useAuthStore();
   const [isInitializing, setIsInitializing] = useState(true);
-  const hasCheckedAuth = useRef(false);
+  const hasCheckedAuth = useRef(!!isAuthenticated);
 
 
-  // Solo verificar autenticación una vez al montar el componente
+  // Solo verificar autenticación una vez cuando no estamos autenticados
   useEffect(() => {
     if (!hasCheckedAuth.current && !isAuthenticated && !isLoading) {
       hasCheckedAuth.current = true;
       checkAuth();
     }
-  }, []); // Sin dependencias para que solo se ejecute una vez
+  }, [checkAuth, isAuthenticated, isLoading]);
+
+  // Si en algún momento el usuario está autenticado, marcamos como verificado
+  useEffect(() => {
+    if (isAuthenticated) {
+      hasCheckedAuth.current = true;
+    }
+  }, [isAuthenticated]);
 
   // Marcar como inicializado después de la primera verificación
   useEffect(() => {

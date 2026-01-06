@@ -58,6 +58,9 @@ export class ProductAdapter {
   static apiProductsToApp(apiResponse: ApiProductsResponse): Producto[] {
     const productsArray = apiResponse.data || apiResponse.products || [];
 
+    console.log('🔍 ProductAdapter.apiProductsToApp - Productos recibidos:', productsArray.length);
+    console.log('🔍 Productos raw:', productsArray);
+
     if (!Array.isArray(productsArray)) {
       console.warn(
         "Los datos de productos no están en formato de array:",
@@ -66,7 +69,10 @@ export class ProductAdapter {
       return [];
     }
 
-    return productsArray.map((product) => this.apiToApp(product));
+    const mappedProducts = productsArray.map((product) => this.apiToApp(product));
+    console.log('✅ ProductAdapter.apiProductsToApp - Productos mapeados:', mappedProducts.length);
+    
+    return mappedProducts;
   }
 
   // Funciones auxiliares para datos MOCK

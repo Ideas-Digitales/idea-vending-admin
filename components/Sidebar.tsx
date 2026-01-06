@@ -57,12 +57,6 @@ export default function Sidebar() {
       current: pathname === '/productos'
     },
     {
-      name: 'Pagos',
-      href: '/pagos',
-      icon: CreditCard,
-      current: pathname === '/pagos'
-    },
-    {
       name: 'Empresas',
       href: '/empresas',
       icon: Building2,
@@ -72,7 +66,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <div className="w-64 bg-white shadow-lg flex flex-col">
+    <div className="w-64 bg-white shadow-lg flex flex-col h-screen sticky top-0">
       {/* Logo */}
       <div className="flex items-center px-6 py-4 border-b border-gray-200">
         <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center mr-3">
@@ -102,7 +96,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-4 space-y-2">
+      <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
         {navigationItems
           .filter(item => {
             const hasPermission = !item.permission || user?.permissions.includes(item.permission);

@@ -477,10 +477,11 @@ export const useProductStore = create<ProductState>()(
     {
       name: 'product-store',
       partialize: (state) => ({
-        products: state.products,
-        pagination: state.pagination,
+        // No persistir productos para evitar datos obsoletos del caché
+        // products: state.products,
+        // pagination: state.pagination,
         currentFilters: state.currentFilters,
-        globalStats: state.globalStats,
+        // globalStats: state.globalStats,
       }),
     }
   )

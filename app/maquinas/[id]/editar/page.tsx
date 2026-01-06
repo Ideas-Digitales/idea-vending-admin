@@ -27,7 +27,7 @@ export default function EditarMaquinaPage() {
   });
 
   const handleBack = () => {
-    window.location.href = `/maquinas/${machineId}`;
+    window.location.href = '/maquinas';
   };
 
   // Cargar máquina al montar el componente
@@ -300,8 +300,8 @@ export default function EditarMaquinaPage() {
                     </select>
                   </div>
 
-                  {/* ID Empresa */}
-                  <div>
+                  {/* ID Empresa - Temporalmente oculto hasta que el API lo devuelva */}
+                  {/* <div>
                     <label className="block text-sm font-medium text-black mb-2">
                       ID Empresa
                     </label>
@@ -316,7 +316,7 @@ export default function EditarMaquinaPage() {
                     <p className="text-sm text-gray-600 mt-1">
                       El ID de empresa no puede modificarse después de crear la máquina
                     </p>
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* Ubicación */}

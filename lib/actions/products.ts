@@ -18,7 +18,7 @@ import { createProductSchema, CreateProductFormData, updateProductSchema, Update
 function buildProductsSearchPayload(filters: ProductsFilters) {
   const payload: any = {
     page: filters.page || 1,
-    limit: filters.limit || 20,
+    limit: filters.limit || 100,
   };
 
   // Add search object if present (searches in name field)
@@ -94,7 +94,9 @@ export async function getProductsAction(filters?: ProductsFilters): Promise<Prod
 
       const url = `${apiUrl}/products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       
-      console.log('Obteniendo productos desde:', url);
+      console.log('🌐 GET /products - URL completa:', url);
+      console.log('🌐 GET /products - Query params:', Object.fromEntries(queryParams));
+      console.log('🌐 GET /products - Token (primeros 20 chars):', token?.substring(0, 20));
 
       response = await fetch(url, {
         method: 'GET',
@@ -103,6 +105,8 @@ export async function getProductsAction(filters?: ProductsFilters): Promise<Prod
           'Authorization': `Bearer ${token}`,
         },
       });
+      
+      console.log('🌐 GET /products - Status:', response.status);
     }
 
     if (!response.ok) {

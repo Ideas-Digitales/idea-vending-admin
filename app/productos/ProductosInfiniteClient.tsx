@@ -16,6 +16,7 @@ export default function ProductosInfiniteClient() {
   // Store state
   const {
     products,
+    pagination,
     isLoading,
     error,
     fetchProducts,
@@ -43,11 +44,25 @@ export default function ProductosInfiniteClient() {
   
 
   useEffect(() => {
-    // Solo cargar productos si no hay datos y no estamos cargando
-    if (products.length === 0 && !isLoading && !error) {
-      fetchProducts();
+    // Cargar productos frescos al montar el componente
+    console.log('🔄 Cargando productos frescos...');
+    console.log('📊 Estado actual - isLoading:', isLoading, 'products.length:', products.length);
+    
+    // Forzar recarga siempre que se monte el componente
+    fetchProducts({ page: 1, limit: 100 });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Log cuando cambia el estado de carga
+  useEffect(() => {
+    console.log('📊 Estado actualizado - isLoading:', isLoading, 'products.length:', products.length, 'error:', error);
+  }, [isLoading, products.length, error]);
+  
+  // Recargar productos cuando cambia el número de productos (después de eliminar)
+  useEffect(() => {
+    if (products.length > 0) {
+      console.log('📊 Productos actuales:', products.length);
     }
-  }, [products.length, isLoading, error, fetchProducts]);
+  }, [products.length]);
 
   // Mostrar toast para errores
   useEffect(() => {
@@ -74,6 +89,7 @@ export default function ProductosInfiniteClient() {
   const apiFilters = useMemo(() => ({
     search: debouncedSearchTerm || undefined,
     page: 1,
+    limit: 100,
   }), [debouncedSearchTerm]);
 
   const prevFiltersRef = useRef(apiFilters);
@@ -164,32 +180,8 @@ export default function ProductosInfiniteClient() {
     refreshProducts();
   };
 
-  const [showSkeleton, setShowSkeleton] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
-  
-  // Marcar como inicializado cuando tengamos datos o cuando termine la carga inicial
-  useEffect(() => {
-    if (products.length > 0 || (!isLoading && isInitialized)) {
-      setIsInitialized(true);
-      setShowSkeleton(false);
-    }
-  }, [products.length, isLoading, isInitialized]);
-
-  useEffect(() => {
-    // Solo mostrar skeleton en la carga inicial si no hay datos persistidos
-    if (isLoading && products.length === 0 && !error && !isInitialized) {
-      setShowSkeleton(true);
-      const timeout = setTimeout(() => {
-        setShowSkeleton(false);
-        setIsInitialized(true);
-      }, 3000); // Reducido a 3 segundos
-      
-      return () => clearTimeout(timeout);
-    } else if (products.length > 0 || error) {
-      setShowSkeleton(false);
-      setIsInitialized(true);
-    }
-  }, [isLoading, products.length, error, isInitialized]);
+  // Mostrar skeleton solo durante la carga inicial
+  const showSkeleton = isLoading && products.length === 0;
   
   if (showSkeleton) {
     return <ProductPageSkeleton />;
@@ -211,61 +203,31 @@ export default function ProductosInfiniteClient() {
                   <p className="text-muted">Administra el inventario de las máquinas expendedoras</p>
                 </div>
               </div>
-              <Link 
-                href="/productos/crear"
-                className="btn-primary flex items-center space-x-2"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Nuevo Producto</span>
-              </Link>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => {
+                    console.log('🔄 Forzando recarga de productos...');
+                    localStorage.removeItem('product-store');
+                    fetchProducts({ page: 1, limit: 100 });
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                >
+                  <Loader2 className="h-4 w-4" />
+                  <span>Recargar</span>
+                </button>
+                <Link 
+                  href="/productos/crear"
+                  className="btn-primary flex items-center space-x-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Nuevo Producto</span>
+                </Link>
+              </div>
             </div>
           </div>
         </header>
 
         <div className="relative">
-          {/* Stats Cards - Solo datos básicos */}
-          <div className="p-6 pb-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div className="card p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <p className="text-sm font-semibold text-muted">Productos Cargados</p>
-                      <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">LOCAL</span>
-                    </div>
-                    <p className="text-2xl font-bold text-dark">{products.length}</p>
-                    <p className="text-xs text-muted mt-1">
-                      En esta vista
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-blue-50 flex-shrink-0 ml-4">
-                    <Package className="h-6 w-6 text-blue-600" />
-                  </div>
-                </div>
-              </div>
-              
-              <div className="card p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <p className="text-sm font-semibold text-muted">Búsqueda Activa</p>
-                      <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">LOCAL</span>
-                    </div>
-                    <p className="text-2xl font-bold text-green-600">
-                      {searchTerm ? 'Sí' : 'No'}
-                    </p>
-                    <p className="text-xs text-muted mt-1">
-                      {searchTerm ? `"${searchTerm}"` : 'Mostrando todos'}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-green-50 flex-shrink-0 ml-4">
-                    <Search className="h-6 w-6 text-green-600" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Search */}
           <div className="px-6 py-4">
             <div className="flex items-center space-x-4">
@@ -323,18 +285,10 @@ export default function ProductosInfiniteClient() {
               <div className="px-6 py-4 border-b border-gray-100">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-dark">
-                    Lista de Productos 
-                    {displayedProducts.length !== products.length && (
-                      <span className="text-sm font-normal text-muted ml-2">
-                        ({displayedProducts.length} de {products.length} mostrados)
-                      </span>
-                    )}
+                    Lista de Productos
                   </h3>
-                  <div className="flex items-center space-x-4 text-xs">
-                    <div className="flex items-center">
-                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full mr-2">API</span>
-                      <span className="text-muted">Datos reales del servidor</span>
-                    </div>
+                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                    <span>Total: {pagination?.meta?.total || products.length}</span>
                     <div className="flex items-center">
                       <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full mr-2">MOCK</span>
                       <span className="text-muted">Datos simulados</span>

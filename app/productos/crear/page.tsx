@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, Package, Save, Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import Link from 'next/link';
@@ -11,6 +12,7 @@ import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 import type { CreateProductFormData } from '@/lib/schemas/product.schema';
 
 export default function CreateProductPage() {
+  const router = useRouter();
   const [formData, setFormData] = useState<CreateProductFormData>({
     name: '',
     enterprise_id: 0,
@@ -66,7 +68,9 @@ export default function CreateProductPage() {
       
       if (response.success) {
         notify.success('Producto creado exitosamente');
-        // Redirect to products list
+        // Limpiar caché completamente y redirigir
+        localStorage.removeItem('product-store');
+        // Usar window.location para forzar recarga completa de la página
         window.location.href = '/productos';
       } else {
         notify.error('Error al crear producto: ' + (response.error || 'Error desconocido'));
@@ -94,7 +98,7 @@ export default function CreateProductPage() {
   };
 
   const handleBack = () => {
-    window.location.href = '/productos';
+    router.push('/productos');
   };
 
   return (

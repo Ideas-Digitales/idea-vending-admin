@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Monitor, Plus, Search, Edit, Trash2, Eye, Wifi, WifiOff, Loader2, AlertCircle, MapPin } from 'lucide-react';
+import { Monitor, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, MapPin, Package } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import MachineStylePagination from '@/components/MachineStylePagination';
@@ -27,11 +27,6 @@ export default function MaquinasInfiniteClient() {
     isDeleting,
     deleteError,
     clearDeleteError,
-    getTotalMachines,
-    getTotalActiveMachines,
-    getTotalMaintenanceMachines,
-    getTotalInactiveMachines,
-    getTotalConnectedMachines,
     pagination,
     currentFilters,
     hasNextPage,
@@ -52,16 +47,6 @@ export default function MaquinasInfiniteClient() {
     isOpen: false,
     machineId: null,
     machineName: ''
-  });
-
-  // Stats state
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    maintenance: 0,
-    inactive: 0,
-    connected: 0,
-    isLoading: false
   });
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -138,37 +123,6 @@ export default function MaquinasInfiniteClient() {
     }
   }, [currentFilters, setFilters, fetchMachines]);
 
-  // Load stats
-  useEffect(() => {
-    const loadStats = async () => {
-      setStats(prev => ({ ...prev, isLoading: true }));
-
-      try {
-        const [total, active, maintenance, inactive, connected] = await Promise.all([
-          getTotalMachines(),
-          getTotalActiveMachines(),
-          getTotalMaintenanceMachines(),
-          getTotalInactiveMachines(),
-          getTotalConnectedMachines()
-        ]);
-
-        setStats({
-          total,
-          active,
-          maintenance,
-          inactive,
-          connected,
-          isLoading: false
-        });
-      } catch (error) {
-        console.error('Error loading stats:', error);
-        setStats(prev => ({ ...prev, isLoading: false }));
-      }
-    };
-
-    loadStats();
-  }, [getTotalMachines, getTotalActiveMachines, getTotalMaintenanceMachines, getTotalInactiveMachines, getTotalConnectedMachines]);
-
   // Clear errors on mount
   useEffect(() => {
     clearError();
@@ -232,8 +186,10 @@ export default function MaquinasInfiniteClient() {
     setDebouncedSearchTerm('');
   };
 
-  // Loading skeleton
-  if (isLoading && machines.length === 0) {
+  // Mostrar skeleton solo durante la carga inicial
+  const showSkeleton = isLoading && machines.length === 0;
+  
+  if (showSkeleton) {
     return (
       <div className="min-h-screen bg-gray-50 flex">
         <Sidebar />
@@ -253,17 +209,6 @@ export default function MaquinasInfiniteClient() {
           </header>
           <main className="flex-1 p-6 overflow-auto">
             <div className="space-y-6">
-              {/* Stats Cards Skeleton */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="card p-6 animate-pulse">
-                    <div className="w-8 h-8 bg-gray-200 rounded mb-2"></div>
-                    <div className="w-16 h-8 bg-gray-200 rounded mb-1"></div>
-                    <div className="w-20 h-4 bg-gray-200 rounded"></div>
-                  </div>
-                ))}
-              </div>
-
               {/* Table Skeleton */}
               <div className="card">
                 <div className="p-6 animate-pulse">
@@ -357,90 +302,6 @@ export default function MaquinasInfiniteClient() {
 
         <main className="flex-1 p-6 overflow-auto">
           <div className="space-y-6">
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-              <div className="card p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Monitor className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="ml-4">
-                    {stats.isLoading ? (
-                      <div className="w-12 h-6 bg-gray-200 rounded animate-pulse"></div>
-                    ) : (
-                      <div className="text-2xl font-bold text-dark">{stats.total}</div>
-                    )}
-                    <div className="text-sm text-muted">Total</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Monitor className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div className="ml-4">
-                    {stats.isLoading ? (
-                      <div className="w-12 h-6 bg-gray-200 rounded animate-pulse"></div>
-                    ) : (
-                      <div className="text-2xl font-bold text-dark">{stats.active}</div>
-                    )}
-                    <div className="text-sm text-muted">Activas</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-yellow-100 rounded-lg">
-                    <Monitor className="h-6 w-6 text-yellow-600" />
-                  </div>
-                  <div className="ml-4">
-                    {stats.isLoading ? (
-                      <div className="w-12 h-6 bg-gray-200 rounded animate-pulse"></div>
-                    ) : (
-                      <div className="text-2xl font-bold text-dark">{stats.maintenance}</div>
-                    )}
-                    <div className="text-sm text-muted">Mantenimiento</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-red-100 rounded-lg">
-                    <Monitor className="h-6 w-6 text-red-600" />
-                  </div>
-                  <div className="ml-4">
-                    {stats.isLoading ? (
-                      <div className="w-12 h-6 bg-gray-200 rounded animate-pulse"></div>
-                    ) : (
-                      <div className="text-2xl font-bold text-dark">{stats.inactive}</div>
-                    )}
-                    <div className="text-sm text-muted">Inactivas</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <Wifi className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div className="ml-4">
-                    {stats.isLoading ? (
-                      <div className="w-12 h-6 bg-gray-200 rounded animate-pulse"></div>
-                    ) : (
-                      <div className="text-2xl font-bold text-dark">{stats.connected}</div>
-                    )}
-                    <div className="text-sm text-muted">Conectadas</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             {/* Filters */}
             <div className="card p-6">
               <div className="flex flex-col sm:flex-row gap-4">
@@ -610,6 +471,13 @@ export default function MaquinasInfiniteClient() {
                                 title="Ver detalles"
                               >
                                 <Eye className="h-4 w-4" />
+                              </Link>
+                              <Link
+                                href={`/maquinas/${machine.id}/slots`}
+                                className="text-purple-600 hover:text-purple-800 p-1 rounded hover:bg-gray-100"
+                                title="Gestionar Slots"
+                              >
+                                <Package className="h-4 w-4" />
                               </Link>
                               <Link
                                 href={`/maquinas/${machine.id}/editar`}

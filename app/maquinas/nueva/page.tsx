@@ -1,76 +1,89 @@
-import PageWrapper from "@/components/PageWrapper";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from "@/components/Sidebar";
-import { Monitor } from "lucide-react";
-import { redirect } from "next/navigation";
+import { Monitor, ArrowLeft, Loader2 } from "lucide-react";
 import { createMachineAction } from "@/lib/actions/machines";
+import { getEnterprisesAction } from '@/lib/actions/enterprise';
+import { notify } from '@/lib/adapters/notification.adapter';
 import { type CreateMachineFormData } from "@/lib/schemas/machine.schema";
+import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 
-async function NuevaMaquinaContent() {
-  async function action(formData: FormData) {
-    "use server";
+export default function NuevaMaquinaPage() {
+  const router = useRouter();
+  const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
+  const [isLoadingEnterprises, setIsLoadingEnterprises] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    status: 'Inactive' as CreateMachineFormData['status'],
+    is_enabled: true,
+    location: '',
+    type: 'MDB' as CreateMachineFormData['type'],
+    enterprise_id: 0,
+  });
 
-    // Extraer y validar datos del formulario
-    const name = String(formData.get("name") || "").trim();
-    const statusRaw = formData.get("status");
-    const status = statusRaw && String(statusRaw).trim() ? String(statusRaw).trim() : "Inactive";
-    const is_enabled = formData.get("is_enabled") === "on";
-    const location = String(formData.get("location") || "").trim();
-    const typeRaw = formData.get("type");
-    const type = typeRaw && String(typeRaw).trim() ? String(typeRaw).trim() : "MDB";
-    const enterprise_id = Number(formData.get("enterprise_id") || 0);
-
-    // Validación de campos requeridos
-    if (!name) {
-      throw new Error("El nombre es requerido");
-    }
-    if (!location) {
-      throw new Error("La ubicación es requerida");
-    }
-    if (!enterprise_id || enterprise_id <= 0) {
-      throw new Error("El ID de empresa es requerido y debe ser mayor a 0");
-    }
-    if (!status || !['Active', 'Inactive', 'Maintenance', 'OutOfService'].includes(status)) {
-      throw new Error("El estado debe ser válido");
-    }
-    if (!type || !['PULSES', 'MDB', 'MDB-DEX'].includes(type)) {
-      throw new Error("El tipo debe ser válido");
-    }
-
-    const payload: CreateMachineFormData = {
-      name,
-      status: status as CreateMachineFormData["status"],
-      is_enabled,
-      location,
-      type: type as CreateMachineFormData["type"],
-      enterprise_id,
-      client_id: null, // Campo opcional
-    };
-
-    console.log('Valores extraídos del formulario:');
-    console.log('- name:', name);
-    console.log('- status:', status);
-    console.log('- is_enabled:', is_enabled);
-    console.log('- location:', location);
-    console.log('- type:', type);
-    console.log('- enterprise_id:', enterprise_id);
-    console.log('Payload completo a enviar:', payload);
-    
-    try {
-      const result = await createMachineAction(payload);
-      console.log('Resultado del API:', result);
-      
-      if (!result.success) {
-        console.error('Error del API:', result.error);
-        throw new Error(result.error || "No se pudo crear la máquina");
+  useEffect(() => {
+    async function loadEnterprises() {
+      try {
+        const response = await getEnterprisesAction();
+        if (response.success && response.enterprises) {
+          setEnterprises(response.enterprises);
+        }
+      } catch (error) {
+        notify.error('Error al cargar empresas');
+      } finally {
+        setIsLoadingEnterprises(false);
       }
-
-      redirect("/maquinas?page=1");
-    } catch (error) {
-      console.error('Error al crear máquina:', error);
-      // Re-lanzar el error para que se muestre en la UI
-      throw error;
     }
-  }
+    loadEnterprises();
+  }, []);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validación
+    if (!formData.name.trim()) {
+      notify.error('El nombre es requerido');
+      return;
+    }
+    if (!formData.location.trim()) {
+      notify.error('La ubicación es requerida');
+      return;
+    }
+    if (!formData.enterprise_id || formData.enterprise_id <= 0) {
+      notify.error('Debe seleccionar una empresa');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const result = await createMachineAction({
+        ...formData,
+        client_id: null,
+      });
+      
+      if (result.success) {
+        notify.success('Máquina creada exitosamente');
+        window.location.href = '/maquinas';
+      } else {
+        notify.error(result.error || 'Error al crear máquina');
+      }
+    } catch (error) {
+      notify.error('Error al crear máquina');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : 
+              name === 'enterprise_id' ? Number(value) : value
+    }));
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -91,16 +104,29 @@ async function NuevaMaquinaContent() {
         </header>
 
         <main className="flex-1 p-6 overflow-auto">
-          <form action={action} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 max-w-2xl">
+          <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 max-w-2xl">
             <div className="grid grid-cols-1 gap-6">
               <div>
                 <label className="block text-sm font-medium text-black mb-2">Nombre</label>
-                <input name="name" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black" placeholder="Nombre de la máquina" required />
+                <input 
+                  name="name" 
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black" 
+                  placeholder="Nombre de la máquina" 
+                  required 
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-black mb-2">Estado</label>
-                <select name="status" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black select-custom" defaultValue="Inactive" required>
+                <select 
+                  name="status" 
+                  value={formData.status}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black select-custom" 
+                  required
+                >
                   <option value="Inactive">Inactiva</option>
                   <option value="Active">Activa</option>
                   <option value="Maintenance">Mantenimiento</option>
@@ -111,19 +137,39 @@ async function NuevaMaquinaContent() {
               <div>
                 <label className="block text-sm font-medium text-black mb-2">Habilitada</label>
                 <div className="flex items-center space-x-2">
-                  <input type="checkbox" name="is_enabled" className="h-4 w-4" defaultChecked />
+                  <input 
+                    type="checkbox" 
+                    name="is_enabled" 
+                    checked={formData.is_enabled}
+                    onChange={handleInputChange}
+                    className="h-4 w-4" 
+                  />
                   <span className="text-sm text-gray-600">La máquina estará habilitada</span>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-black mb-2">Ubicación</label>
-                <textarea name="location" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black" rows={3} placeholder="Dirección o descripción" required />
+                <textarea 
+                  name="location" 
+                  value={formData.location}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black" 
+                  rows={3} 
+                  placeholder="Dirección o descripción" 
+                  required 
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-black mb-2">Tipo</label>
-                <select name="type" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black select-custom" defaultValue="MDB" required>
+                <select 
+                  name="type" 
+                  value={formData.type}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black select-custom" 
+                  required
+                >
                   <option value="PULSES">PULSES</option>
                   <option value="MDB">MDB</option>
                   <option value="MDB-DEX">MDB-DEX</option>
@@ -131,13 +177,53 @@ async function NuevaMaquinaContent() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-black mb-2">Empresa ID</label>
-                <input type="number" name="enterprise_id" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black" min={1} placeholder="ID de la empresa" required />
+                <label className="block text-sm font-medium text-black mb-2">Empresa</label>
+                {isLoadingEnterprises ? (
+                  <div className="flex items-center text-gray-500">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Cargando empresas...
+                  </div>
+                ) : (
+                  <select
+                    name="enterprise_id"
+                    value={formData.enterprise_id}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black select-custom"
+                    required
+                  >
+                    <option value="0">Selecciona una empresa</option>
+                    {enterprises.map((enterprise) => (
+                      <option key={enterprise.id} value={enterprise.id}>
+                        {enterprise.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-3">
-                <a href="/maquinas" className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancelar</a>
-                <button type="submit" className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors">Crear Máquina</button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/maquinas')}
+                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  disabled={isSubmitting}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Creando...
+                    </>
+                  ) : (
+                    'Crear Máquina'
+                  )}
+                </button>
               </div>
             </div>
           </form>
@@ -145,8 +231,4 @@ async function NuevaMaquinaContent() {
       </div>
     </div>
   );
-}
-
-export default function NuevaMaquinaPage() {
-  return <NuevaMaquinaContent />;
 }
