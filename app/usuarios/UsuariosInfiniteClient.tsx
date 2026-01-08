@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Users, Plus, Search, Edit, Trash2, Eye, UserX, Loader2, AlertCircle } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Eye, Loader2, AlertCircle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import UsersFiltersComponent from '@/components/UsersFilters';
@@ -93,20 +93,6 @@ export default function UsuariosInfiniteClient() {
     setFiltersState(newFilters);
   }, []);
 
-  // Handle clear all filters
-  const handleClearAllFilters = useCallback(() => {
-    const clearedFilters: UsersFilters = {
-      page: 1,
-      limit: 20,
-      searchObj: {
-        value: '',
-        case_sensitive: false
-      },
-      filters: []
-    };
-    setFiltersState(clearedFilters);
-  }, []);
-
   // Handle page change
   const handlePageChange = useCallback(async (page: number) => {
     try {
@@ -144,30 +130,10 @@ export default function UsuariosInfiniteClient() {
   // Users are already filtered by the API, no need for client-side filtering
   const displayedUsers = users;
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'admin': return 'bg-purple-100 text-purple-800';
-      case 'operator': return 'bg-blue-100 text-blue-800';
-      case 'viewer': return 'bg-green-100 text-green-800';
-      case 'customer': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const getStatusColor = (status: string) => {
     return status === 'active' 
       ? 'bg-green-100 text-green-800' 
       : 'bg-red-100 text-red-800';
-  };
-
-  const getRoleName = (role: string) => {
-    switch (role) {
-      case 'admin': return 'Administrador';
-      case 'operator': return 'Operador';
-      case 'viewer': return 'Visualizador';
-      case 'customer': return 'Cliente';
-      default: return role;
-    }
   };
 
   const handleViewUser = (userId: number) => {
@@ -296,7 +262,6 @@ export default function UsuariosInfiniteClient() {
             <UsersFiltersComponent
               filters={filters}
               onFiltersChange={handleFiltersChange}
-              onClearAll={handleClearAllFilters}
             />
           </div>
 

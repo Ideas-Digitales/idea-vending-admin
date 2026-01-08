@@ -1,12 +1,10 @@
 'use client';
 
-import { BarChart3, Clock, TrendingUp, DollarSign, Calendar } from 'lucide-react';
+import { BarChart3, Clock, TrendingUp, DollarSign } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Sidebar from '@/components/Sidebar';
-import { useUser } from '@/lib/stores/authStore';
 
 function ReportesContent() {
-  const user = useUser();
 
   return (
     <div className="min-h-screen bg-gray-50 flex">

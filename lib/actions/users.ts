@@ -6,7 +6,6 @@ import {
   UserResponse, 
   UsersResponse, 
   UsersFilters, 
-  UserFilter,
   CreateUser
 } from '@/lib/interfaces/user.interface';
 import { UserAdapter } from '@/lib/adapters/user.adapter';

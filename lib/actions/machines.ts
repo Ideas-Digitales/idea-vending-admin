@@ -11,7 +11,6 @@ import {
 } from '@/lib/interfaces/machine.interface';
 import { MachineAdapter } from '@/lib/adapters/machine.adapter';
 import { createMachineSchema, updateMachineSchema, CreateMachineFormData, UpdateMachineFormData } from '@/lib/schemas/machine.schema';
-import type { ApiMachinesResponse } from '@/lib/interfaces/machine.interface';
 
 // Re-export types for backward compatibility
 export type { Machine as Maquina } from '@/lib/interfaces/machine.interface';

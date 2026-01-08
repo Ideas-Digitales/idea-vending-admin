@@ -21,11 +21,10 @@ export default function PagosInfiniteClient() {
     currentFilters,
     hasNextPage,
     hasPrevPage,
-    getTotalPayments,
   } = usePaymentStore();
 
   // Local UI state - Simple pagination only
-  const [filters, setFiltersState] = useState<PaymentFilters>({
+  const [filters, setFilters] = useState<PaymentFilters>({
     page: 1,
     limit: 15,
   });

@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Package, Plus, Search, Edit, Trash2, Eye, ShoppingCart, DollarSign, AlertTriangle, Loader2, AlertCircle } from 'lucide-react';
+import { Package, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, DollarSign } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useProductStore } from '@/lib/stores/productStore';

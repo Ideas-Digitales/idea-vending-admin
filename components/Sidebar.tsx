@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { BarChart3, ShoppingCart, Monitor, Settings, LogOut, Users, CreditCard, Building2 } from 'lucide-react';
+import { BarChart3, ShoppingCart, Monitor, Users, Building2, LogOut } from 'lucide-react';
 import { useAuthStore, useUser } from '@/lib/stores/authStore';
 
 export default function Sidebar() {

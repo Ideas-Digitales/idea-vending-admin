@@ -3,7 +3,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createUserSchema, editUserSchema, CreateUserFormData, EditUserFormData } from '@/lib/schemas/user.schema';
-import { User, Mail, Lock, Eye, EyeOff, Save, X } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, Save } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { User as UserType } from '@/lib/interfaces';
 
@@ -35,21 +35,10 @@ export default function CreateUserForm({
     }
   };
 
-  // Mapear roles del schema a roles de la interfaz User
-  const mapSchemaRoleToUserRole = (schemaRole: string): string => {
-    switch (schemaRole) {
-      case 'admin': return 'admin';
-      case 'customer': return 'operator';
-      case 'technician': return 'viewer';
-      default: return 'admin';
-    }
-  };
-
   const {
     register,
     handleSubmit,
     formState: { errors, isValid },
-    watch,
     reset,
     trigger
   } = useForm({

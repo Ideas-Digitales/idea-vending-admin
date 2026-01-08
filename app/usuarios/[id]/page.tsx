@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, User, Mail, Calendar, Shield, Activity, Edit, Trash2 } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, User, Mail, Calendar, Shield, Edit, Trash2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useUserStore } from '@/lib/stores/userStore';
 
@@ -48,30 +48,10 @@ export default function UserDetailPage() {
     window.location.href = '/usuarios';
   };
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'admin': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'operator': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'viewer': return 'bg-green-100 text-green-800 border-green-200';
-      case 'customer': return 'bg-orange-100 text-orange-800 border-orange-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
   const getStatusColor = (status: string) => {
     return status === 'active' 
       ? 'bg-green-100 text-green-800 border-green-200' 
       : 'bg-red-100 text-red-800 border-red-200';
-  };
-
-  const getRoleName = (role: string) => {
-    switch (role) {
-      case 'admin': return 'Administrador';
-      case 'operator': return 'Operador';
-      case 'viewer': return 'Visualizador';
-      case 'customer': return 'Cliente';
-      default: return role;
-    }
   };
 
   if (isLoading) {

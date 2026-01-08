@@ -5,9 +5,9 @@ import { Building2, Plus, Search, MapPin, Phone, Eye, Edit, Trash2, X } from 'lu
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
-import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
+import type { Enterprise, EnterprisesFilters } from '@/lib/interfaces/enterprise.interface';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { ApiErrorDisplay, EmptyStateDisplay } from '@/components/ErrorDisplay';
+import { ApiErrorDisplay } from '@/components/ErrorDisplay';
 
 export default function EmpresasPage() {
   const router = useRouter();
@@ -39,7 +39,7 @@ export default function EmpresasPage() {
   // Función para realizar búsqueda
   const performSearch = useCallback(async (search?: string, page?: number) => {
     try {
-      const filters: any = {
+      const filters: EnterprisesFilters = {
         page: page || 1,
         limit: 10,
       };

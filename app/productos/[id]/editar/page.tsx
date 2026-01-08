@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { ArrowLeft, Package, Save, Loader2, Edit } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import Link from 'next/link';
@@ -11,7 +11,6 @@ import type { UpdateProductFormData } from '@/lib/schemas/product.schema';
 
 export default function EditProductPage() {
   const params = useParams();
-  const router = useRouter();
   const productId = params.id as string;
   
   console.log('Parámetros de la URL:', params);

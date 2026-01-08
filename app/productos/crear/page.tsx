@@ -90,8 +90,8 @@ export default function CreateProductPage() {
           setErrors(fieldErrors);
         }
       }
-    } catch (error) {
-      notify.error('Error al crear producto');
+    } catch {
+      console.error('Error al crear producto');
     } finally {
       setIsLoading(false);
     }

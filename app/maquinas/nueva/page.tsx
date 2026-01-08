@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from "@/components/Sidebar";
-import { Monitor, ArrowLeft, Loader2 } from "lucide-react";
+import { Monitor, Loader2 } from "lucide-react";
 import { createMachineAction } from "@/lib/actions/machines";
 import { getEnterprisesAction } from '@/lib/actions/enterprise';
 import { notify } from '@/lib/adapters/notification.adapter';
@@ -31,8 +31,8 @@ export default function NuevaMaquinaPage() {
         if (response.success && response.enterprises) {
           setEnterprises(response.enterprises);
         }
-      } catch (error) {
-        notify.error('Error al cargar empresas');
+      } catch (err) {
+        console.error('Error al cargar empresas:', err);
       } finally {
         setIsLoadingEnterprises(false);
       }
@@ -69,8 +69,8 @@ export default function NuevaMaquinaPage() {
       } else {
         notify.error(result.error || 'Error al crear máquina');
       }
-    } catch (error) {
-      notify.error('Error al crear máquina');
+    } catch (err) {
+      console.error('Error al crear máquina:', err);
     } finally {
       setIsSubmitting(false);
     }

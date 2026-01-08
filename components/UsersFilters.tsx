@@ -6,13 +6,11 @@ import { UsersFilters } from '@/lib/interfaces/user.interface';
 interface UsersFiltersProps {
   filters: UsersFilters;
   onFiltersChange: (filters: UsersFilters) => void;
-  onClearAll: () => void;
 }
 
 export default function UsersFiltersComponent({ 
   filters, 
-  onFiltersChange, 
-  onClearAll 
+  onFiltersChange 
 }: UsersFiltersProps) {
 
   // Handle search input

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Building2, Save, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Building2, Save, Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
 import { updateEnterpriseSchema, type UpdateEnterpriseFormData } from '@/lib/schemas/enterprise.schema';
@@ -85,25 +85,15 @@ export default function EditEnterprisePage() {
       } else {
         notify.error(`Error al actualizar empresa: ${result.error}`);
       }
-    } catch (error) {
+    } catch {
       notify.error('Error inesperado al actualizar empresa. Por favor, intenta nuevamente.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleReset = () => {
-    if (enterprise) {
-      reset({
-        name: enterprise.name,
-        address: enterprise.address,
-        phone: enterprise.phone,
-      });
-    }
-  };
-
   // Estados de carga y error
-  if (isLoading || (!enterprise && !error)) {
+  if (isLoading || (!enterprise)) {
     return (
       <div className="min-h-screen bg-gray-50 flex">
         <Sidebar />

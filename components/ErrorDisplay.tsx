@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AlertCircle, RefreshCw, X, Wifi, WifiOff } from 'lucide-react';
+import { AlertCircle, RefreshCw, X, WifiOff } from 'lucide-react';
 
 interface ErrorDisplayProps {
   error: string | null;

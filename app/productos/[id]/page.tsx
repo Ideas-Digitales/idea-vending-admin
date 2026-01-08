@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { ArrowLeft, Package, DollarSign, Calendar, Tag, Activity, Edit, Trash2, BarChart3, AlertTriangle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useProductStore } from '@/lib/stores/productStore';

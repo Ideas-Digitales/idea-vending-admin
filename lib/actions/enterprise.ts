@@ -2,12 +2,9 @@
 
 import { cookies } from 'next/headers';
 import {
-  Enterprise,
-  EnterprisesResponse,
   EnterpriseResponse,
+  EnterprisesResponse,
   EnterprisesFilters,
-  CreateEnterpriseData,
-  UpdateEnterpriseData,
 } from '../interfaces/enterprise.interface';
 import { EnterpriseAdapter } from '../adapters/enterprise.adapter';
 import { 

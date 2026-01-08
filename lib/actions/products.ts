@@ -2,14 +2,9 @@
 
 import { cookies } from 'next/headers';
 import {
-  Producto,
   ProductsResponse,
-  ProductsFilters,
   ProductResponse,
-  CreateProduct,
-  ProductFilter,
-  PaginationLinks,
-  PaginationMeta
+  ProductsFilters,
 } from '../interfaces/product.interface';
 import { ProductAdapter } from '../adapters/product.adapter';
 import { createProductSchema, CreateProductFormData, updateProductSchema, UpdateProductFormData } from '../schemas/product.schema';

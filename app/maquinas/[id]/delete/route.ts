@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) {
@@ -14,7 +15,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return NextResponse.redirect(new URL('/maquinas?page=1&deleted=0&error=No%20autenticado', request.url), 303);
     }
 
-    const res = await fetch(`${apiUrl}/machines/${params.id}`, {
+    const res = await fetch(`${apiUrl}/machines/${resolvedParams.id}`, {
       method: 'DELETE',
       headers: {
         'Accept': 'application/json',
@@ -29,8 +30,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     return NextResponse.redirect(new URL('/maquinas?page=1&deleted=1', request.url), 303);
-  } catch (e: any) {
-    const msg = encodeURIComponent(e?.message || 'Error inesperado');
+  } catch (e: unknown) {
+    const msg = encodeURIComponent((e as Error)?.message || 'Error inesperado');
     return NextResponse.redirect(new URL(`/maquinas?page=1&deleted=0&error=${msg}`, request.url), 303);
   }
 }

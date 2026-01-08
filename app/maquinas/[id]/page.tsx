@@ -5,11 +5,10 @@ import { useParams, useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { getMachineAction } from '@/lib/actions/machines';
 import { Machine } from '@/lib/interfaces/machine.interface';
-import { Monitor, ArrowLeft, Wifi, WifiOff, MapPin, Calendar, Settings, Building2, Shield, Activity, Edit, Package } from 'lucide-react';
+import { Monitor, ArrowLeft, Wifi, WifiOff, MapPin, Calendar, Activity, Edit, Package, Shield } from 'lucide-react';
 
 export default function MaquinaDetallePage() {
   const params = useParams();
-  const router = useRouter();
   const [machine, setMachine] = useState<Machine | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,8 +31,8 @@ export default function MaquinaDetallePage() {
         } else {
           setError(result.error || 'Máquina no encontrada');
         }
-      } catch (err) {
-        setError('Error al cargar la máquina');
+      } catch (error) {
+        console.error('Error al cargar máquina:', error);
       } finally {
         setLoading(false);
       }

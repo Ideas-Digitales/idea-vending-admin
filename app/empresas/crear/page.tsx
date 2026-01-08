@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Building2, Save, X, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Building2, Save, CheckCircle, X } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import UserSearchInput from '@/components/UserSearchInput';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
@@ -15,7 +15,7 @@ export default function CreateEnterprisePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [, setSelectedUser] = useState<User | null>(null);
   const { createEnterprise, updateError } = useEnterpriseStore();
 
   const {
@@ -67,7 +67,7 @@ export default function CreateEnterprisePage() {
     if (user) {
       setValue('user_id', user.id, { shouldValidate: true });
     } else {
-      setValue('user_id', undefined as any, { shouldValidate: true });
+      setValue('user_id', 0, { shouldValidate: true });
     }
   };
 

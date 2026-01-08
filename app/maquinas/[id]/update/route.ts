@@ -11,13 +11,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const formData = await request.formData();
 
-    const payload: Record<string, any> = {};
+    const payload: Record<string, unknown> = {};
     const name = formData.get('name');
     const status = formData.get('status');
     const is_enabled = formData.get('is_enabled');
     const location = formData.get('location');
     const type = formData.get('type');
-    const enterprise_id = formData.get('enterprise_id');
 
     if (name !== null && String(name).trim() !== '') payload.name = String(name);
     if (status !== null && String(status).trim() !== '') payload.status = String(status);
@@ -55,8 +54,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     return NextResponse.redirect(new URL(`/maquinas/${resolvedParams.id}?updated=1`, request.url), 303);
-  } catch (e: any) {
-    const msg = encodeURIComponent(e?.message || 'Error inesperado');
+  } catch (e: unknown) {
+    const msg = encodeURIComponent((e as Error)?.message || 'Error inesperado');
     return NextResponse.redirect(new URL(`/maquinas/${resolvedParams.id}?updated=0&error=${msg}`, request.url), 303);
   }
 }

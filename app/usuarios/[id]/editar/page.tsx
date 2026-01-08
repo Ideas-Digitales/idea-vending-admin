@@ -72,10 +72,9 @@ export default function EditarUsuarioPage() {
       } else {
         notify.error(`Error al actualizar usuario: ${result.error}`);
       }
-    } catch (error) {
-      notify.error(
-        "Error inesperado al actualizar usuario. Por favor, intenta nuevamente."
-      );
+    } catch (err) {
+      console.error('Error al actualizar usuario:', err);
+      notify.error('Error al actualizar usuario. Por favor, intenta nuevamente.');
     } finally {
       setIsLoading(false);
     }

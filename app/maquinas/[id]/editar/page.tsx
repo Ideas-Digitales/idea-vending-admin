@@ -9,7 +9,6 @@ import { Monitor, ArrowLeft, Save, X, CheckCircle } from 'lucide-react';
 
 export default function EditarMaquinaPage() {
   const params = useParams();
-  const router = useRouter();
   const machineId = params.id as string;
   
   const [machine, setMachine] = useState<Machine | null>(null);
@@ -51,8 +50,8 @@ export default function EditarMaquinaPage() {
         } else {
           setError(result.error || 'Máquina no encontrada');
         }
-      } catch (err) {
-        setError('Error al cargar la máquina');
+      } catch (error) {
+        console.error('Error al cargar máquina:', error);
       } finally {
         setLoading(false);
       }
@@ -118,8 +117,8 @@ export default function EditarMaquinaPage() {
           setSuccessMessage(null);
         }
       }
-    } catch (err) {
-      setError('Error al actualizar la máquina');
+    } catch (error) {
+      console.error('Error al actualizar máquina:', error);
     } finally {
       setSaving(false);
     }

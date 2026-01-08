@@ -34,7 +34,7 @@ export const getStatusName = (status: string) => {
   }
 };
 
-export const calculateMachineStats = (machines: any[]) => {
+export const calculateMachineStats = (machines: Array<{ status: string; connection_status?: boolean }>) => {
   return {
     total: machines.length,
     active: machines.filter(m => m.status.toLowerCase() === 'active').length,

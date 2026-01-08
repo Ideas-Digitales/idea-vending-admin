@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import CreateUserForm from "@/components/forms/CreateUserForm";
-import { CreateUserFormData, EditUserFormData } from "@/lib/schemas/user.schema";
+import { CreateUserFormData } from "@/lib/schemas/user.schema";
 import { createUserAction } from "@/lib/actions/users";
 import { useUserStore } from '@/lib/stores/userStore';
 import Sidebar from "@/components/Sidebar";

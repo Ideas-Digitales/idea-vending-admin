@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getMachinesAction, type Maquina, type MachinesFilters, type MachinesResponse } from '@/lib/actions/machines';
+import { getMachinesAction } from '@/lib/actions/machines';
+import type { Machine, MachinesFilters, MachinesResponse } from '@/lib/interfaces/machine.interface';
 
 interface UseInfiniteScrollMachinesOptions {
-  initialMachines?: Maquina[];
+  initialMachines?: Machine[];
   initialPagination?: MachinesResponse['pagination'];
   filters?: MachinesFilters;
 }
 
 interface UseInfiniteScrollMachinesReturn {
-  machines: Maquina[];
+  machines: Machine[];
   loading: boolean;
   hasMore: boolean;
   error: string | null;
@@ -19,12 +20,10 @@ interface UseInfiniteScrollMachinesReturn {
   totalCount: number;
 }
 
-export function useInfiniteScrollMachines({
-  initialMachines = [],
-  initialPagination,
-  filters = {}
-}: UseInfiniteScrollMachinesOptions): UseInfiniteScrollMachinesReturn {
-  const [machines, setMachines] = useState<Maquina[]>(initialMachines);
+export function useInfiniteScrollMachines(options: UseInfiniteScrollMachinesOptions = {}): UseInfiniteScrollMachinesReturn {
+  const { initialMachines = [], initialPagination, filters: initialFilters = {} } = options;
+  
+  const [machines, setMachines] = useState<Machine[]>(initialMachines);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(initialPagination?.meta.current_page || 1);
@@ -35,12 +34,12 @@ export function useInfiniteScrollMachines({
   
   // Ref para evitar llamadas duplicadas
   const loadingRef = useRef(false);
-  const filtersRef = useRef(filters);
+  const filtersRef = useRef(initialFilters);
 
   // Actualizar filtros cuando cambien
   useEffect(() => {
-    filtersRef.current = filters;
-  }, [filters]);
+    filtersRef.current = initialFilters;
+  }, [initialFilters]);
 
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMore || loading) {

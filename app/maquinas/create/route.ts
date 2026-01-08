@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<NextResponse> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) {
@@ -43,8 +43,8 @@ export async function POST(request: Request) {
 
     // Redirect back to list after success
     return NextResponse.redirect(new URL('/maquinas?page=1&created=1', request.url), 303);
-  } catch (e: any) {
-    const msg = encodeURIComponent(e?.message || 'Error inesperado');
+  } catch (e: unknown) {
+    const msg = encodeURIComponent((e as Error)?.message || 'Error inesperado');
     return NextResponse.redirect(new URL(`/maquinas?page=1&created=0&error=${msg}`, request.url), 303);
   }
 }

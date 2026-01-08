@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { 
   Users, 
-  ShoppingCart, 
-  Settings, 
+  ShoppingCart,
+  Settings,
   Monitor,
   AlertTriangle,
   Activity,

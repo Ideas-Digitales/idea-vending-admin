@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Building2, Mail, Calendar, MapPin, Phone, User, Edit, Trash2, FileText } from 'lucide-react';
+import { ArrowLeft, Building2, MapPin, Phone, Edit, Trash2, FileText } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
 import { deleteEnterpriseAction } from '@/lib/actions/enterprise';
 import { notify } from '@/lib/adapters/notification.adapter';
-import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 
 export default function EnterpriseDetailPage() {
   const router = useRouter();
@@ -76,8 +75,8 @@ export default function EnterpriseDetailPage() {
       } else {
         notify.error(`Error al eliminar empresa: ${result.error}`);
       }
-    } catch (error) {
-      notify.error('Error inesperado al eliminar empresa. Por favor, intenta nuevamente.');
+    } catch {
+      notify.error('Error al eliminar empresa. Por favor, intenta nuevamente.');
     } finally {
       setIsDeleting(false);
       setShowDeleteModal(false);

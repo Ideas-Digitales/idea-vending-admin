@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getUsersAction, type Usuario, type UsersFilters, type UsersResponse } from '@/lib/actions/users';
+import { getUsersAction } from '@/lib/actions/users';
+import type { User, UsersFilters, UsersResponse } from '@/lib/interfaces/user.interface';
 
 interface UseInfiniteScrollOptions {
-  initialUsers?: Usuario[];
+  initialUsers?: User[];
   initialPagination?: UsersResponse['pagination'];
   filters?: UsersFilters;
 }
 
 interface UseInfiniteScrollReturn {
-  users: Usuario[];
+  users: User[];
   loading: boolean;
   hasMore: boolean;
   error: string | null;
@@ -19,12 +20,10 @@ interface UseInfiniteScrollReturn {
   totalCount: number;
 }
 
-export function useInfiniteScroll({
-  initialUsers = [],
-  initialPagination,
-  filters = {}
-}: UseInfiniteScrollOptions): UseInfiniteScrollReturn {
-  const [users, setUsers] = useState<Usuario[]>(initialUsers);
+export function useInfiniteScroll(options: UseInfiniteScrollOptions = {}): UseInfiniteScrollReturn {
+  const { initialUsers = [], initialPagination, filters: initialFilters = {} } = options;
+  
+  const [users, setUsers] = useState<User[]>(initialUsers);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(initialPagination?.meta.current_page || 1);
@@ -35,12 +34,12 @@ export function useInfiniteScroll({
   
   // Ref para evitar llamadas duplicadas
   const loadingRef = useRef(false);
-  const filtersRef = useRef(filters);
+  const filtersRef = useRef(initialFilters);
 
   // Actualizar filtros cuando cambien
   useEffect(() => {
-    filtersRef.current = filters;
-  }, [filters]);
+    filtersRef.current = initialFilters;
+  }, [initialFilters]);
 
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMore || loading) {

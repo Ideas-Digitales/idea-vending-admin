@@ -58,7 +58,6 @@ export default function CreateUserModal({ isOpen, onClose, onSubmit }: CreateUse
           <div className="p-6">
             <CreateUserForm
               onSubmit={handleSubmit}
-              onCancel={handleCancel}
               isLoading={isLoading}
             />
           </div>

@@ -7,7 +7,7 @@ import { useMachineStore } from '@/lib/stores/machineStore';
 import { getProductsAction } from '@/lib/actions/products';
 import { UpdateSlot } from '@/lib/interfaces/slot.interface';
 import type { Producto } from '@/lib/interfaces/product.interface';
-import { ArrowLeft, Save, Loader2, CheckCircle, XCircle, Search } from 'lucide-react';
+import { ArrowLeft, Package, Save, Loader2, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
 export default function EditSlotPage() {
   const params = useParams();
