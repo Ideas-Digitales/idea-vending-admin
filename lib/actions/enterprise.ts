@@ -253,7 +253,7 @@ export async function createEnterpriseAction(enterpriseData: CreateEnterpriseFor
       console.error('❌ Error de validación:', validationResult.error.issues);
       return {
         success: false,
-        error: validationResult.error.issues.map((e: any) => e.message).join(', '),
+        error: validationResult.error.issues.map((e) => e.message).join(', '),
       };
     }
 
@@ -334,7 +334,7 @@ export async function updateEnterpriseAction(
       console.error('❌ Error de validación:', validationResult.error.issues);
       return {
         success: false,
-        error: validationResult.error.issues.map((e: any) => e.message).join(', '),
+        error: validationResult.error.issues.map((e) => e.message).join(', '),
       };
     }
 

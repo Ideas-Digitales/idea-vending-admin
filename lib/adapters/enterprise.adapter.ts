@@ -42,7 +42,7 @@ export class EnterpriseAdapter {
   /**
    * Convierte datos de formulario al formato para enviar al API
    */
-  static formToApi(formData: any): any {
+  static formToApi(formData: Record<string, unknown>): Record<string, unknown> {
     return {
       name: formData.name,
       rut: formData.rut,

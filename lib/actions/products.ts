@@ -16,7 +16,7 @@ import { createProductSchema, CreateProductFormData, updateProductSchema, Update
 
 // Helper function to build search payload - simplified for name search only
 function buildProductsSearchPayload(filters: ProductsFilters) {
-  const payload: any = {
+  const payload: Record<string, unknown> = {
     page: filters.page || 1,
     limit: filters.limit || 100,
   };

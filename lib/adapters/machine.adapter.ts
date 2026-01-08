@@ -6,7 +6,7 @@ export class MachineAdapter {
    */
   static apiToApp(apiMachine: ApiMachine): Machine {
     return {
-      id: apiMachine.id || 0,
+      id: typeof apiMachine.id === 'string' ? parseInt(apiMachine.id, 10) : (apiMachine.id || 0),
       name: apiMachine.name || apiMachine.machine_name || 'Máquina Sin Nombre',
       status: apiMachine.status || 'Inactive',
       is_enabled: Boolean(apiMachine.is_enabled ?? apiMachine.enabled ?? true),
@@ -17,7 +17,7 @@ export class MachineAdapter {
       type: apiMachine.type || apiMachine.machine_type || 'MDB-DEX',
       enterprise_id: apiMachine.enterprise_id || apiMachine.enterpriseId || 1,
       connection_status: Boolean(apiMachine.connection_status ?? apiMachine.connected ?? false),
-      mqtt_user: apiMachine.mqtt_user || null,
+      mqtt_user: apiMachine.mqtt_user ?? undefined,
     };
   }
 
@@ -39,8 +39,8 @@ export class MachineAdapter {
   /**
    * Convierte una máquina de la aplicación al formato de la API
    */
-  static appToApi(machine: Partial<Machine>): Record<string, any> {
-    const apiMachine: Record<string, any> = {};
+  static appToApi(machine: Partial<Machine>): Record<string, unknown> {
+    const apiMachine: Record<string, unknown> = {};
 
     if (machine.name !== undefined) apiMachine.name = machine.name;
     if (machine.location !== undefined) apiMachine.location = machine.location;
@@ -56,7 +56,7 @@ export class MachineAdapter {
   /**
    * Mapea el estado de la máquina desde diferentes formatos de la API
    */
-  private static mapMachineStatus(apiStatus: any): 'Active' | 'Inactive' | 'Maintenance' {
+  private static mapMachineStatus(apiStatus: unknown): 'Active' | 'Inactive' | 'Maintenance' {
     if (!apiStatus) return 'Inactive';
 
     const status = apiStatus.toString().toLowerCase();
@@ -75,8 +75,8 @@ export class MachineAdapter {
   /**
    * Mapea filtros de la aplicación al formato esperado por la API
    */
-  static mapFiltersToApi(filters: Record<string, any>): Record<string, any> {
-    const apiFilters: Record<string, any> = {};
+  static mapFiltersToApi(filters: Record<string, unknown>): Record<string, unknown> {
+    const apiFilters: Record<string, unknown> = {};
 
     if (filters.search) apiFilters.search = filters.search;
     if (filters.status) apiFilters.status = filters.status;

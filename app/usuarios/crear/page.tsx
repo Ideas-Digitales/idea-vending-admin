@@ -4,7 +4,7 @@ import { useState } from "react";
 import CreateUserForm from "@/components/forms/CreateUserForm";
 import { CreateUserFormData, EditUserFormData } from "@/lib/schemas/user.schema";
 import { createUserAction } from "@/lib/actions/users";
-import { useUserStore } from "@/lib/stores/userStore";
+import { useUserStore } from '@/lib/stores/userStore';
 import Sidebar from "@/components/Sidebar";
 import { ArrowLeft, CheckCircle, XCircle } from "lucide-react";
 import { notify } from '@/lib/adapters/notification.adapter';
@@ -15,7 +15,7 @@ export default function CrearUsuarioPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { refreshUsers } = useUserStore();
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: CreateUserFormData) => {
     setIsLoading(true);
     setSuccessMessage(null);
     setErrorMessage(null);

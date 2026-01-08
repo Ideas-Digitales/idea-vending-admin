@@ -257,7 +257,6 @@ export const useEnterpriseStore = create<EnterpriseState>((set, get) => ({
     } catch (error) {
       console.error('Error en deleteEnterprise:', error);
       // Revertir actualización optimista
-      const { enterprises } = get();
       set({
         isDeleting: false,
         deleteError: 'Error de conexión al eliminar empresa',

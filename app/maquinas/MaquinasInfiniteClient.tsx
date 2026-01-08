@@ -10,6 +10,7 @@ import MachineStylePagination from '@/components/MachineStylePagination';
 import { useMachineStore } from '@/lib/stores/machineStore';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { MachineAdapter } from '@/lib/adapters/machine.adapter';
+import type { Machine } from '@/lib/interfaces/machine.interface';
 
 export default function MaquinasInfiniteClient() {
   const router = useRouter();
@@ -148,7 +149,7 @@ export default function MaquinasInfiniteClient() {
     await refreshMachines();
   }, [refreshMachines]);
 
-  const handleDeleteClick = (machine: any) => {
+  const handleDeleteClick = (machine: Machine) => {
     setDeleteDialog({
       isOpen: true,
       machineId: machine.id,

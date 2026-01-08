@@ -210,7 +210,7 @@ export async function getUserInfo(
 
     // Mapear datos del usuario según la estructura de la API
     const user: User = {
-      id: userData.id?.toString() || userData.user_id?.toString() || "1",
+      id: typeof userData.id === 'number' ? userData.id : (typeof userData.user_id === 'number' ? userData.user_id : 1),
       email: userData.email || email || "usuario@ejemplo.com",
       name:
         userData.name ||
@@ -330,7 +330,7 @@ export async function logoutAction(): Promise<{ success: boolean }> {
 }
 
 // Funciones auxiliares
-function mapUserRole(apiRole: string): "admin" | "operator" | "viewer" {
+function mapUserRole(apiRole: string): User['role'] {
   if (!apiRole) return "admin";
 
   const role = apiRole.toLowerCase();

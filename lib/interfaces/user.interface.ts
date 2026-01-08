@@ -6,7 +6,7 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   rut: string;
-  role: 'admin' | 'operator' | 'viewer' | 'customer' | 'No role';
+  role: 'admin' | 'operator' | 'viewer' | 'customer' | 'technician' | 'No role';
   status: 'active' | 'inactive' | 'No status';
   lastLogin: string;
   permissions: string[];
@@ -145,6 +145,8 @@ export interface UsersFilters {
     case_sensitive?: boolean;
   };
   filters?: UserFilter[];
+  status?: 'active' | 'inactive';
+  role?: 'admin' | 'customer' | 'technician';
 }
 
 // Interface para crear usuario (datos que se envían a la API)

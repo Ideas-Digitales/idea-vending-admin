@@ -49,7 +49,7 @@ export interface ApiMachine {
   connected?: boolean;
   mqtt_user?: MqttUser | null;
   // Campos adicionales que pueden venir de la API
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface ApiMachinesResponse {

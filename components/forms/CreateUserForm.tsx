@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import { User as UserType } from '@/lib/interfaces';
 
 interface CreateUserFormProps {
-  onSubmit: (data: any) => void;
+  onSubmit: (data: CreateUserFormData | EditUserFormData) => void;
   isLoading?: boolean;
   mode?: 'create' | 'edit';
   initialData?: UserType;
@@ -86,7 +86,7 @@ export default function CreateUserForm({
     }
   }, [initialData, mode, reset, trigger]);
 
-  const handleFormSubmit = (data: any) => {
+  const handleFormSubmit = (data: CreateUserFormData | EditUserFormData) => {
     onSubmit(data);
   };
 

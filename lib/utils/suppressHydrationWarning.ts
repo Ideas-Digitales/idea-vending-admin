@@ -39,9 +39,6 @@ export function detectBrowserExtensions(): string[] {
   
   const detectedExtensions: string[] = [];
   
-  // Verificar atributos comunes de extensiones
-  const allElements = document.querySelectorAll('*');
-  
   BROWSER_EXTENSION_ATTRIBUTES.forEach(attr => {
     const elementsWithAttr = document.querySelectorAll(`[${attr}]`);
     if (elementsWithAttr.length > 0) {

@@ -48,7 +48,7 @@ interface MachineState {
   deleteMachine: (machineId: string | number) => Promise<boolean>;
   updateMachine: (machineId: string | number, machineData: UpdateMachineFormData) => Promise<boolean>;
   setFilters: (filters: MachinesFilters) => void;
-  initializeMachines: (machines: Machine[], pagination?: any) => void;
+  initializeMachines: (machines: Machine[], pagination?: { links: PaginationLinks; meta: PaginationMeta }) => void;
   clearError: () => void;
   clearMachineError: () => void;
   clearDeleteError: () => void;
@@ -175,7 +175,7 @@ export const useMachineStore = create<MachineState>()(
     set({ currentFilters: filters });
   },
 
-  initializeMachines: (machines: Machine[], pagination?: any) => {
+  initializeMachines: (machines: Machine[], pagination?: { links: PaginationLinks; meta: PaginationMeta }) => {
     set({
       machines,
       pagination: pagination || null,

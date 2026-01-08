@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Producto, ProductsFilters, PaginationLinks, PaginationMeta } from "../interfaces/product.interface";
+import { Producto, ProductsFilters, Pagination, PaginationLinks, PaginationMeta } from "../interfaces/product.interface";
 import { getProductsAction, getProductAction, deleteProductAction, updateProductAction } from "../actions/products";
 
 interface ProductState {
@@ -41,9 +41,9 @@ interface ProductState {
   fetchProduct: (productId: string | number) => Promise<void>;
   refreshProducts: () => Promise<void>;
   deleteProduct: (productId: string | number) => Promise<boolean>;
-  updateProduct: (productId: string | number, productData: any) => Promise<boolean>;
+  updateProduct: (productId: string | number, productData: { name: string }) => Promise<boolean>;
   setFilters: (filters: ProductsFilters) => void;
-  initializeProducts: (products: Producto[], pagination?: any) => void;
+  initializeProducts: (products: Producto[], pagination?: Pagination) => void;
   clearError: () => void;
   clearProductError: () => void;
   clearDeleteError: () => void;
@@ -172,7 +172,7 @@ export const useProductStore = create<ProductState>()(
     set({ currentFilters: filters });
   },
 
-  initializeProducts: (products: Producto[], pagination?: any) => {
+  initializeProducts: (products: Producto[], pagination?: Pagination) => {
     set({
       products,
       pagination: pagination || null,
@@ -256,7 +256,7 @@ export const useProductStore = create<ProductState>()(
     set({ deleteError: null });
   },
 
-  updateProduct: async (productId: string | number, productData: any) => {
+  updateProduct: async (productId: string | number, productData: { name: string }) => {
     console.log('Store: updateProduct llamado con ID:', productId);
     console.log('Store: updateProduct datos:', productData);
     

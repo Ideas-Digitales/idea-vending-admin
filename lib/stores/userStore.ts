@@ -1,7 +1,8 @@
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import { User, UsersFilters, PaginationLinks, PaginationMeta } from "../interfaces";
-import { getUsersAction, getUserAction, deleteUserAction, updateUserAction } from "../actions/users";
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { User, UsersFilters, Pagination, PaginationLinks, PaginationMeta } from '../interfaces/user.interface';
+import { getUsersAction, getUserAction, deleteUserAction, updateUserAction } from '../actions/users';
+import type { EditUserFormData } from '../schemas/user.schema';
 
 interface UserState {
   // Data state
@@ -41,9 +42,9 @@ interface UserState {
   fetchUser: (userId: string | number) => Promise<void>;
   refreshUsers: () => Promise<void>;
   deleteUser: (userId: string | number) => Promise<boolean>;
-  updateUser: (userId: string | number, userData: any) => Promise<boolean>;
+  updateUser: (userId: string | number, userData: EditUserFormData) => Promise<boolean>;
   setFilters: (filters: UsersFilters) => void;
-  initializeUsers: (users: User[], pagination?: any) => void;
+  initializeUsers: (users: User[], pagination?: Pagination) => void;
   clearError: () => void;
   clearUserError: () => void;
   clearDeleteError: () => void;
@@ -166,7 +167,7 @@ export const useUserStore = create<UserState>()(
     set({ currentFilters: filters });
   },
 
-  initializeUsers: (users: User[], pagination?: any) => {
+  initializeUsers: (users: User[], pagination?: Pagination) => {
     set({
       users,
       pagination: pagination || null,
@@ -249,7 +250,7 @@ export const useUserStore = create<UserState>()(
     set({ deleteError: null });
   },
 
-  updateUser: async (userId: string | number, userData: any) => {
+  updateUser: async (userId: string | number, userData: EditUserFormData) => {
     const { users } = get();
     
     // Optimistic update: find and update user in local state immediately

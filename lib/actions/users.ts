@@ -15,7 +15,7 @@ import type { CreateUserFormData } from '@/lib/schemas/user.schema';
 
 // Helper function to build search payload for POST /users/search
 function buildUsersSearchPayload(filters: UsersFilters) {
-  const payload: any = {
+  const payload: Record<string, unknown> = {
     page: filters.page || 1,
     limit: filters.limit || 20,
   };
@@ -343,7 +343,7 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
 }
 
 // Server Action para actualizar un usuario
-export async function updateUserAction(userId: string | number, userData: any): Promise<UserResponse> {
+export async function updateUserAction(userId: string | number, userData: Record<string, unknown>): Promise<UserResponse> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     
@@ -384,16 +384,16 @@ export async function updateUserAction(userId: string | number, userData: any): 
     };
 
     // Preparar datos para actualización (sin password si no se proporciona)
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       name: userData.name,
       email: userData.email,
       rut: userData.rut,
-      role: mapSchemaRoleToApiRole(userData.role || 'admin'),
+      role: mapSchemaRoleToApiRole((userData.role as string) || 'admin'),
       status: userData.status
     };
 
     // Solo incluir password si se proporciona
-    if (userData.password && userData.password.trim() !== '') {
+    if (typeof userData.password === 'string' && userData.password.trim() !== '') {
       updateData.password = userData.password;
       updateData.password_confirmation = userData.confirmPassword;
     }

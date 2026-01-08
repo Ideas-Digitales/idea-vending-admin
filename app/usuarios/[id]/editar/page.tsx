@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import CreateUserForm from "@/components/forms/CreateUserForm";
-import { EditUserFormData } from "@/lib/schemas/user.schema";
+import type { EditUserFormData } from "@/lib/schemas/user.schema";
 import { updateUserAction } from "@/lib/actions/users";
-import { useUserStore } from "@/lib/stores/userStore";
+import { useUserStore } from '@/lib/stores/userStore';
 import Sidebar from "@/components/Sidebar";
 import { ArrowLeft, User } from "lucide-react";
 import { notify } from '@/lib/adapters/notification.adapter';
@@ -56,7 +56,7 @@ export default function EditarUsuarioPage() {
     }
   }, [isLoadingUser, user, userError]);
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: EditUserFormData) => {
     if (!userId) return;
     
     setIsLoading(true);
