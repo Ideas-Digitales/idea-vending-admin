@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
 import { useAuthStore, useIsAuthenticated, useAuthLoading, useAuthError } from '@/lib/stores/authStore';
 import ClientOnly from '@/components/ClientOnly';
@@ -321,6 +322,28 @@ export default function LoginPage() {
               </div>
             </form>
           </ClientOnly>
+        </div>
+
+        {/* Footer Links */}
+        <div className="mt-6 text-center space-y-3">
+          <div className="flex items-center justify-center gap-4 text-sm">
+            <Link 
+              href="/politica-privacidad" 
+              className="text-white/90 hover:text-white transition-colors underline"
+            >
+              Política de Privacidad
+            </Link>
+            <span className="text-white/60">•</span>
+            <Link 
+              href="/contacto-soporte" 
+              className="text-white/90 hover:text-white transition-colors underline"
+            >
+              Contacto y Soporte
+            </Link>
+          </div>
+          <p className="text-white/70 text-xs">
+            © 2026 Ideas Vending. Todos los derechos reservados.
+          </p>
         </div>
 
       </div>

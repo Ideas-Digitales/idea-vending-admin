@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { User } from "@/lib/interfaces/user.interface";
+import type { User } from "@/lib/interfaces";
 import { loopPrevention } from "@/lib/utils/loopPrevention";
 
 // Re-export User for other modules

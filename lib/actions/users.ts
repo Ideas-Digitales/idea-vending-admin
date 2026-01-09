@@ -2,12 +2,12 @@
 
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-import { 
+import type { 
   UserResponse, 
   UsersResponse, 
-  UsersFilters, 
-  CreateUser
-} from '@/lib/interfaces/user.interface';
+  UsersFilters
+} from '@/lib/interfaces';
+import type { CreateUser } from '@/lib/interfaces/user.interface';
 import { UserAdapter } from '@/lib/adapters/user.adapter';
 import type { ApiUsersResponse } from '@/lib/interfaces/user.interface';
 import type { CreateUserFormData } from '@/lib/schemas/user.schema';
