@@ -1,15 +1,17 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Package, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, DollarSign } from 'lucide-react';
+import { Package, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useProductStore } from '@/lib/stores/productStore';
 import ProductStorePagination from '@/components/ProductStorePagination';
 import ProductPageSkeleton from '@/components/skeletons/ProductPageSkeleton';
 import { notify } from '@/lib/adapters/notification.adapter';
+
+const DEFAULT_PAGE_SIZE = 20;
 
 export default function ProductosInfiniteClient() {
   const router = useRouter();
@@ -21,6 +23,7 @@ export default function ProductosInfiniteClient() {
     error,
     fetchProducts,
     refreshProducts,
+    currentFilters,
     setFilters,
     clearError,
     deleteProduct,
@@ -42,27 +45,20 @@ export default function ProductosInfiniteClient() {
     productName: ''
   });
   
+  const initializedRef = useRef(false);
 
   useEffect(() => {
-    // Cargar productos frescos al montar el componente
-    console.log('🔄 Cargando productos frescos...');
-    console.log('📊 Estado actual - isLoading:', isLoading, 'products.length:', products.length);
-    
-    // Forzar recarga siempre que se monte el componente
-    fetchProducts({ page: 1, limit: 100 });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  
-  // Log cuando cambia el estado de carga
-  useEffect(() => {
-    console.log('📊 Estado actualizado - isLoading:', isLoading, 'products.length:', products.length, 'error:', error);
-  }, [isLoading, products.length, error]);
-  
-  // Recargar productos cuando cambia el número de productos (después de eliminar)
-  useEffect(() => {
-    if (products.length > 0) {
-      console.log('📊 Productos actuales:', products.length);
-    }
-  }, [products.length]);
+    if (initializedRef.current) return;
+    // FORZAR limit a DEFAULT_PAGE_SIZE para corregir valores antiguos en localStorage
+    const initialFilters = {
+      page: 1,
+      limit: DEFAULT_PAGE_SIZE, // Siempre usar 20, ignorar valor en localStorage
+    };
+    initializedRef.current = true;
+    setFilters(initialFilters);
+    fetchProducts(initialFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Mostrar toast para errores
   useEffect(() => {
@@ -86,67 +82,52 @@ export default function ProductosInfiniteClient() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const apiFilters = useMemo(() => ({
-    search: debouncedSearchTerm || undefined,
-    page: 1,
-    limit: 100,
-  }), [debouncedSearchTerm]);
-
-  const prevFiltersRef = useRef(apiFilters);
-  const applyFilters = useCallback((filters: typeof apiFilters) => {
-    const filtersChanged = JSON.stringify(prevFiltersRef.current) !== JSON.stringify(filters);
-    if (filtersChanged) {
-      setFilters(filters);
-      fetchProducts(filters);
-      prevFiltersRef.current = filters;
-    }
-  }, [setFilters, fetchProducts]);
-  
-  const apiFiltersString = JSON.stringify(apiFilters);
-  
   useEffect(() => {
-    if (products.length > 0) {
-      applyFilters(apiFilters);
-    }
-  }, [apiFiltersString, applyFilters, products.length]);
+    if (!initializedRef.current) return;
+    const baseFilters = {
+      ...currentFilters,
+      page: 1,
+      limit: DEFAULT_PAGE_SIZE, // Siempre forzar a 20
+    };
 
-  const displayedProducts = useMemo(() => {
-    if (!searchTerm) {
-      return products;
-    }
-    
-    if (searchTerm !== debouncedSearchTerm) {
-      return products.filter(producto => 
-        producto.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (producto.description && producto.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (producto.category && producto.category.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
-    
-    return products;
-  }, [products, searchTerm, debouncedSearchTerm]);
+    const filters =
+      debouncedSearchTerm
+        ? {
+            ...baseFilters,
+            searchObj: {
+              value: debouncedSearchTerm,
+              case_sensitive: false,
+            },
+            search: debouncedSearchTerm,
+          }
+        : {
+            ...baseFilters,
+            search: undefined,
+            searchObj: undefined,
+          };
 
-  const getCategoryColor = (category: string) => {
-    switch (category.toLowerCase()) {
-      case 'bebidas': return 'bg-blue-100 text-blue-800';
-      case 'snacks': return 'bg-orange-100 text-orange-800';
-      case 'dulces': return 'bg-pink-100 text-pink-800';
-      case 'saludable': return 'bg-green-100 text-green-800';
-      case 'lácteos': return 'bg-purple-100 text-purple-800';
-      case 'panadería': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+    setFilters(filters);
+    fetchProducts(filters);
+  }, [debouncedSearchTerm, currentFilters.limit, fetchProducts, setFilters]);
 
-  const getStockStatus = (stock: number) => {
-    if (stock === 0) return { color: 'text-red-600', label: 'Sin stock' };
-    if (stock < 10) return { color: 'text-orange-600', label: 'Stock bajo' };
-    if (stock < 30) return { color: 'text-yellow-600', label: 'Stock medio' };
-    return { color: 'text-green-600', label: 'Stock bueno' };
-  };
+  const displayedProducts = products;
 
   const handleViewProduct = (productId: string | number) => {
     router.push(`/productos/${productId}`);
+  };
+
+  const formatDate = (date?: string) => {
+    if (!date) return 'Sin registro';
+    try {
+      return new Date(date).toLocaleDateString('es-CL', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.warn('No se pudo formatear fecha', date, error);
+      return date;
+    }
   };
 
   // Delete handlers
@@ -287,13 +268,9 @@ export default function ProductosInfiniteClient() {
                   <h3 className="text-lg font-bold text-dark">
                     Lista de Productos
                   </h3>
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
-                    <span>Total: {pagination?.meta?.total || products.length}</span>
-                    <div className="flex items-center">
-                      <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full mr-2">MOCK</span>
-                      <span className="text-muted">Datos simulados</span>
-                    </div>
-                  </div>
+                  <span className="text-sm text-muted">
+                    Total: {pagination?.meta?.total ?? products.length}
+                  </span>
                 </div>
               </div>
               
@@ -320,34 +297,13 @@ export default function ProductosInfiniteClient() {
                           </div>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          <div className="flex items-center">
-                            Descripción
-                            <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
-                          </div>
+                          Empresa
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          <div className="flex items-center">
-                            Categoría
-                            <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
-                          </div>
+                          Creado
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          <div className="flex items-center">
-                            Precio
-                            <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
-                          </div>
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          <div className="flex items-center">
-                            Stock
-                            <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
-                          </div>
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          <div className="flex items-center">
-                            Estado
-                            <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
-                          </div>
+                          Actualizado
                         </th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Acciones
@@ -355,86 +311,58 @@ export default function ProductosInfiniteClient() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {displayedProducts.map((producto) => {
-                        const stockStatus = getStockStatus(producto.stock || 0);
-                        return (
-                          <tr key={producto.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="h-10 w-10 bg-primary rounded-full flex items-center justify-center mr-4">
-                                  <Package className="h-5 w-5 text-white" />
-                                </div>
-                                <div>
-                                  <div className="text-sm font-medium text-dark">{producto.name}</div>
-                                  <div className="text-sm text-muted">ID: {producto.id}</div>
-                                </div>
+                      {displayedProducts.map((producto) => (
+                        <tr key={producto.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="h-10 w-10 bg-primary rounded-full flex items-center justify-center mr-4">
+                                <Package className="h-5 w-5 text-white" />
                               </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm text-dark max-w-xs truncate">
-                                {producto.description}
+                              <div>
+                                <div className="text-sm font-medium text-dark">{producto.name}</div>
+                                <div className="text-sm text-muted">ID: {producto.id}</div>
                               </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getCategoryColor(producto.category || '')}`}>
-                                {producto.category}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <DollarSign className="h-4 w-4 text-green-600 mr-1" />
-                                <span className="text-sm font-medium text-dark">
-                                  {producto.price?.toLocaleString('es-CL')}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <span className={`text-sm font-medium ${stockStatus.color}`}>
-                                  {producto.stock} unidades
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                producto.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                              }`}>
-                                {producto.is_active ? 'Activo' : 'Inactivo'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <div className="flex items-center justify-end space-x-2">
-                                <button 
-                                  onClick={() => handleViewProduct(producto.id)}
-                                  className="text-blue-600 hover:text-blue-900 p-1"
-                                  title="Ver detalles"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </button>
-                                <button 
-                                  onClick={() => {
-                                    console.log('Editando producto con ID:', producto.id);
-                                    console.log('Producto completo:', producto);
-                                    window.location.href = `/productos/${producto.id}/editar`;
-                                  }}
-                                  className="text-green-600 hover:text-green-900 p-1"
-                                  title="Editar producto"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </button>
-                                <button 
-                                  className="text-red-600 hover:text-red-900 p-1 disabled:opacity-50"
-                                  title="Eliminar producto"
-                                  onClick={() => handleDeleteClick(producto.id, producto.name)}
-                                  disabled={isDeleting}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm text-dark">
+                              #{producto.enterprise_id ?? '—'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-dark">
+                            {formatDate(producto.created_at)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-dark">
+                            {formatDate(producto.updated_at)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex items-center justify-end space-x-2">
+                              <button
+                                onClick={() => handleViewProduct(producto.id)}
+                                className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Ver detalles"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              <Link
+                                href={`/productos/${producto.id}/editar`}
+                                className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Editar"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Link>
+                              <button
+                                onClick={() => handleDeleteClick(producto.id, producto.name)}
+                                className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                title="Eliminar"
+                                disabled={isDeleting}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

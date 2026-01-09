@@ -18,6 +18,14 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Idea Vending Admin",
   description: "Sistema de administración para máquinas expendedoras",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", rel: "icon", sizes: "any" },
+      { url: "/icon_ideavending.png", rel: "icon", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/icon_ideavending.png",
+  },
 };
 
 export default function RootLayout({

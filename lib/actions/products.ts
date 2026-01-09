@@ -9,11 +9,17 @@ import {
 import { ProductAdapter } from '../adapters/product.adapter';
 import { createProductSchema, CreateProductFormData, updateProductSchema, UpdateProductFormData } from '../schemas/product.schema';
 
+const DEFAULT_PAGE_SIZE = 20;
+
 // Helper function to build search payload - simplified for name search only
-function buildProductsSearchPayload(filters: ProductsFilters) {
+function buildProductsSearchPayload(filters: ProductsFilters = {}) {
+  const page = filters.page || 1;
+  const pageSize = filters.limit || DEFAULT_PAGE_SIZE;
+
   const payload: Record<string, unknown> = {
-    page: filters.page || 1,
-    limit: filters.limit || 100,
+    page,
+    per_page: pageSize,
+    limit: pageSize,
   };
 
   // Add search object if present (searches in name field)
@@ -83,9 +89,13 @@ export async function getProductsAction(filters?: ProductsFilters): Promise<Prod
       });
     } else {
       // Use simple GET /products for basic requests
+      const page = filters?.page || 1;
+      const limit = filters?.limit || DEFAULT_PAGE_SIZE;
+      
       const queryParams = new URLSearchParams();
-      if (filters?.page) queryParams.append('page', filters.page.toString());
-      if (filters?.limit) queryParams.append('limit', filters.limit.toString());
+      queryParams.append('page', page.toString());
+      queryParams.append('per_page', limit.toString());
+      queryParams.append('limit', limit.toString());
 
       const url = `${apiUrl}/products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       
@@ -115,7 +125,10 @@ export async function getProductsAction(filters?: ProductsFilters): Promise<Prod
     }
 
     const data = await response.json();
-    console.log('Respuesta de productos:', data);
+    console.log('🔍 Respuesta completa del API:', JSON.stringify(data, null, 2));
+    console.log('🔍 Meta de paginación:', data.meta);
+    console.log('🔍 Links de paginación:', data.links);
+    console.log('🔍 Total de productos en data:', data.data?.length);
 
     // Mapear datos según la estructura de la API
     const products = ProductAdapter.apiProductsToApp(data);

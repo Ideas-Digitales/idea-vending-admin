@@ -105,7 +105,10 @@ export default function LoginPage() {
   // Mostrar mensaje de éxito si está autenticado
   if (showSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8" style={{ background: 'linear-gradient(135deg, #3158b3 0%, #2a4a9a 50%, #1e3a7a 100%)' }}>
+      <div
+        className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
+        style={{ background: 'linear-gradient(135deg, #3157b2 0%, #203c84 50%, #16265f 100%)' }}
+      >
         <div className="max-w-md w-full text-center">
           <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8">
             <div className="mx-auto h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
@@ -125,7 +128,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8" style={{ background: 'linear-gradient(135deg, #3158b3 0%, #2a4a9a 50%, #1e3a7a 100%)' }}>
+    <div
+      className="min-h-screen relative overflow-hidden flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
+      style={{ background: 'linear-gradient(135deg, #3157b2 0%, #203c84 50%, #16265f 100%)' }}
+    >
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Primera fila de cubos */}
@@ -176,20 +182,14 @@ export default function LoginPage() {
 
       <div className="max-w-md w-full space-y-8 relative z-10">
         {/* Header Section */}
-        <div className="text-center">
-          <div className="mx-auto h-20 w-20 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-8 shadow-lg">
-            <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#3158b3' }}>
-                <div className="w-4 h-4 bg-white rounded-sm"></div>
-              </div>
-            </div>
-          </div>
-          <h1 className="text-4xl font-bold text-white mb-3">
-            Ideas Vending
-          </h1>
-          <h2 className="text-xl font-semibold text-blue-100 mb-2">
-            Panel Administrativo
-          </h2>
+        <div className="text-center px-2">
+          <img
+            src="/logo_ideavending.png"
+            alt="Ideas Digitales"
+            width={800}
+            height={400}
+            className="mx-auto w-full max-w-[520px] h-auto object-contain drop-shadow-2xl mb-8"
+          />
         </div>
 
         {/* Login Form */}
