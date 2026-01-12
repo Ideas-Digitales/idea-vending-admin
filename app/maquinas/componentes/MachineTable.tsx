@@ -5,6 +5,13 @@ import { type Machine } from '@/lib/interfaces/machine.interface';
 import { getStatusColor, getStatusName } from '../utils/machineHelpers';
 import { useRouter } from 'next/navigation';
 
+const getMachineTypeLabel = (type?: string | null) => {
+  if (!type) return '-';
+  const normalized = type.toUpperCase();
+  if (normalized === 'PULSES') return 'PULSOS';
+  return type;
+};
+
 interface MachineTableProps {
   machines: Machine[];
   loading?: boolean;
@@ -111,7 +118,7 @@ export default function MachineTable({ machines, loading }: MachineTableProps) {
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                  {machine.type || '-'}
+                  {getMachineTypeLabel(machine.type)}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
