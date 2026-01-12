@@ -357,7 +357,7 @@ export default function MaquinasInfiniteClient() {
                     <option value="">Todos los tipos</option>
                     <option value="MDB-DEX">MDB-DEX</option>
                     <option value="MDB">MDB</option>
-                    <option value="PULSES">PULSES</option>
+                    <option value="PULSES">PULSOS</option>
                   </select>
                   <select
                     className="input-field min-w-[120px] select-custom"
@@ -480,7 +480,7 @@ export default function MaquinasInfiniteClient() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                              {machine.type || '-'}
+                              {machine.type?.toUpperCase() === 'PULSES' ? 'PULSOS' : (machine.type || '-')}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

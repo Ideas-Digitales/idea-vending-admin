@@ -4,6 +4,11 @@ import { Search } from 'lucide-react';
 import { useMachineFilters } from '../store/machineFilters';
 import { getStatusName } from '../utils/machineHelpers';
 
+const getTypeFilterLabel = (type: string) => {
+  if (!type) return type;
+  return type.toUpperCase() === 'PULSES' ? 'PULSOS' : type;
+};
+
 export default function MachineSearchFilters() {
   const {
     searchTerm,
@@ -61,7 +66,7 @@ export default function MachineSearchFilters() {
               onChange={(e) => setTypeFilter(e.target.value)}
             >
               <option value="">Todos los tipos</option>
-              <option value="PULSES">PULSES</option>
+              <option value="PULSES">PULSOS</option>
               <option value="MDB">MDB</option>
               <option value="MDB-DEX">MDB-DEX</option>
             </select>
@@ -103,7 +108,7 @@ export default function MachineSearchFilters() {
               )}
               {typeFilter && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                  Tipo: {typeFilter}
+                  Tipo: {getTypeFilterLabel(typeFilter)}
                   <button 
                     onClick={() => setTypeFilter('')}
                     className="ml-2 hover:text-green-600"
