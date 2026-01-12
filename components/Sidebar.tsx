@@ -11,6 +11,14 @@ export default function Sidebar() {
   const { logout, updateUser } = useAuthStore();
   const user = useUser();
 
+  const sidebarCubes = [
+    { className: 'top-6 right-4 w-32 h-32 bg-white/10 rounded-3xl animate-float', delay: '0s' },
+    { className: 'top-32 right-10 w-24 h-24 bg-white/8 rounded-2xl animate-float-reverse', delay: '0.6s' },
+    { className: 'top-52 right-6 w-20 h-20 bg-white/7 rounded-2xl animate-pulse-glow', delay: '1.2s' },
+    { className: 'bottom-24 right-12 w-24 h-24 bg-white/9 rounded-3xl animate-float', delay: '1.8s' },
+    { className: 'bottom-8 right-4 w-16 h-16 bg-white/6 rounded-2xl animate-float-reverse', delay: '2.4s' },
+  ];
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -66,7 +74,19 @@ export default function Sidebar() {
   ];
 
   return (
-    <div className="w-64 bg-[#3157b2] text-white shadow-2xl flex flex-col h-screen sticky top-0">
+    <div className="relative w-64 flex-shrink-0 bg-[#3157b2] text-white shadow-2xl h-screen sticky top-0 overflow-hidden">
+      {/* Animated cubes */}
+      <div className="absolute inset-y-0 right-0 w-full pointer-events-none">
+        {sidebarCubes.map((cube, index) => (
+          <div
+            key={index}
+            className={`absolute opacity-70 blur-[1px] ${cube.className}`}
+            style={{ animationDelay: cube.delay }}
+          />
+        ))}
+      </div>
+
+      <div className="relative z-10 flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center px-6 py-4 border-b border-white/15 gap-3">
         <img
@@ -134,6 +154,7 @@ export default function Sidebar() {
           <LogOut className="h-5 w-5 mr-3 flex-shrink-0" />
           <span>Cerrar sesión</span>
         </button>
+      </div>
       </div>
     </div>
   );

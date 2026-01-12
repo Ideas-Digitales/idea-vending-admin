@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Monitor, Plus, Search, Edit, Trash2, Eye, Loader2, AlertCircle, MapPin, Package } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
@@ -12,8 +12,21 @@ import { notify } from '@/lib/adapters/notification.adapter';
 import { MachineAdapter } from '@/lib/adapters/machine.adapter';
 import type { Machine } from '@/lib/interfaces/machine.interface';
 
+const STATUS_FILTER_VALUES = ['Active', 'Inactive', 'Maintenance', 'OutOfService'] as const;
+type MachineStatusFilter = '' | (typeof STATUS_FILTER_VALUES)[number];
+const STATUS_FILTER_SET = new Set<string>(STATUS_FILTER_VALUES);
+
 export default function MaquinasInfiniteClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const statusParamValue = useMemo<MachineStatusFilter>(() => {
+    const param = searchParams?.get('status');
+    if (param && STATUS_FILTER_SET.has(param)) {
+      return param as MachineStatusFilter;
+    }
+    return '';
+  }, [searchParams]);
 
   // Store state
   const {
@@ -36,7 +49,7 @@ export default function MaquinasInfiniteClient() {
 
   // Local UI state
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<MachineStatusFilter>(statusParamValue);
   const [typeFilter, setTypeFilter] = useState('');
   const [enabledFilter, setEnabledFilter] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -51,6 +64,11 @@ export default function MaquinasInfiniteClient() {
   });
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync filter when arriving with query params (e.g., from dashboard cards)
+  useEffect(() => {
+    setStatusFilter((prev) => (prev === statusParamValue ? prev : statusParamValue));
+  }, [statusParamValue]);
 
   // Debounce search term
   useEffect(() => {
@@ -185,6 +203,7 @@ export default function MaquinasInfiniteClient() {
     setTypeFilter('');
     setEnabledFilter('');
     setDebouncedSearchTerm('');
+    router.replace('/maquinas', { scroll: false });
   };
 
   // Mostrar skeleton solo durante la carga inicial
@@ -322,7 +341,7 @@ export default function MaquinasInfiniteClient() {
                   <select
                     className="input-field min-w-[140px] select-custom"
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                    onChange={(e) => setStatusFilter(e.target.value as MachineStatusFilter)}
                   >
                     <option value="">Todos los estados</option>
                     <option value="Active">Activa</option>

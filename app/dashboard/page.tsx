@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { 
   Users, 
@@ -74,28 +75,32 @@ function DashboardContent() {
       value: dashboardStats.machines.total.toString(),
       icon: Monitor,
       color: 'text-blue-600',
-      bgColor: 'bg-blue-50'
+      bgColor: 'bg-blue-50',
+      href: '/maquinas'
     },
     {
       title: 'Máquinas Activas',
       value: `${dashboardStats.machines.active}/${dashboardStats.machines.total}`,
       icon: Activity,
       color: 'text-green-600',
-      bgColor: 'bg-green-50'
+      bgColor: 'bg-green-50',
+      href: '/maquinas?status=Active'
     },
     {
       title: 'Máquinas Inactivas',
       value: dashboardStats.machines.inactive.toString(),
       icon: AlertTriangle,
       color: 'text-red-600',
-      bgColor: 'bg-red-50'
+      bgColor: 'bg-red-50',
+      href: '/maquinas?status=Inactive'
     },
     {
       title: 'Total Usuarios',
       value: dashboardStats.users.total.toString(),
       icon: Users,
       color: 'text-purple-600',
-      bgColor: 'bg-purple-50'
+      bgColor: 'bg-purple-50',
+      href: '/usuarios'
     }
   ] : [];
 
@@ -154,36 +159,41 @@ function DashboardContent() {
           {!loading && !error && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {stats.map((stat, index) => (
-                <div 
+                <Link
                   key={index} 
-                  className="card p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer group"
-                  style={{ animationDelay: `${index * 100}ms` }}
+                  href={stat.href}
+                  className="group"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-muted mb-2 group-hover:text-gray-600 transition-colors">
-                        {stat.title}
-                      </p>
-                      <p className="text-3xl font-bold text-dark mb-1 group-hover:scale-105 transition-transform">
-                        {stat.value}
-                      </p>
-                      {/* Progress bar visual */}
-                      {stat.title.includes('Activas') && dashboardStats && (
-                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                          <div 
-                            className="bg-green-500 h-2 rounded-full transition-all duration-1000 ease-out"
-                            style={{ 
-                              width: `${(dashboardStats.machines.active / dashboardStats.machines.total) * 100}%` 
-                            }}
-                          ></div>
-                        </div>
-                      )}
-                    </div>
-                    <div className={`p-4 rounded-xl ${stat.bgColor} flex-shrink-0 ml-4 group-hover:scale-110 transition-transform duration-300`}>
-                      <stat.icon className={`h-7 w-7 ${stat.color} group-hover:animate-pulse`} />
+                  <div 
+                    className="card p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-muted mb-2 group-hover:text-gray-600 transition-colors">
+                          {stat.title}
+                        </p>
+                        <p className="text-3xl font-bold text-dark mb-1 group-hover:scale-105 transition-transform">
+                          {stat.value}
+                        </p>
+                        {/* Progress bar visual */}
+                        {stat.title.includes('Activas') && dashboardStats && (
+                          <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                            <div 
+                              className="bg-green-500 h-2 rounded-full transition-all duration-1000 ease-out"
+                              style={{ 
+                                width: `${(dashboardStats.machines.active / dashboardStats.machines.total) * 100}%` 
+                              }}
+                            ></div>
+                          </div>
+                        )}
+                      </div>
+                      <div className={`p-4 rounded-xl ${stat.bgColor} flex-shrink-0 ml-4 group-hover:scale-110 transition-transform duration-300`}>
+                        <stat.icon className={`h-7 w-7 ${stat.color} group-hover:animate-pulse`} />
+                      </div>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -199,7 +209,7 @@ function DashboardContent() {
               {quickActions
                 .filter(action => !action.permission || user?.permissions.includes(action.permission))
                 .map((action, index) => (
-                <a
+                <Link
                   key={action.title}
                   href={action.href}
                   className="card p-6 hover:shadow-lg transition-all duration-200 group hover:scale-105"
@@ -211,7 +221,7 @@ function DashboardContent() {
                     <h4 className="font-semibold text-dark mb-1">{action.title}</h4>
                     <p className="text-xs text-muted">Acceso rápido</p>
                   </div>
-                </a>
+                </Link>
               ))}
             </div>
           </div>
