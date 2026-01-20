@@ -10,6 +10,7 @@ import { useProductStore } from '@/lib/stores/productStore';
 import ProductStorePagination from '@/components/ProductStorePagination';
 import ProductPageSkeleton from '@/components/skeletons/ProductPageSkeleton';
 import { notify } from '@/lib/adapters/notification.adapter';
+import { useMqttProduct } from '@/lib/hooks/useMqttProduct';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -31,6 +32,7 @@ export default function ProductosInfiniteClient() {
     deleteError,
     clearDeleteError,
   } = useProductStore();
+  const { publishProductOperation, isPublishing } = useMqttProduct();
 
   // Local UI state
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,10 +41,12 @@ export default function ProductosInfiniteClient() {
     isOpen: boolean;
     productId: string | number | null;
     productName: string;
+    enterpriseId: number | null;
   }>({
     isOpen: false,
     productId: null,
-    productName: ''
+    productName: '',
+    enterpriseId: null,
   });
   
   const initializedRef = useRef(false);
@@ -131,28 +135,50 @@ export default function ProductosInfiniteClient() {
   };
 
   // Delete handlers
-  const handleDeleteClick = (productId: string | number, productName: string) => {
+  const handleDeleteClick = (
+    productId: string | number,
+    productName: string,
+    enterpriseId: number | null,
+  ) => {
     setDeleteDialog({
       isOpen: true,
       productId,
-      productName
+      productName,
+      enterpriseId,
     });
   };
 
   const handleDeleteConfirm = async () => {
-    if (deleteDialog.productId) {
-      const success = await deleteProduct(deleteDialog.productId);
+    if (!deleteDialog.productId || !deleteDialog.enterpriseId) {
+      notify.error('Producto inválido para eliminar vía MQTT.');
+      return;
+    }
+
+    const success = await deleteProduct(deleteDialog.productId);
+    if (success) {
+      try {
+        await publishProductOperation('delete', {
+          id: deleteDialog.productId,
+          enterprise_id: deleteDialog.enterpriseId,
+        });
+      } catch (mqttError) {
+        console.error('Error al notificar eliminación por MQTT:', mqttError);
+        notify.error('Producto eliminado, pero falló la notificación MQTT.');
+        setDeleteDialog({ isOpen: false, productId: null, productName: '', enterpriseId: null });
+        return;
+      }
+
       if (success) {
         notify.success(`Producto "${deleteDialog.productName}" eliminado exitosamente`);
-        setDeleteDialog({ isOpen: false, productId: null, productName: '' });
-      } else {
-        notify.error(`Error al eliminar el producto "${deleteDialog.productName}"`);
+        setDeleteDialog({ isOpen: false, productId: null, productName: '', enterpriseId: null });
       }
+    } else {
+      notify.error(`Error al eliminar el producto "${deleteDialog.productName}"`);
     }
   };
 
   const handleDeleteCancel = () => {
-    setDeleteDialog({ isOpen: false, productId: null, productName: '' });
+    setDeleteDialog({ isOpen: false, productId: null, productName: '', enterpriseId: null });
     clearDeleteError();
   };
 
@@ -352,10 +378,12 @@ export default function ProductosInfiniteClient() {
                                 <Edit className="h-4 w-4" />
                               </Link>
                               <button
-                                onClick={() => handleDeleteClick(producto.id, producto.name)}
+                                onClick={() =>
+                                  handleDeleteClick(producto.id, producto.name, producto.enterprise_id ?? null)
+                                }
                                 className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                                 title="Eliminar"
-                                disabled={isDeleting}
+                                disabled={isDeleting || isPublishing}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -397,7 +425,7 @@ export default function ProductosInfiniteClient() {
         cancelText="Cancelar"
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
-        isLoading={isDeleting}
+        isLoading={isDeleting || isPublishing}
         variant="danger"
       />
 
@@ -406,7 +434,7 @@ export default function ProductosInfiniteClient() {
         <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
           <div className="flex items-center justify-between">
             <span>{deleteError}</span>
-            <button 
+            <button
               onClick={clearDeleteError}
               className="ml-2 text-red-700 hover:text-red-900"
             >

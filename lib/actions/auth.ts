@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import type { User } from "@/lib/interfaces";
+import type { MqttUser } from '@/lib/interfaces/machine.interface';
 import { loopPrevention } from "@/lib/utils/loopPrevention";
 
 // Re-export User for other modules
@@ -11,6 +12,73 @@ export type { User };
 export interface LoginCredentials {
   email: string;
   password: string;
+}
+
+function mapApiUserResponseToUser(rawUser: unknown, fallbackEmail?: string): User {
+  const normalizedUser =
+    (rawUser && typeof rawUser === 'object' && 'user' in rawUser ? (rawUser as Record<string, unknown>).user : null) ??
+    (rawUser && typeof rawUser === 'object' && 'data' in rawUser ? (rawUser as Record<string, unknown>).data : null) ??
+    rawUser ?? {};
+
+  const userRecord = normalizedUser as Record<string, unknown>;
+
+  console.log('🔍 Usuario normalizado:', userRecord);
+  console.log('🔍 mqtt_user recibido:', userRecord?.mqtt_user ?? userRecord?.mqttUser ?? null);
+
+  const rawPermissions = (userRecord?.permissions ?? []) as unknown;
+
+  const resolvedPermissions: string[] = Array.isArray(rawPermissions)
+    ? ((rawPermissions as unknown[])
+        .map((permission) => {
+          if (typeof permission === 'string') {
+            return permission;
+          }
+          if (
+            permission &&
+            typeof permission === 'object' &&
+            'name' in permission &&
+            typeof (permission as { name?: unknown }).name === 'string'
+          ) {
+            return (permission as { name: string }).name;
+          }
+          return null;
+        })
+        .filter((permission: string | null): permission is string => Boolean(permission)) ?? [])
+    : mapUserPermissions(
+        (userRecord?.role as string) || (userRecord?.user_type as string) || (userRecord?.type as string) || 'admin'
+      );
+
+  const resolvedEmail = (userRecord?.email as string) || fallbackEmail || "usuario@ejemplo.com";
+
+  return {
+    id: typeof userRecord?.id === 'number'
+      ? (userRecord.id as number)
+      : (typeof userRecord?.user_id === 'number' ? (userRecord.user_id as number) : 1),
+    email: resolvedEmail,
+    name:
+      (userRecord?.name as string) ||
+      (userRecord?.full_name as string) ||
+      (userRecord?.username as string) ||
+      resolvedEmail.split("@")[0] ||
+      "Usuario",
+    rut: (userRecord?.rut as string) || "Sin RUT",
+    role: mapUserRole(
+      (userRecord?.role as string) || (userRecord?.user_type as string) || (userRecord?.type as string) || "admin"
+    ),
+    status: ((userRecord?.status as string) || 'active') as User['status'],
+    permissions: resolvedPermissions,
+    lastLogin: (userRecord?.last_login as string) || new Date().toISOString(),
+    createdAt:
+      (userRecord?.created_at as string) || (userRecord?.createdAt as string) || new Date().toISOString(),
+    updatedAt:
+      (userRecord?.updated_at as string) || (userRecord?.updatedAt as string) || new Date().toISOString(),
+    roles: (userRecord?.roles as Array<{ name: string }>) || undefined,
+    enterprises: (userRecord?.enterprises as Array<{ id: number; name: string }>) || undefined,
+    mqtt_user:
+      (userRecord?.mqtt_user as MqttUser | null) ??
+      (userRecord?.mqttUser as MqttUser | null) ??
+      null,
+  };
 }
 
 export interface AuthResponse {
@@ -94,25 +162,41 @@ export async function loginAction(
       };
     }
 
-    // Obtener información del usuario
+    const cookieStore = await cookies();
+    const persistToken = () => {
+      cookieStore.set("auth-token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 60 * 60 * 24 * 7, // 7 días
+        path: "/",
+      });
+    };
+
+    const inlineUserPayload =
+      data.user ?? data.data ?? (typeof data.id === 'number' && data.email ? data : null);
+
+    if (inlineUserPayload) {
+      const user = mapApiUserResponseToUser(inlineUserPayload, credentials.email);
+      persistToken();
+      return {
+        success: true,
+        token,
+        user,
+      };
+    }
+
+    // Obtener información del usuario mediante endpoint dedicado como fallback
     const userInfo = await getUserInfo(token, credentials.email);
 
-    if (!userInfo.success) {
+    if (!userInfo.success || !userInfo.user) {
       return {
         success: false,
         error: userInfo.error || "Error al obtener información del usuario",
       };
     }
 
-    // Guardar token en cookies httpOnly
-    const cookieStore = await cookies();
-    cookieStore.set("auth-token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 60 * 60 * 24 * 7, // 7 días
-      path: "/",
-    });
+    persistToken();
 
     return {
       success: true,
@@ -208,29 +292,7 @@ export async function getUserInfo(
     const userData = await response.json();
     console.log("Datos del usuario obtenidos:", userData);
 
-    // Mapear datos del usuario según la estructura de la API
-    const user: User = {
-      id: typeof userData.id === 'number' ? userData.id : (typeof userData.user_id === 'number' ? userData.user_id : 1),
-      email: userData.email || email || "usuario@ejemplo.com",
-      name:
-        userData.name ||
-        userData.full_name ||
-        userData.username ||
-        userData.email?.split("@")[0] ||
-        "Usuario",
-      rut: userData.rut || "Sin RUT",
-      role: mapUserRole(
-        userData.role || userData.user_type || userData.type || "admin"
-      ),
-      status: "active",
-      permissions: mapUserPermissions(
-        userData.role || userData.user_type || userData.type || "admin"
-      ),
-      lastLogin: new Date().toISOString(),
-      createdAt:
-        userData.created_at || userData.createdAt || new Date().toISOString(),
-      updatedAt: userData.updated_at || userData.updatedAt || new Date().toISOString(),
-    };
+    const user = mapApiUserResponseToUser(userData, email);
 
     return {
       success: true,

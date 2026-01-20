@@ -6,6 +6,7 @@ import { useSlotStore } from '@/lib/stores/slotStore';
 import { useMachineStore } from '@/lib/stores/machineStore';
 import { SlotAdapter } from '@/lib/adapters/slot.adapter';
 import { Slot } from '@/lib/interfaces/slot.interface';
+import { useMqttSlot } from '@/lib/hooks/useMqttSlot';
 import { 
   Package, 
   Plus, 
@@ -37,11 +38,12 @@ export default function SlotsPage() {
 
   const { selectedMachine, fetchMachine } = useMachineStore();
 
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [slotToDelete, setSlotToDelete] = useState<Slot | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [stockUpdateSlot, setStockUpdateSlot] = useState<Slot | null>(null);
   const [newStockValue, setNewStockValue] = useState<number>(0);
   const [isUpdatingStock, setIsUpdatingStock] = useState(false);
+  const { publishSlotOperation, isPublishing } = useMqttSlot();
 
   useEffect(() => {
     if (machineId) {
@@ -55,24 +57,34 @@ export default function SlotsPage() {
     };
   }, [machineId, fetchSlots, fetchMachine, clearSlots, clearErrors]);
 
-  const handleDeleteClick = (slotId: number) => {
-    setDeleteConfirmId(slotId);
+  const handleDeleteClick = (slot: Slot) => {
+    setSlotToDelete(slot);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deleteConfirmId) return;
+    if (!slotToDelete) return;
 
     setIsDeleting(true);
-    const success = await deleteSlot(Number(machineId), deleteConfirmId);
+    const success = await deleteSlot(Number(machineId), slotToDelete.id);
     setIsDeleting(false);
 
     if (success) {
-      setDeleteConfirmId(null);
+      try {
+        await publishSlotOperation({
+          action: 'delete',
+          machineId: Number(machineId),
+          slotId: slotToDelete.id,
+        });
+      } catch (mqttError) {
+        console.error('Error al notificar eliminación de slot via MQTT:', mqttError);
+        return;
+      }
+      setSlotToDelete(null);
     }
   };
 
   const handleDeleteCancel = () => {
-    setDeleteConfirmId(null);
+    setSlotToDelete(null);
   };
 
   const handleStockUpdateClick = (slot: Slot) => {
@@ -84,12 +96,31 @@ export default function SlotsPage() {
     if (!stockUpdateSlot) return;
 
     setIsUpdatingStock(true);
-    const success = await updateSlot(Number(machineId), stockUpdateSlot.id, {
+    const updatedSlot = await updateSlot(Number(machineId), stockUpdateSlot.id, {
       current_stock: newStockValue,
     });
     setIsUpdatingStock(false);
 
-    if (success) {
+    if (updatedSlot) {
+      try {
+        await publishSlotOperation({
+          action: 'update',
+          machineId: Number(machineId),
+          slotId: updatedSlot.id,
+          slotData: {
+            id: updatedSlot.id,
+            mdb_code: updatedSlot.mdb_code,
+            label: updatedSlot.label,
+            product_id: updatedSlot.product_id,
+            machine_id: Number(machineId),
+            capacity: updatedSlot.capacity,
+            current_stock: updatedSlot.current_stock,
+          },
+        });
+      } catch (mqttError) {
+        console.error('Error al sincronizar actualización de stock via MQTT:', mqttError);
+        return;
+      }
       setStockUpdateSlot(null);
     }
   };
@@ -304,7 +335,7 @@ export default function SlotsPage() {
                       Editar
                     </button>
                     <button
-                      onClick={() => handleDeleteClick(slot.id)}
+                      onClick={() => handleDeleteClick(slot)}
                       className="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
@@ -353,20 +384,24 @@ export default function SlotsPage() {
             <div className="flex items-center space-x-4">
               <button
                 onClick={handleStockUpdateCancel}
-                disabled={isUpdatingStock}
+                disabled={isUpdatingStock || isPublishing}
                 className="flex-1 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleStockUpdateConfirm}
-                disabled={isUpdatingStock || (stockUpdateSlot.capacity !== null && newStockValue > stockUpdateSlot.capacity)}
+                disabled={
+                  isUpdatingStock ||
+                  isPublishing ||
+                  (stockUpdateSlot.capacity !== null && newStockValue > stockUpdateSlot.capacity)
+                }
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center"
               >
-                {isUpdatingStock ? (
+                {isUpdatingStock || isPublishing ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Actualizando...
+                    {isPublishing ? 'Sincronizando...' : 'Actualizando...'}
                   </>
                 ) : (
                   'Actualizar'
@@ -378,32 +413,32 @@ export default function SlotsPage() {
       )}
 
       {/* Delete Confirmation Modal */}
-      {deleteConfirmId && (
+      {slotToDelete && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-black mb-4">
               Confirmar Eliminación
             </h3>
             <p className="text-gray-600 mb-6">
-              ¿Estás seguro de que deseas eliminar este slot? Esta acción no se puede deshacer.
+              ¿Estás seguro de que deseas eliminar el slot {slotToDelete.label || slotToDelete.mdb_code}? Esta acción no se puede deshacer.
             </p>
             <div className="flex items-center space-x-4">
               <button
                 onClick={handleDeleteCancel}
-                disabled={isDeleting}
+                disabled={isDeleting || isPublishing}
                 className="flex-1 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDeleteConfirm}
-                disabled={isDeleting}
+                disabled={isDeleting || isPublishing}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center"
               >
-                {isDeleting ? (
+                {isDeleting || isPublishing ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Eliminando...
+                    {isPublishing ? 'Sincronizando...' : 'Eliminando...'}
                   </>
                 ) : (
                   'Eliminar'

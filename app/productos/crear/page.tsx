@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { createProductAction } from '@/lib/actions/products';
 import { getEnterprisesAction } from '@/lib/actions/enterprise';
 import { notify } from '@/lib/adapters/notification.adapter';
+import { useMqttProduct } from '@/lib/hooks/useMqttProduct';
 import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 import type { CreateProductFormData } from '@/lib/schemas/product.schema';
 
@@ -22,6 +23,7 @@ export default function CreateProductPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingEnterprises, setIsLoadingEnterprises] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { publishProductOperation, isPublishing } = useMqttProduct();
 
   // Load enterprises on component mount
   useEffect(() => {
@@ -66,8 +68,16 @@ export default function CreateProductPage() {
     try {
       const response = await createProductAction(formData);
       
-      if (response.success) {
-        notify.success('Producto creado exitosamente');
+      if (response.success && response.product) {
+        try {
+          await publishProductOperation('create', response.product);
+        } catch (mqttError) {
+          console.error('Error sincronizando producto via MQTT:', mqttError);
+          notify.error('Producto creado, pero falló la sincronización MQTT. Intenta nuevamente.');
+          return;
+        }
+
+        notify.success('Producto creado y sincronizado exitosamente');
         // Limpiar caché completamente y redirigir
         localStorage.removeItem('product-store');
         // Usar window.location para forzar recarga completa de la página
@@ -193,15 +203,21 @@ export default function CreateProductPage() {
                 <div className="flex flex-col sm:flex-row gap-3 pt-4">
                   <button
                     type="submit"
-                    disabled={isLoading || isLoadingEnterprises}
+                    disabled={isLoading || isLoadingEnterprises || isPublishing}
                     className="btn-primary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isLoading ? (
+                    {isLoading || isPublishing ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Save className="h-4 w-4" />
                     )}
-                    <span>{isLoading ? 'Creando...' : 'Crear Producto'}</span>
+                    <span>
+                      {isLoading
+                        ? 'Creando...'
+                        : isPublishing
+                          ? 'Sincronizando...'
+                          : 'Crear Producto'}
+                    </span>
                   </button>
                   
                   <Link

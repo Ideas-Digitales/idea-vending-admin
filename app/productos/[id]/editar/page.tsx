@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import Link from 'next/link';
 import { useProductStore } from '@/lib/stores/productStore';
 import { notify } from '@/lib/adapters/notification.adapter';
+import { useMqttProduct } from '@/lib/hooks/useMqttProduct';
 import type { UpdateProductFormData } from '@/lib/schemas/product.schema';
 
 export default function EditProductPage() {
@@ -29,6 +30,7 @@ export default function EditProductPage() {
     clearSelectedProduct,
     clearUpdateError
   } = useProductStore();
+  const { publishProductOperation, isPublishing } = useMqttProduct();
 
   // Form state
   const [formData, setFormData] = useState<UpdateProductFormData>({
@@ -100,7 +102,21 @@ export default function EditProductPage() {
       console.log('Formulario: Resultado de updateProduct =', success);
       
       if (success) {
-        notify.success('Producto actualizado exitosamente');
+        if (product) {
+          try {
+            await publishProductOperation('update', {
+              id: product.id,
+              enterprise_id: product.enterprise_id,
+              name: formData.name || product.name,
+            });
+          } catch (mqttError) {
+            console.error('Error sincronizando producto via MQTT:', mqttError);
+            notify.error('Producto actualizado, pero falló la sincronización MQTT. Intenta nuevamente.');
+            return;
+          }
+        }
+
+        notify.success('Producto actualizado y sincronizado exitosamente');
         // Limpiar caché y forzar recarga completa
         localStorage.removeItem('product-store');
         window.location.href = '/productos';
@@ -237,7 +253,7 @@ export default function EditProductPage() {
                     type="button"
                     onClick={handleBack}
                     className="btn-secondary flex items-center justify-center space-x-2"
-                    disabled={isUpdating}
+                    disabled={isUpdating || isPublishing}
                   >
                     <ArrowLeft className="h-4 w-4" />
                     <span>Cancelar</span>
@@ -246,12 +262,12 @@ export default function EditProductPage() {
                   <button
                     type="submit"
                     className="btn-primary flex items-center justify-center space-x-2"
-                    disabled={isUpdating || !formData.name.trim()}
+                    disabled={isUpdating || isPublishing || !formData.name.trim()}
                   >
-                    {isUpdating ? (
+                    {isUpdating || isPublishing ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Actualizando...</span>
+                        <span>{isPublishing ? 'Sincronizando...' : 'Actualizando...'}</span>
                       </>
                     ) : (
                       <>

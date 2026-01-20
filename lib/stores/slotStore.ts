@@ -23,8 +23,8 @@ interface SlotState {
 
   // Acciones
   fetchSlots: (machineId: number) => Promise<void>;
-  createSlot: (machineId: number, slotData: CreateSlot) => Promise<boolean>;
-  updateSlot: (machineId: number, slotId: number, slotData: UpdateSlot) => Promise<boolean>;
+  createSlot: (machineId: number, slotData: CreateSlot) => Promise<Slot | null>;
+  updateSlot: (machineId: number, slotId: number, slotData: UpdateSlot) => Promise<Slot | null>;
   deleteSlot: (machineId: number, slotId: number) => Promise<boolean>;
   setSelectedSlot: (slot: Slot | null) => void;
   clearErrors: () => void;
@@ -87,13 +87,13 @@ export const useSlotStore = create<SlotState>((set, get) => ({
           isCreating: false,
           createError: null,
         });
-        return true;
+        return result.slot;
       } else {
         set({ 
           isCreating: false,
           createError: result.error || 'Error al crear slot',
         });
-        return false;
+        return null;
       }
     } catch (error) {
       console.error('Error al crear slot:', error);
@@ -101,7 +101,7 @@ export const useSlotStore = create<SlotState>((set, get) => ({
         isCreating: false,
         createError: error instanceof Error ? error.message : 'Error desconocido',
       });
-      return false;
+      return null;
     }
   },
 
@@ -138,7 +138,7 @@ export const useSlotStore = create<SlotState>((set, get) => ({
           set({ selectedSlot: result.slot });
         }
 
-        return true;
+        return result.slot;
       } else {
         // Revertir actualización optimista
         set({ 
@@ -146,7 +146,7 @@ export const useSlotStore = create<SlotState>((set, get) => ({
           isUpdating: false,
           updateError: result.error || 'Error al actualizar slot',
         });
-        return false;
+        return null;
       }
     } catch (error) {
       console.error('Error al actualizar slot:', error);
@@ -156,7 +156,7 @@ export const useSlotStore = create<SlotState>((set, get) => ({
         isUpdating: false,
         updateError: error instanceof Error ? error.message : 'Error desconocido',
       });
-      return false;
+      return null;
     }
   },
 

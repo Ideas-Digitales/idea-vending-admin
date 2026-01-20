@@ -8,6 +8,7 @@ import { getProductsAction } from '@/lib/actions/products';
 import { UpdateSlot } from '@/lib/interfaces/slot.interface';
 import type { Producto } from '@/lib/interfaces/product.interface';
 import { ArrowLeft, Package, Save, Loader2, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { useMqttSlot } from '@/lib/hooks/useMqttSlot';
 
 export default function EditSlotPage() {
   const params = useParams();
@@ -25,6 +26,7 @@ export default function EditSlotPage() {
   } = useSlotStore();
   
   const { selectedMachine, fetchMachine } = useMachineStore();
+  const { publishSlotOperation, isPublishing } = useMqttSlot();
 
   const [formData, setFormData] = useState<UpdateSlot>({
     mdb_code: 0,
@@ -160,10 +162,30 @@ export default function EditSlotPage() {
       return;
     }
 
-    const success = await updateSlot(Number(machineId), Number(slotId), formData);
+    const updatedSlot = await updateSlot(Number(machineId), Number(slotId), formData);
 
-    if (success) {
-      setSuccessMessage('¡Slot actualizado exitosamente!');
+    if (updatedSlot) {
+      try {
+        await publishSlotOperation({
+          action: 'update',
+          machineId: Number(machineId),
+          slotId: updatedSlot.id,
+          slotData: {
+            id: updatedSlot.id,
+            mdb_code: updatedSlot.mdb_code,
+            label: updatedSlot.label,
+            product_id: updatedSlot.product_id,
+            machine_id: Number(machineId),
+            capacity: updatedSlot.capacity,
+            current_stock: updatedSlot.current_stock,
+          },
+        });
+      } catch (mqttError) {
+        console.error('Error al sincronizar slot vía MQTT:', mqttError);
+        return;
+      }
+
+      setSuccessMessage('¡Slot actualizado y sincronizado exitosamente!');
       setTimeout(() => setSuccessMessage(null), 5000);
     }
   };
@@ -375,20 +397,20 @@ export default function EditSlotPage() {
           <button
             type="button"
             onClick={handleBack}
-            disabled={isUpdating}
+            disabled={isUpdating || isPublishing}
             className="flex-1 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             type="submit"
-            disabled={isUpdating}
+            disabled={isUpdating || isPublishing}
             className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 flex items-center justify-center"
           >
-            {isUpdating ? (
+            {isUpdating || isPublishing ? (
               <>
                 <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Actualizando...
+                {isPublishing ? 'Sincronizando...' : 'Actualizando...'}
               </>
             ) : (
               <>

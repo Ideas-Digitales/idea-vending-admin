@@ -8,6 +8,7 @@ import { getProductsAction } from '@/lib/actions/products';
 import { CreateSlot } from '@/lib/interfaces/slot.interface';
 import type { Producto } from '@/lib/interfaces/product.interface';
 import { ArrowLeft, Save, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { useMqttSlot } from '@/lib/hooks/useMqttSlot';
 
 export default function CreateSlotPage() {
   const params = useParams();
@@ -16,6 +17,7 @@ export default function CreateSlotPage() {
 
   const { createSlot, isCreating, createError, clearErrors } = useSlotStore();
   const { selectedMachine, fetchMachine } = useMachineStore();
+  const { publishSlotOperation, isPublishing } = useMqttSlot();
 
   const [formData, setFormData] = useState<CreateSlot>({
     mdb_code: 0,
@@ -143,10 +145,30 @@ export default function CreateSlotPage() {
       return;
     }
 
-    const success = await createSlot(Number(machineId), formData);
+    const createdSlot = await createSlot(Number(machineId), formData);
 
-    if (success) {
-      setSuccessMessage('¡Slot creado exitosamente!');
+    if (createdSlot) {
+      try {
+        await publishSlotOperation({
+          action: 'create',
+          machineId: Number(machineId),
+          slotId: createdSlot.id,
+          slotData: {
+            id: createdSlot.id,
+            mdb_code: createdSlot.mdb_code,
+            label: createdSlot.label,
+            product_id: createdSlot.product_id,
+            machine_id: Number(machineId),
+            capacity: createdSlot.capacity,
+            current_stock: createdSlot.current_stock,
+          },
+        });
+      } catch (mqttError) {
+        console.error('Error al sincronizar slot vía MQTT:', mqttError);
+        return;
+      }
+
+      setSuccessMessage('¡Slot creado y sincronizado exitosamente!');
       setTimeout(() => {
         router.push('/maquinas');
       }, 1500);
@@ -344,20 +366,20 @@ export default function CreateSlotPage() {
           <button
             type="button"
             onClick={handleBack}
-            disabled={isCreating}
+            disabled={isCreating || isPublishing}
             className="flex-1 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             type="submit"
-            disabled={isCreating}
+            disabled={isCreating || isPublishing}
             className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 flex items-center justify-center"
           >
-            {isCreating ? (
+            {isCreating || isPublishing ? (
               <>
                 <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Creando...
+                {isPublishing ? 'Sincronizando...' : 'Creando...'}
               </>
             ) : (
               <>

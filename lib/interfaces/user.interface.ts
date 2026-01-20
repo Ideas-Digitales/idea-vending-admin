@@ -1,4 +1,6 @@
 // User interface for application data
+import type { MqttUser } from './machine.interface';
+
 export interface User {
   id: number;
   name: string;
@@ -12,6 +14,7 @@ export interface User {
   permissions: string[];
   roles?: Array<{ name: string }>;
   enterprises?: Array<{ id: number; name: string }>;
+  mqtt_user?: MqttUser | null;
 }
 
 // Interface for data coming from the API/backend
@@ -28,6 +31,7 @@ export interface UserApiData {
   roles?: Array<{ name: string }>;
   permissions?: Array<{ name: string }> | string[];
   enterprises?: Array<{ id: number; name: string }>;
+  mqtt_user?: MqttUser | null;
 }
 
 // API response interfaces

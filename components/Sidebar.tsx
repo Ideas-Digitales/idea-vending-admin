@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { BarChart3, ShoppingCart, Monitor, Users, Building2, LogOut } from 'lucide-react';
+import { BarChart3, ShoppingCart, Monitor, Users, Building2, LogOut, Shield } from 'lucide-react';
 import { useAuthStore, useUser } from '@/lib/stores/authStore';
 
 export default function Sidebar() {
@@ -70,6 +70,14 @@ export default function Sidebar() {
       icon: Building2,
       current: pathname === '/empresas',
       permission: 'manage_enterprises'
+    }
+    ,
+    {
+      name: 'Avanzado',
+      href: '/avanzado',
+      icon: Shield,
+      current: pathname?.startsWith('/avanzado') ?? false,
+      permission: 'manage_machines'
     }
   ];
 

@@ -5,19 +5,33 @@ import { useParams, useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { getMachineAction } from '@/lib/actions/machines';
 import { Machine } from '@/lib/interfaces/machine.interface';
-import { Monitor, ArrowLeft, Wifi, WifiOff, MapPin, Calendar, Activity, Edit, Package, Shield } from 'lucide-react';
+import { Monitor, ArrowLeft, Wifi, WifiOff, MapPin, Calendar, Activity, Edit, Package, Shield, RotateCcw } from 'lucide-react';
+import { useMqttReboot } from '@/lib/hooks/useMqttReboot';
 
 export default function MaquinaDetallePage() {
   const params = useParams();
   const [machine, setMachine] = useState<Machine | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { rebootMachine, isLoading: rebootLoading, hasCredentials } = useMqttReboot();
 
   const machineId = params.id as string;
 
   const handleBack = () => {
     // Forzar recarga completa de la página de máquinas
     window.location.href = '/maquinas';
+  };
+
+  const handleReboot = async () => {
+    if (!machine) return;
+    const confirmed = window.confirm(`¿Reiniciar la máquina "${machine.name}"?`);
+    if (!confirmed) return;
+
+    try {
+      await rebootMachine(machine.id);
+    } catch (rebootError) {
+      console.error('Error al reiniciar la máquina:', rebootError);
+    }
   };
 
   useEffect(() => {
@@ -137,6 +151,14 @@ export default function MaquinaDetallePage() {
                 >
                   <Edit className="h-4 w-4" />
                   <span>Editar</span>
+                </button>
+                <button
+                  onClick={handleReboot}
+                  disabled={rebootLoading || !hasCredentials}
+                  className={`btn-secondary flex items-center space-x-2 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed`}
+                >
+                  <RotateCcw className={`h-4 w-4 ${rebootLoading ? 'animate-spin' : ''}`} />
+                  <span>{rebootLoading ? 'Reiniciando...' : 'Reiniciar máquina'}</span>
                 </button>
               </div>
             </div>
