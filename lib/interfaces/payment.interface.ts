@@ -44,6 +44,7 @@ export interface PaymentFilters {
   date_to?: string;
   page?: number;
   limit?: number;
+  include?: 'machine';
 }
 
 export interface PaymentResponse {

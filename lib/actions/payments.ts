@@ -59,7 +59,7 @@ export const getPaymentsAction = async (filters?: PaymentFilters, token?: string
       return { success: false, error: 'Token de autenticación no encontrado' };
     }
 
-    // Build query parameters
+    // Build query parameters for pagination
     const queryParams = new URLSearchParams();
     
     if (filters?.page) {
@@ -69,44 +69,127 @@ export const getPaymentsAction = async (filters?: PaymentFilters, token?: string
     if (filters?.limit) {
       queryParams.append('per_page', filters.limit.toString());
     }
-    
-    if (filters?.search) {
-      queryParams.append('search', filters.search);
-    }
-    
-    if (filters?.successful !== undefined && filters.successful !== null) {
-      queryParams.append('successful', filters.successful.toString());
-    }
-    
-    if (filters?.machine_id) {
-      queryParams.append('machine_id', filters.machine_id.toString());
-    }
-    
-    if (filters?.card_type) {
-      queryParams.append('card_type', filters.card_type);
-    }
-    
-    if (filters?.card_brand) {
-      queryParams.append('card_brand', filters.card_brand);
-    }
-    
-    if (filters?.date_from) {
-      queryParams.append('date_from', filters.date_from);
-    }
-    
-    if (filters?.date_to) {
-      queryParams.append('date_to', filters.date_to);
+
+    type FilterCondition = {
+      type: 'and' | 'or';
+      field: string;
+      operator: '<' | '<=' | '>' | '>=' | '=' | '!=' | 'like' | 'not like' | 'ilike' | 'not ilike' | 'in' | 'not in' | 'all in' | 'any in';
+      value: string;
+    };
+
+    interface PaymentSearchRequest {
+      filters?: FilterCondition[];
+      search?: {
+        value: string;
+        case_sensitive?: boolean;
+      };
+      includes?: Array<{
+        relation: 'machine';
+      }>;
     }
 
-    const url = `${apiUrl}/payments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const buildFilterConditions = (): FilterCondition[] => {
+      const conditions: FilterCondition[] = [];
+
+      if (!filters) {
+        return conditions;
+      }
+
+      const pushCondition = (condition: FilterCondition) => {
+        conditions.push(condition);
+      };
+
+      if (filters.successful !== undefined && filters.successful !== null) {
+        pushCondition({
+          type: 'and',
+          field: 'successful',
+          operator: '=',
+          value: filters.successful ? 'true' : 'false',
+        });
+      }
+
+      if (filters.machine_id) {
+        pushCondition({
+          type: 'and',
+          field: 'machine_id',
+          operator: '=',
+          value: filters.machine_id.toString(),
+        });
+      }
+
+      if (filters.card_type) {
+        pushCondition({
+          type: 'and',
+          field: 'card_type',
+          operator: '=',
+          value: filters.card_type,
+        });
+      }
+
+      if (filters.card_brand) {
+        pushCondition({
+          type: 'and',
+          field: 'card_brand',
+          operator: 'ilike',
+          value: `%${filters.card_brand}%`,
+        });
+      }
+
+      if (filters.date_from) {
+        pushCondition({
+          type: 'and',
+          field: 'date',
+          operator: '>=',
+          value: filters.date_from,
+        });
+      }
+
+      if (filters.date_to) {
+        pushCondition({
+          type: 'and',
+          field: 'date',
+          operator: '<=',
+          value: filters.date_to,
+        });
+      }
+
+      return conditions;
+    };
+
+    const searchPayload: PaymentSearchRequest = {};
+    const filterConditions = buildFilterConditions();
+
+    if (filterConditions.length > 0) {
+      searchPayload.filters = filterConditions;
+    }
+
+    if (filters?.search) {
+      searchPayload.search = {
+        value: filters.search,
+        case_sensitive: false,
+      };
+    }
+
+    if (filters?.include) {
+      searchPayload.includes = [
+        {
+          relation: filters.include,
+        },
+      ];
+    }
+
+    const url = `${apiUrl}/payments/search${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     console.log('URL de pagos:', url);
+    console.log('Payload de búsqueda:', searchPayload);
 
     const response = await fetch(url, {
-      method: 'GET',
+      method: 'POST',
       headers: {
         'Accept': 'application/json',
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${authToken}`,
       },
+      body: JSON.stringify(searchPayload),
     });
 
     console.log('Status de respuesta:', response.status);

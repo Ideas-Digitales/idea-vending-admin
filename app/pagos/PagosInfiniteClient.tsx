@@ -8,6 +8,12 @@ import { usePaymentStore } from '@/lib/stores/paymentStore';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { PaymentFilters } from '@/lib/interfaces/payment.interface';
 
+const createDefaultFilters = (): PaymentFilters => ({
+  page: 1,
+  limit: 15,
+  include: 'machine',
+});
+
 export default function PagosInfiniteClient() {
   // Store state
   const {
@@ -23,18 +29,9 @@ export default function PagosInfiniteClient() {
     hasPrevPage,
   } = usePaymentStore();
 
-  // Local UI state - Simple pagination only
-  const [filters, setFilters] = useState<PaymentFilters>({
-    page: 1,
-    limit: 15,
-  });
-
-  useEffect(() => {
-    // Solo cargar pagos si no hay datos y no estamos cargando
-    if (payments.length === 0 && !isLoading && !error) {
-      fetchPayments();
-    }
-  }, [payments.length, isLoading, error, fetchPayments]);
+  // Local UI state - filtros aplicados y borrador
+  const [filters, setFilters] = useState<PaymentFilters>(() => createDefaultFilters());
+  const [draftFilters, setDraftFilters] = useState<PaymentFilters>(() => createDefaultFilters());
 
   // Mostrar toast para errores
   useEffect(() => {
@@ -43,39 +40,61 @@ export default function PagosInfiniteClient() {
     }
   }, [error]);
 
-  // Load payments on mount
+  // Load payments when filters change
   useEffect(() => {
-    fetchPayments(filters);
+    fetchPayments({
+      include: 'machine',
+      ...filters,
+    });
   }, [filters, fetchPayments]);
 
-  // Handle page change
-  const handlePageChange = useCallback(async (page: number) => {
-    try {
-      const newFilters = {
-        ...currentFilters,
-        page,
-      };
+  const updateDraftFilters = useCallback(<K extends keyof PaymentFilters>(key: K, value: PaymentFilters[K] | '' | null) => {
+    setDraftFilters((prev) => {
+      const next = { ...prev } as PaymentFilters;
 
-      await fetchPayments(newFilters);
-    } catch (error) {
-      console.error('Error al cambiar página de pagos:', error);
-    }
-  }, [currentFilters, fetchPayments]);
+      if (value === '' || value === undefined || value === null) {
+        delete next[key];
+      } else {
+        next[key] = value as PaymentFilters[K];
+      }
+
+      return next;
+    });
+  }, []);
+
+  const handleApplyFilters = useCallback(() => {
+    setFilters((prev) => ({
+      ...prev,
+      ...draftFilters,
+      page: 1,
+      include: 'machine',
+    }));
+  }, [draftFilters]);
+
+  const handleResetFilters = useCallback(() => {
+    const resetFilters = createDefaultFilters();
+    setDraftFilters(resetFilters);
+    setFilters(resetFilters);
+  }, []);
+
+  // Handle page change
+  const handlePageChange = useCallback((page: number) => {
+    setFilters((prev) => ({
+      ...prev,
+      page,
+      include: 'machine',
+    }));
+  }, []);
 
   // Handle page size change
-  const handlePageSizeChange = useCallback(async (limit: number) => {
-    try {
-      const newFilters = {
-        ...currentFilters,
-        page: 1, // Reset to first page when changing page size
-        limit,
-      };
-
-      await fetchPayments(newFilters);
-    } catch (error) {
-      console.error('Error al cambiar tamaño de página de pagos:', error);
-    }
-  }, [currentFilters, fetchPayments]);
+  const handlePageSizeChange = useCallback((limit: number) => {
+    setFilters((prev) => ({
+      ...prev,
+      limit,
+      page: 1,
+      include: 'machine',
+    }));
+  }, []);
 
   // Helper functions
   const getStatusColor = (successful: boolean) => {
@@ -158,7 +177,119 @@ export default function PagosInfiniteClient() {
             </div>
           )}
 
-          {/* Removed stats cards and filters - only table and pagination */}
+          {/* Filters */}
+          <div className="card mb-6">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-dark">Filtros de búsqueda</h3>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleResetFilters}
+                  className="text-sm text-muted hover:text-dark"
+                  type="button"
+                >
+                  Limpiar filtros
+                </button>
+                <button
+                  onClick={handleApplyFilters}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md bg-primary text-white shadow-sm hover:opacity-90"
+                  type="button"
+                >
+                  Aplicar filtros
+                </button>
+              </div>
+            </div>
+            <div className="p-6 grid gap-4 lg:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-gray-600">Buscar</label>
+                <input
+                  type="text"
+                  placeholder="Producto, operación, tarjeta..."
+                  value={draftFilters.search ?? ''}
+                  onChange={(event) => updateDraftFilters('search', event.target.value || undefined)}
+                  className="input"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-gray-600">Estado</label>
+                <select
+                  value={draftFilters.successful === true ? 'success' : draftFilters.successful === false ? 'failed' : 'all'}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (value === 'success') {
+                      updateDraftFilters('successful', true);
+                    } else if (value === 'failed') {
+                      updateDraftFilters('successful', false);
+                    } else {
+                      updateDraftFilters('successful', undefined);
+                    }
+                  }}
+                  className="input"
+                >
+                  <option value="all">Todos</option>
+                  <option value="success">Exitosos</option>
+                  <option value="failed">Fallidos</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-gray-600">ID de máquina</label>
+                <input
+                  type="number"
+                  placeholder="Ej: 42"
+                  value={draftFilters.machine_id ?? ''}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    const parsed = value ? Number(value) : undefined;
+                    updateDraftFilters('machine_id', Number.isNaN(parsed) ? undefined : parsed ?? undefined);
+                  }}
+                  className="input"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-gray-600">Marca de tarjeta</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Visa"
+                  value={draftFilters.card_brand ?? ''}
+                  onChange={(event) => updateDraftFilters('card_brand', event.target.value || undefined)}
+                  className="input"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-gray-600">Tipo de tarjeta</label>
+                <input
+                  type="text"
+                  placeholder="Crédito, débito..."
+                  value={draftFilters.card_type ?? ''}
+                  onChange={(event) => updateDraftFilters('card_type', event.target.value || undefined)}
+                  className="input"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-gray-600">Desde</label>
+                <input
+                  type="date"
+                  value={draftFilters.date_from ?? ''}
+                  onChange={(event) => updateDraftFilters('date_from', event.target.value || undefined)}
+                  className="input"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-gray-600">Hasta</label>
+                <input
+                  type="date"
+                  value={draftFilters.date_to ?? ''}
+                  onChange={(event) => updateDraftFilters('date_to', event.target.value || undefined)}
+                  className="input"
+                />
+              </div>
+            </div>
+          </div>
 
           {/* Payments Table */}
           <div className="card overflow-hidden">
