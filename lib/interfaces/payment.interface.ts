@@ -30,6 +30,8 @@ export interface Payment {
     updated_at: string;
     type: string;
     enterprise_id: number | null;
+    client_id?: number | null;
+    connection_status?: boolean;
   } | null;
 }
 
