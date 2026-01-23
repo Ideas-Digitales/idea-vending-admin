@@ -5,12 +5,15 @@ import { Building2, Plus, Search, MapPin, Phone, Eye, Edit, Trash2, X } from 'lu
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
+import { useUser } from '@/lib/stores/authStore';
 import type { Enterprise, EnterprisesFilters } from '@/lib/interfaces/enterprise.interface';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { ApiErrorDisplay } from '@/components/ErrorDisplay';
 
 export default function EmpresasPage() {
   const router = useRouter();
+  const authUser = useUser();
+  const canManageEnterprises = authUser?.role === 'admin';
   
   // Estado local
   const [searchTerm, setSearchTerm] = useState('');
@@ -79,12 +82,13 @@ export default function EmpresasPage() {
 
   // Manejar eliminación
   const handleDeleteClick = (enterprise: Enterprise) => {
+    if (!canManageEnterprises) return;
     setEnterpriseToDelete(enterprise);
     setShowDeleteModal(true);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!enterpriseToDelete) return;
+    if (!enterpriseToDelete || !canManageEnterprises) return;
 
     try {
       const success = await deleteEnterprise(enterpriseToDelete.id);
@@ -127,13 +131,15 @@ export default function EmpresasPage() {
                   <p className="text-white/80">Gestiona las empresas del sistema</p>
                 </div>
               </div>
-              <button
-                onClick={() => router.push('/empresas/crear')}
-                className="px-4 py-2 bg-white text-[#3157b2] rounded-lg font-semibold hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-colors flex items-center space-x-2"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Nueva Empresa</span>
-              </button>
+              {canManageEnterprises && (
+                <button
+                  onClick={() => router.push('/empresas/crear')}
+                  className="px-4 py-2 bg-white text-[#3157b2] rounded-lg font-semibold hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white transition-colors flex items-center space-x-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Nueva Empresa</span>
+                </button>
+              )}
             </div>
           </div>
         </header>
@@ -305,14 +311,16 @@ export default function EmpresasPage() {
                                     >
                                       <Edit className="h-4 w-4" />
                                     </button>
-                                    <button
-                                      onClick={() => handleDeleteClick(enterprise)}
-                                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50"
-                                      title="Eliminar"
-                                      disabled={isDeleting}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
+                                    {canManageEnterprises && (
+                                      <button
+                                        onClick={() => handleDeleteClick(enterprise)}
+                                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50"
+                                        title="Eliminar"
+                                        disabled={isDeleting}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -370,7 +378,7 @@ export default function EmpresasPage() {
       </div>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && enterpriseToDelete && (
+      {canManageEnterprises && showDeleteModal && enterpriseToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-medium text-black mb-4">Confirmar Eliminación</h3>

@@ -9,12 +9,15 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import UsersFiltersComponent from '@/components/UsersFilters';
 import MachineStylePagination from '@/components/MachineStylePagination';
 import { useUserStore } from '@/lib/stores/userStore';
+import { useUser } from '@/lib/stores/authStore';
 import UserPageSkeleton from '@/components/skeletons/UserPageSkeleton';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { UsersFilters } from '@/lib/interfaces/user.interface';
 
 export default function UsuariosInfiniteClient() {
   const router = useRouter();
+  const authUser = useUser();
+  const canManageUsers = authUser?.role === 'admin';
   
   // Store state
   const {
@@ -142,6 +145,7 @@ export default function UsuariosInfiniteClient() {
 
   // Delete handlers
   const handleDeleteClick = (userId: number, userName: string) => {
+    if (!canManageUsers) return;
     setDeleteDialog({
       isOpen: true,
       userId,
@@ -218,13 +222,15 @@ export default function UsuariosInfiniteClient() {
                   <p className="text-muted">Administra usuarios, roles y permisos del sistema</p>
                 </div>
               </div>
-              <Link 
-                href="/usuarios/crear"
-                className="btn-primary flex items-center space-x-2"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Nuevo Usuario</span>
-              </Link>
+              {canManageUsers && (
+                <Link 
+                  href="/usuarios/crear"
+                  className="btn-primary flex items-center space-x-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Nuevo Usuario</span>
+                </Link>
+              )}
             </div>
           </div>
         </header>
@@ -423,14 +429,16 @@ export default function UsuariosInfiniteClient() {
                               >
                                 <Edit className="h-4 w-4" />
                               </button>
-                              <button 
-                                className="text-red-600 hover:text-red-900 p-1 disabled:opacity-50"
-                                title="Eliminar usuario"
-                                onClick={() => handleDeleteClick(user.id, user.name)}
-                                disabled={isDeleting}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
+                              {canManageUsers && (
+                                <button 
+                                  className="text-red-600 hover:text-red-900 p-1 disabled:opacity-50"
+                                  title="Eliminar usuario"
+                                  onClick={() => handleDeleteClick(user.id, user.name)}
+                                  disabled={isDeleting}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -473,17 +481,19 @@ export default function UsuariosInfiniteClient() {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={deleteDialog.isOpen}
-        title="Eliminar Usuario"
-        message={`¿Estás seguro de que deseas eliminar al usuario "${deleteDialog.userName}"? Esta acción no se puede deshacer.`}
-        confirmText="Eliminar"
-        cancelText="Cancelar"
-        onConfirm={handleDeleteConfirm}
-        onCancel={handleDeleteCancel}
-        isLoading={isDeleting}
-        variant="danger"
-      />
+      {canManageUsers && (
+        <ConfirmDialog
+          isOpen={deleteDialog.isOpen}
+          title="Eliminar Usuario"
+          message={`¿Estás seguro de que deseas eliminar al usuario "${deleteDialog.userName}"? Esta acción no se puede deshacer.`}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          onConfirm={handleDeleteConfirm}
+          onCancel={handleDeleteCancel}
+          isLoading={isDeleting}
+          variant="danger"
+        />
+      )}
 
       {/* Error Display */}
       {deleteError && (

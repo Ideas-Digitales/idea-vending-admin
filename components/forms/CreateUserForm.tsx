@@ -13,6 +13,7 @@ interface CreateUserFormProps {
   mode?: 'create' | 'edit';
   initialData?: UserType;
   title?: string;
+  canEditAllFields?: boolean;
 }
 
 export default function CreateUserForm({ 
@@ -20,19 +21,77 @@ export default function CreateUserForm({
   isLoading = false, 
   mode = 'create',
   initialData,
-  title
+  title,
+  canEditAllFields = true,
 }: CreateUserFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const roleLabelMap: Record<'admin' | 'customer' | 'technician', string> = {
+    admin: 'Administrador',
+    customer: 'Cliente',
+    technician: 'Técnico',
+  };
+
+  const userRoleDisplayMap: Record<string, string> = {
+    admin: 'Administrador',
+    operator: 'Operador',
+    viewer: 'Visualizador',
+    customer: 'Cliente',
+    technician: 'Técnico',
+  };
+
+  const statusLabelMap: Record<'active' | 'inactive', string> = {
+    active: 'Activo',
+    inactive: 'Inactivo',
+  };
+
   // Mapear roles de la interfaz User a los roles del schema
   const mapUserRoleToSchemaRole = (userRole: string): 'admin' | 'customer' | 'technician' => {
-    switch (userRole) {
-      case 'admin': return 'admin';
-      case 'operator': return 'customer'; // Mapear operator a customer
-      case 'viewer': return 'technician'; // Mapear viewer a technician
-      default: return 'admin';
+    const normalizedRole = (userRole || '').toLowerCase();
+
+    if (normalizedRole.includes('admin')) {
+      return 'admin';
     }
+
+    if (
+      normalizedRole.includes('customer') ||
+      normalizedRole.includes('custumer') ||
+      normalizedRole.includes('client') ||
+      normalizedRole.includes('cliente')
+    ) {
+      return 'customer';
+    }
+
+    if (normalizedRole.includes('operator') || normalizedRole.includes('manager')) {
+      return 'customer';
+    }
+
+    if (normalizedRole.includes('technician') || normalizedRole.includes('tech') || normalizedRole.includes('support')) {
+      return 'technician';
+    }
+
+    if (normalizedRole.includes('viewer') || normalizedRole.includes('view') || normalizedRole.includes('read')) {
+      return 'technician';
+    }
+
+    return 'admin';
+  };
+
+  const resolveInitialRole = (user?: UserType): 'admin' | 'customer' | 'technician' => {
+    if (!user) return 'admin';
+
+    if (user.role && user.role !== 'No role') {
+      return mapUserRoleToSchemaRole(user.role);
+    }
+
+    const roleFromCollection = user.roles?.find((entry) => typeof entry?.name === 'string' && entry.name.trim().length > 0);
+
+    if (roleFromCollection) {
+      return mapUserRoleToSchemaRole(roleFromCollection.name);
+    }
+
+    return 'admin';
   };
 
   const {
@@ -40,7 +99,8 @@ export default function CreateUserForm({
     handleSubmit,
     formState: { errors, isValid },
     reset,
-    trigger
+    trigger,
+    watch,
   } = useForm({
     resolver: zodResolver(mode === 'edit' ? editUserSchema : createUserSchema),
     mode: mode === 'edit' ? 'onBlur' : 'onChange',
@@ -48,7 +108,7 @@ export default function CreateUserForm({
       name: initialData?.name || '',
       email: initialData?.email || '',
       rut: initialData?.rut || '',
-      role: initialData ? mapUserRoleToSchemaRole(initialData.role) : 'admin',
+      role: initialData ? resolveInitialRole(initialData) : 'admin',
       status: (initialData?.status === 'active' || initialData?.status === 'inactive') ? initialData.status : 'inactive', // Cambiar default a 'inactive' para modo crear
       password: '',
       confirmPassword: ''
@@ -62,7 +122,7 @@ export default function CreateUserForm({
         name: initialData.name,
         email: initialData.email,
         rut: initialData.rut,
-        role: mapUserRoleToSchemaRole(initialData.role),
+        role: resolveInitialRole(initialData),
         status: (initialData.status === 'active' || initialData.status === 'inactive') ? initialData.status : 'inactive',
         password: '',
         confirmPassword: ''
@@ -78,6 +138,11 @@ export default function CreateUserForm({
   const handleFormSubmit = (data: CreateUserFormData | EditUserFormData) => {
     onSubmit(data);
   };
+
+  const isLimitedEdit = mode === 'edit' && !canEditAllFields;
+  const roleValue = watch('role') as 'admin' | 'customer' | 'technician' | undefined;
+  const statusValue = watch('status') as 'active' | 'inactive' | undefined;
+  const lockedInputClasses = isLimitedEdit ? 'bg-gray-50 text-gray-500 cursor-not-allowed focus:ring-gray-200 focus:border-gray-200' : '';
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -113,91 +178,93 @@ export default function CreateUserForm({
             )}
           </div>
 
-          {/* Email */}
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-black mb-2">
-              Correo Electrónico *
-            </label>
-            <div className="relative">
-              <input
-                {...register('email')}
-                type="email"
-                id="email"
-                className={`w-full px-3 py-2 pl-10 border rounded-md shadow-sm text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                  errors.email ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="usuario@ejemplo.com"
-                disabled={isLoading}
-              />
-              <Mail className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-            </div>
-            {errors.email && (
-              <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-            )}
-          </div>
+          {!isLimitedEdit && (
+            <>
+              {/* Email */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-black mb-2">
+                  Correo Electrónico *
+                </label>
+                <div className="relative">
+                  <input
+                    {...register('email')}
+                    type="email"
+                    id="email"
+                    className={`w-full px-3 py-2 pl-10 border rounded-md shadow-sm text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      errors.email ? 'border-red-300' : 'border-gray-300'
+                    } ${lockedInputClasses}`}
+                    placeholder="usuario@ejemplo.com"
+                    disabled={isLoading}
+                  />
+                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                </div>
+                {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
+              </div>
 
-          {/* RUT */}
-          <div>
-            <label htmlFor="rut" className="block text-sm font-medium text-black mb-2">
-              RUT *
-            </label>
-            <input
-              {...register('rut')}
-              type="text"
-              id="rut"
-              className={`w-full px-3 py-2 border rounded-md shadow-sm text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.rut ? 'border-red-300' : 'border-gray-300'
-              }`}
-              placeholder="12345678-9"
-              disabled={isLoading}
-            />
-            {errors.rut && (
-              <p className="mt-1 text-sm text-red-600">{errors.rut.message}</p>
-            )}
-          </div>
+              {/* RUT */}
+              <div>
+                <label htmlFor="rut" className="block text-sm font-medium text-black mb-2">
+                  RUT *
+                </label>
+                <input
+                  {...register('rut')}
+                  type="text"
+                  id="rut"
+                  className={`w-full px-3 py-2 border rounded-md shadow-sm text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    errors.rut ? 'border-red-300' : 'border-gray-300'
+                  } ${lockedInputClasses}`}
+                  placeholder="12345678-9"
+                  disabled={isLoading}
+                />
+                {errors.rut && (
+                  <p className="mt-1 text-sm text-red-600">{errors.rut.message}</p>
+                )}
+              </div>
 
-          {/* Rol */}
-          <div>
-            <label htmlFor="role" className="block text-sm font-medium text-black mb-2">
-              Rol *
-            </label>
-            <select
-              {...register('role')}
-              id="role"
-              className={`w-full px-3 py-2 border rounded-md shadow-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.role ? 'border-red-300' : 'border-gray-300'
-              }`}
-              disabled={isLoading}
-            >
-              <option value="admin">Administrador</option>
-              <option value="customer">Cliente</option>
-              <option value="technician">Tecnico</option>
-            </select>
-            {errors.role && (
-              <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
-            )}
-          </div>
+              {/* Rol */}
+              <div>
+                <label htmlFor="role" className="block text-sm font-medium text-black mb-2">
+                  Rol *
+                </label>
+                <select
+                  {...register('role')}
+                  id="role"
+                  className={`w-full px-3 py-2 border rounded-md shadow-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    errors.role ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  disabled={isLoading}
+                >
+                  <option value="admin">Administrador</option>
+                  <option value="customer">Cliente</option>
+                  <option value="technician">Técnico</option>
+                </select>
+                {errors.role && (
+                  <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
+                )}
+              </div>
 
-          {/* Estado */}
-          <div>
-            <label htmlFor="status" className="block text-sm font-medium text-black mb-2">
-              Estado *
-            </label>
-            <select
-              {...register('status')}
-              id="status"
-              className={`w-full px-3 py-2 border rounded-md shadow-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.status ? 'border-red-300' : 'border-gray-300'
-              }`}
-              disabled={isLoading}
-            >
-              <option value="active">Activo</option>
-              <option value="inactive">Inactivo</option>
-            </select>
-            {errors.status && (
-              <p className="mt-1 text-sm text-red-600">{errors.status.message}</p>
-            )}
-          </div>
+              {/* Estado */}
+              <div>
+                <label htmlFor="status" className="block text-sm font-medium text-black mb-2">
+                  Estado *
+                </label>
+                <select
+                  {...register('status')}
+                  id="status"
+                  className={`w-full px-3 py-2 border rounded-md shadow-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    errors.status ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  disabled={isLoading}
+                >
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                </select>
+                {errors.status && (
+                  <p className="mt-1 text-sm text-red-600">{errors.status.message}</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Contraseñas */}

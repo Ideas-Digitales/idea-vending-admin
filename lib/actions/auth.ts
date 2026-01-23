@@ -27,6 +27,56 @@ function mapApiUserResponseToUser(rawUser: unknown, fallbackEmail?: string): Use
 
   const rawPermissions = (userRecord?.permissions ?? []) as unknown;
 
+  const resolveRoleSource = (): string | null => {
+    const directRole =
+      (userRecord?.role as string | undefined) ||
+      (userRecord?.user_type as string | undefined) ||
+      (userRecord?.type as string | undefined);
+
+    if (directRole && directRole.trim().length > 0) {
+      return directRole;
+    }
+
+    const rolesCollection = userRecord?.roles as unknown;
+    if (Array.isArray(rolesCollection)) {
+      for (const entry of rolesCollection) {
+        if (typeof entry === 'string' && entry.trim().length > 0) {
+          return entry;
+        }
+
+        if (entry && typeof entry === 'object' && 'name' in entry) {
+          const name = (entry as { name?: unknown }).name;
+          if (typeof name === 'string' && name.trim().length > 0) {
+            return name;
+          }
+        }
+      }
+    }
+
+    return null;
+  };
+
+  const normalizedRoles = Array.isArray(userRecord?.roles)
+    ? (userRecord?.roles as unknown[])
+        .map((entry) => {
+          if (typeof entry === 'string' && entry.trim().length > 0) {
+            return { name: entry };
+          }
+
+          if (entry && typeof entry === 'object' && 'name' in entry) {
+            const name = (entry as { name?: unknown }).name;
+            if (typeof name === 'string' && name.trim().length > 0) {
+              return { name };
+            }
+          }
+
+          return null;
+        })
+        .filter((role): role is { name: string } => Boolean(role))
+    : undefined;
+
+  const resolvedRoleSource = resolveRoleSource() ?? 'admin';
+
   const resolvedPermissions: string[] = Array.isArray(rawPermissions)
     ? ((rawPermissions as unknown[])
         .map((permission) => {
@@ -44,9 +94,7 @@ function mapApiUserResponseToUser(rawUser: unknown, fallbackEmail?: string): Use
           return null;
         })
         .filter((permission: string | null): permission is string => Boolean(permission)) ?? [])
-    : mapUserPermissions(
-        (userRecord?.role as string) || (userRecord?.user_type as string) || (userRecord?.type as string) || 'admin'
-      );
+    : mapUserPermissions(resolvedRoleSource);
 
   const resolvedEmail = (userRecord?.email as string) || fallbackEmail || "usuario@ejemplo.com";
 
@@ -62,9 +110,7 @@ function mapApiUserResponseToUser(rawUser: unknown, fallbackEmail?: string): Use
       resolvedEmail.split("@")[0] ||
       "Usuario",
     rut: (userRecord?.rut as string) || "Sin RUT",
-    role: mapUserRole(
-      (userRecord?.role as string) || (userRecord?.user_type as string) || (userRecord?.type as string) || "admin"
-    ),
+    role: mapUserRole(resolvedRoleSource),
     status: ((userRecord?.status as string) || 'active') as User['status'],
     permissions: resolvedPermissions,
     lastLogin: (userRecord?.last_login as string) || new Date().toISOString(),
@@ -72,7 +118,7 @@ function mapApiUserResponseToUser(rawUser: unknown, fallbackEmail?: string): Use
       (userRecord?.created_at as string) || (userRecord?.createdAt as string) || new Date().toISOString(),
     updatedAt:
       (userRecord?.updated_at as string) || (userRecord?.updatedAt as string) || new Date().toISOString(),
-    roles: (userRecord?.roles as Array<{ name: string }>) || undefined,
+    roles: normalizedRoles,
     enterprises: (userRecord?.enterprises as Array<{ id: number; name: string }>) || undefined,
     mqtt_user:
       (userRecord?.mqtt_user as MqttUser | null) ??
@@ -403,15 +449,29 @@ function mapUserRole(apiRole: string): User['role'] {
     role.includes("super")
   ) {
     return "admin";
-  } else if (
+  }
+
+  if (
     role.includes("operator") ||
     role.includes("manager") ||
     role.includes("mod")
   ) {
     return "operator";
-  } else {
+  }
+
+  if (role.includes("customer") || role.includes("client")) {
+    return "customer";
+  }
+
+  if (role.includes("tech") || role.includes("support")) {
+    return "technician";
+  }
+
+  if (role.includes("viewer") || role.includes("view") || role.includes("read")) {
     return "viewer";
   }
+
+  return "viewer";
 }
 
 function mapUserPermissions(apiRole: string): string[] {

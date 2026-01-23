@@ -8,6 +8,7 @@ import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
 import { deleteEnterpriseAction } from '@/lib/actions/enterprise';
 import { notify } from '@/lib/adapters/notification.adapter';
+import { useUser } from '@/lib/stores/authStore';
 
 export default function EnterpriseDetailPage() {
   const router = useRouter();
@@ -16,6 +17,8 @@ export default function EnterpriseDetailPage() {
   
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const authUser = useUser();
+  const canManageEnterprises = authUser?.role === 'admin';
   
   // Store state
   const {
@@ -56,7 +59,7 @@ export default function EnterpriseDetailPage() {
   };
 
   const handleDelete = () => {
-    if (!enterprise) return;
+    if (!enterprise || !canManageEnterprises) return;
     setShowDeleteModal(true);
   };
 
@@ -167,22 +170,24 @@ export default function EnterpriseDetailPage() {
                 </div>
               </div>
               
-              <div className="flex items-center space-x-3">
-                <button 
-                  onClick={() => window.location.href = `/empresas/${enterpriseId}/editar`}
-                  className="btn-secondary flex items-center space-x-2"
-                >
-                  <Edit className="h-4 w-4" />
-                  <span>Editar</span>
-                </button>
-                <button 
-                  onClick={handleDelete}
-                  className="btn-danger flex items-center space-x-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>Eliminar</span>
-                </button>
-              </div>
+              {canManageEnterprises && (
+                <div className="flex items-center space-x-3">
+                  <button 
+                    onClick={() => window.location.href = `/empresas/${enterpriseId}/editar`}
+                    className="btn-secondary flex items-center space-x-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    <span>Editar</span>
+                  </button>
+                  <button 
+                    onClick={handleDelete}
+                    className="btn-danger flex items-center space-x-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Eliminar</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -280,15 +285,17 @@ export default function EnterpriseDetailPage() {
       </div>
 
       {/* Modal de Confirmación de Eliminación */}
-      <ConfirmDeleteModal
-        isOpen={showDeleteModal}
-        onClose={cancelDelete}
-        onConfirm={confirmDelete}
-        title="Eliminar Empresa"
-        message="¿Estás seguro de que deseas eliminar esta empresa? Todos los datos asociados se perderán permanentemente."
-        itemName={enterprise?.name}
-        isDeleting={isDeleting}
-      />
+      {canManageEnterprises && (
+        <ConfirmDeleteModal
+          isOpen={showDeleteModal}
+          onClose={cancelDelete}
+          onConfirm={confirmDelete}
+          title="Eliminar Empresa"
+          message="¿Estás seguro de que deseas eliminar esta empresa? Todos los datos asociados se perderán permanentemente."
+          itemName={enterprise?.name}
+          isDeleting={isDeleting}
+        />
+      )}
     </div>
   );
 }

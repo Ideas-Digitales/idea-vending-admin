@@ -23,7 +23,7 @@ import { type Machine } from '@/lib/interfaces/machine.interface';
 import { useRealtimePayments, type RealtimePaymentStatus } from '@/lib/hooks/useRealtimePayments';
 import { getEnterprisesAction } from '@/lib/actions/enterprise';
 import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
-import { getMachinesAction } from '@/lib/actions/machines';
+import { getMachinesAction, getMachineAction } from '@/lib/actions/machines';
 import PaymentDetailModal from './PaymentDetailModal';
 
 const createDefaultFilters = (): PaymentFilters => ({
@@ -71,6 +71,40 @@ const normalizeFiltersForQuery = (filters: PaymentFilters): PaymentFilters => {
   normalized.date_to = filters.date_to ? toDateISO(filters.date_to, { endOfDay: true }) : undefined;
 
   return normalized;
+};
+
+const createMachineFromPayment = (payment: Payment): Machine | null => {
+  if (payment.machine) {
+    return {
+      id: payment.machine.id,
+      name: payment.machine.name ?? 'Sin nombre',
+      status: (payment.machine.status as Machine['status']) ?? 'offline',
+      location: payment.machine.location ?? 'Sin ubicación',
+      created_at: payment.machine.created_at ?? '',
+      updated_at: payment.machine.updated_at ?? '',
+      type: payment.machine.type ?? 'Desconocido',
+      enterprise_id: payment.machine.enterprise_id ?? payment.enterprise_id ?? 0,
+      client_id: payment.machine.client_id ?? null,
+      connection_status: payment.machine.connection_status ?? false,
+    };
+  }
+
+  if (payment.machine_id || payment.machine_name) {
+    return {
+      id: payment.machine_id ?? -1,
+      name: payment.machine_name ?? 'Sin nombre',
+      status: 'offline',
+      location: 'No disponible',
+      created_at: '',
+      updated_at: '',
+      type: 'Desconocido',
+      enterprise_id: payment.enterprise_id ?? 0,
+      client_id: null,
+      connection_status: false,
+    };
+  }
+
+  return null;
 };
 
 interface RealtimeHighlightRow {
@@ -151,6 +185,9 @@ export default function PagosInfiniteClient() {
   const [expandedPaymentId, setExpandedPaymentId] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [selectedPaymentEnterpriseName, setSelectedPaymentEnterpriseName] = useState<string | null>(null);
+  const [selectedMachineDetails, setSelectedMachineDetails] = useState<Machine | null>(null);
+  const [selectedMachineLoading, setSelectedMachineLoading] = useState(false);
+  const [selectedMachineError, setSelectedMachineError] = useState<string | null>(null);
 
   const realtimeMachineId = filters.machine_id ?? undefined;
   const realtimeEnterpriseId = filters.enterprise_id ?? undefined;
@@ -518,8 +555,49 @@ export default function PagosInfiniteClient() {
     setExpandedPaymentId((current) => (current === paymentKey ? null : paymentKey));
   }, []);
 
+  const createMachineFromPayment = (payment: Payment): Machine | null => {
+    const buildMachine = (data: Partial<Machine> & { id: number; name: string }): Machine => ({
+      id: data.id,
+      name: data.name,
+      status: data.status ?? 'offline',
+      location: data.location ?? 'Sin ubicación',
+      created_at: data.created_at ?? '',
+      updated_at: data.updated_at ?? '',
+      type: data.type ?? 'Desconocido',
+      enterprise_id: data.enterprise_id ?? payment.enterprise_id ?? 0,
+      connection_status: data.connection_status ?? false,
+      client_id: data.client_id ?? null,
+    });
+
+    if (payment.machine) {
+      return buildMachine({
+        id: payment.machine.id,
+        name: payment.machine.name ?? 'Sin nombre',
+        status: (payment.machine.status as Machine['status']) ?? 'offline',
+        location: payment.machine.location,
+        created_at: payment.machine.created_at,
+        updated_at: payment.machine.updated_at,
+        type: payment.machine.type,
+        enterprise_id: payment.machine.enterprise_id,
+        connection_status: payment.machine.connection_status,
+        client_id: payment.machine.client_id,
+      });
+    }
+
+    if (payment.machine_id || payment.machine_name) {
+      return buildMachine({
+        id: payment.machine_id ?? -1,
+        name: payment.machine_name ?? 'Sin nombre',
+      });
+    }
+
+    return null;
+  };
+
   const openPaymentDetail = useCallback((payment: Payment) => {
     setSelectedPayment(payment);
+    setSelectedMachineDetails(createMachineFromPayment(payment));
+    setSelectedMachineError(null);
     if (payment.enterprise_id && enterprises.length > 0) {
       const enterprise = enterprises.find((entry) => entry.id === payment.enterprise_id);
       setSelectedPaymentEnterpriseName(enterprise?.name ?? null);
@@ -531,7 +609,55 @@ export default function PagosInfiniteClient() {
   const closePaymentDetail = useCallback(() => {
     setSelectedPayment(null);
     setSelectedPaymentEnterpriseName(null);
+    setSelectedMachineDetails(null);
+    setSelectedMachineError(null);
+    setSelectedMachineLoading(false);
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchMachineDetails = async () => {
+      if (!selectedPayment?.machine_id) {
+        setSelectedMachineLoading(false);
+        return;
+      }
+
+      setSelectedMachineLoading(true);
+      setSelectedMachineError(null);
+
+      try {
+        const response = await getMachineAction(selectedPayment.machine_id, { include: 'enterprise' });
+        if (!isMounted) return;
+
+        if (response.success && response.machine) {
+          setSelectedMachineDetails(response.machine);
+        } else {
+          setSelectedMachineError(response.error ?? 'No se pudo obtener la información de la máquina.');
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        console.error('Error al obtener detalles de la máquina asociada al pago:', error);
+        setSelectedMachineError('Error al obtener la información de la máquina asociada.');
+      } finally {
+        if (isMounted) {
+          setSelectedMachineLoading(false);
+        }
+      }
+    };
+
+    if (selectedPayment) {
+      fetchMachineDetails();
+    } else {
+      setSelectedMachineDetails(null);
+      setSelectedMachineLoading(false);
+      setSelectedMachineError(null);
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedPayment?.machine_id, selectedPayment]);
 
   // No statistics needed - removed cards
 
@@ -1078,6 +1204,9 @@ export default function PagosInfiniteClient() {
         open={Boolean(selectedPayment)}
         onClose={closePaymentDetail}
         enterpriseName={selectedPaymentEnterpriseName}
+        machineDetails={selectedMachineDetails}
+        machineDetailsLoading={selectedMachineLoading}
+        machineDetailsError={selectedMachineError}
       />
     </div>
   );

@@ -10,17 +10,20 @@ interface PageWrapperProps {
   children: React.ReactNode;
   requiredPermissions?: string[];
   fallbackPath?: string;
+  permissionMatch?: 'any' | 'all';
 }
 
 export default function PageWrapper({ 
   children, 
   requiredPermissions = [], 
-  fallbackPath = '/login' 
+  fallbackPath = '/login',
+  permissionMatch = 'all'
 }: PageWrapperProps) {
   const pathname = usePathname();
   const { shouldShowContent, isLoading, hasPermission, user } = useAuthProtection({
     requiredPermissions,
-    fallbackPath
+    fallbackPath,
+    permissionMatch
   });
 
   // Función para obtener el skeleton apropiado según la ruta

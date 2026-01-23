@@ -7,11 +7,13 @@ import { useAuthStore, useIsAuthenticated, useAuthLoading, useUser } from '@/lib
 interface UseAuthProtectionProps {
   requiredPermissions?: string[];
   fallbackPath?: string;
+  permissionMatch?: 'any' | 'all';
 }
 
 export function useAuthProtection({ 
   requiredPermissions = [], 
-  fallbackPath = '/login' 
+  fallbackPath = '/login',
+  permissionMatch = 'all'
 }: UseAuthProtectionProps = {}) {
   const router = useRouter();
   const isAuthenticated = useIsAuthenticated();
@@ -57,31 +59,34 @@ export function useAuthProtection({
     }
   }, [isAuthenticated, isLoading, isInitializing, router, fallbackPath]);
 
+  const shouldBypassPermissions = user?.role === 'admin' || user?.role === 'customer';
+
+  const evaluatePermissions = () => {
+    if (shouldBypassPermissions) return true;
+    if (!user || requiredPermissions.length === 0) return true;
+
+    const evaluator = permissionMatch === 'all' ? 'every' : 'some';
+    return requiredPermissions[evaluator]((permission) => user.permissions.includes(permission));
+  };
+
   // Verificar permisos si el usuario está autenticado
   useEffect(() => {
-    if (isAuthenticated && user && requiredPermissions.length > 0) {
-      const hasPermission = requiredPermissions.every(permission => 
-        user.permissions.includes(permission)
-      );
-      
+    if (isAuthenticated && user && requiredPermissions.length > 0 && !shouldBypassPermissions) {
+      const hasPermission = evaluatePermissions();
+
       if (!hasPermission) {
         router.push('/unauthorized');
       }
     }
-  }, [isAuthenticated, user, requiredPermissions, router]);
+  }, [isAuthenticated, user, requiredPermissions, router, permissionMatch, shouldBypassPermissions]);
 
-  const hasPermission = () => {
-    if (!user || requiredPermissions.length === 0) return true;
-    return requiredPermissions.every(permission => 
-      user.permissions.includes(permission)
-    );
-  };
+  const hasPermission = evaluatePermissions();
 
   return {
     isAuthenticated,
     isLoading: isLoading || isInitializing,
     user,
-    hasPermission: hasPermission(),
-    shouldShowContent: isAuthenticated && hasPermission() && !isLoading && !isInitializing
+    hasPermission,
+    shouldShowContent: isAuthenticated && hasPermission && !isLoading && !isInitializing
   };
 }

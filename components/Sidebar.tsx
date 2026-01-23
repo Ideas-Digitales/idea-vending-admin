@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { BarChart3, ShoppingCart, Monitor, Users, Building2, LogOut, Shield, CreditCard } from 'lucide-react';
 import { useAuthStore, useUser } from '@/lib/stores/authStore';
@@ -29,6 +29,28 @@ export default function Sidebar() {
     }
   };
 
+  const resolvedRoleLabel = useMemo(() => {
+    const normalizeRoleLabel = (value: string | undefined | null) => {
+      if (!value) return null;
+      const normalized = value.toLowerCase();
+
+      if (normalized.includes('admin')) return 'Administrador';
+      if (normalized.includes('customer') || normalized.includes('custumer') || normalized.includes('client') || normalized.includes('cliente')) {
+        return 'Cliente';
+      }
+      if (normalized.includes('operator') || normalized.includes('manager')) return 'Operador';
+      if (normalized.includes('technician') || normalized.includes('tech')) return 'Técnico';
+      if (normalized.includes('viewer') || normalized.includes('view')) return 'Visualizador';
+      return null;
+    };
+
+    const labelFromRole = normalizeRoleLabel(user?.role);
+    if (labelFromRole) return labelFromRole;
+
+    const labelFromCollection = user?.roles?.map((entry) => normalizeRoleLabel(entry?.name)).find(Boolean);
+    return labelFromCollection ?? 'Usuario';
+  }, [user?.role, JSON.stringify(user?.roles ?? [])]);
+
   // SOLUCIÓN TEMPORAL: Forzar permisos correctos para admin (evitar setState durante render)
   useEffect(() => {
     if (user && user.role === 'admin' && Array.isArray(user.permissions) && !user.permissions.includes('manage_enterprises')) {
@@ -37,7 +59,16 @@ export default function Sidebar() {
     }
   }, [user?.role, JSON.stringify(user?.permissions || [])]);
 
-  const navigationItems = [
+  type NavigationItem = {
+    name: string;
+    href: string;
+    icon: typeof BarChart3;
+    current: boolean;
+    requiredPermissions?: string[];
+    match?: 'any' | 'all';
+  };
+
+  const navigationItems: NavigationItem[] = [
     {
       name: 'Dashboard',
       href: '/dashboard',
@@ -49,41 +80,35 @@ export default function Sidebar() {
       href: '/usuarios',
       icon: Users,
       current: pathname === '/usuarios',
-      permission: 'manage_users'
+      requiredPermissions: ['users.read.all', 'users.read.own']
     },
     {
       name: 'Máquinas',
       href: '/maquinas',
       icon: Monitor,
       current: pathname === '/maquinas',
-      permission: 'manage_machines'
+      requiredPermissions: ['machines.read.all', 'machines.read.enterprise_owned']
     },
     {
       name: 'Productos',
       href: '/productos',
       icon: ShoppingCart,
-      current: pathname === '/productos'
+      current: pathname === '/productos',
+      requiredPermissions: ['products.read.all', 'products.read.enterprise_owned']
     },
     {
       name: 'Pagos',
       href: '/pagos',
       icon: CreditCard,
-      current: pathname === '/pagos'
+      current: pathname === '/pagos',
+      requiredPermissions: ['payments.read.all', 'payments.read.enterprise_owned']
     },
     {
       name: 'Empresas',
       href: '/empresas',
       icon: Building2,
       current: pathname === '/empresas',
-      permission: 'manage_enterprises'
-    }
-    ,
-    {
-      name: 'Avanzado',
-      href: '/avanzado',
-      icon: Shield,
-      current: pathname?.startsWith('/avanzado') ?? false,
-      permission: 'manage_machines'
+      requiredPermissions: ['enterprises.read.all', 'enterprises.read.own']
     }
   ];
 
@@ -129,8 +154,7 @@ export default function Sidebar() {
               {user?.name || 'Usuario'}
             </p>
             <p className="text-xs text-white/70 truncate font-medium">
-              {user?.role === 'admin' ? 'Administrador' : 
-               user?.role === 'operator' ? 'Operador' : 'Usuario'}
+              {resolvedRoleLabel}
             </p>
           </div>
         </div>
@@ -140,8 +164,18 @@ export default function Sidebar() {
       <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
         {navigationItems
           .filter(item => {
-            const hasPermission = !item.permission || user?.permissions.includes(item.permission);
-            return hasPermission;
+            if (!item.requiredPermissions || item.requiredPermissions.length === 0) {
+              return true;
+            }
+
+            const userPermissions = user?.permissions ?? [];
+            const matchType = item.match ?? 'any';
+
+            if (matchType === 'all') {
+              return item.requiredPermissions.every((permission) => userPermissions.includes(permission));
+            }
+
+            return item.requiredPermissions.some((permission) => userPermissions.includes(permission));
           })
           .map((item) => (
           <a

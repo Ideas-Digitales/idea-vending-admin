@@ -15,12 +15,16 @@ import {
   Info,
 } from 'lucide-react';
 import type { Payment } from '@/lib/interfaces/payment.interface';
+import type { Machine } from '@/lib/interfaces/machine.interface';
 
 interface PaymentDetailModalProps {
   payment: Payment | null;
   open: boolean;
   onClose: () => void;
   enterpriseName?: string | null;
+  machineDetails?: Machine | null;
+  machineDetailsLoading?: boolean;
+  machineDetailsError?: string | null;
 }
 
 function formatCurrency(value?: number | null): string {
@@ -51,7 +55,15 @@ const statusColors = {
 
 const SECTION_CLASS = 'rounded-2xl border border-gray-100 bg-white shadow-sm p-5 space-y-4';
 
-const PaymentDetailModal = memo(function PaymentDetailModal({ payment, open, onClose, enterpriseName }: PaymentDetailModalProps) {
+const PaymentDetailModal = memo(function PaymentDetailModal({
+  payment,
+  open,
+  onClose,
+  enterpriseName,
+  machineDetails,
+  machineDetailsLoading,
+  machineDetailsError,
+}: PaymentDetailModalProps) {
   const paymentStatus = payment?.successful ? 'Exitoso' : 'Rechazado';
   const paymentStatusColor = payment?.successful ? statusColors.success : statusColors.failed;
 
@@ -156,11 +168,37 @@ const PaymentDetailModal = memo(function PaymentDetailModal({ payment, open, onC
               <MapPin className="h-5 w-5 text-primary" />
               Máquina asociada
             </h3>
+            {machineDetailsError && (
+              <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                {machineDetailsError}
+              </p>
+            )}
             <div className="grid gap-4 md:grid-cols-2">
-              <InfoRow label="Nombre" value={payment.machine_name ?? payment.machine?.name ?? 'Sin nombre'} />
+              <InfoRow
+                label="Nombre"
+                value={
+                  machineDetailsLoading
+                    ? 'Obteniendo información…'
+                    : machineDetails?.name ?? payment.machine?.name ?? payment.machine_name ?? 'Sin nombre'
+                }
+              />
               <InfoRow label="ID máquina" value={payment.machine_id ? `#${payment.machine_id}` : '—'} />
-              <InfoRow label="Ubicación" value={payment.machine?.location ?? 'No disponible'} />
-              <InfoRow label="Estado" value={payment.machine?.status ?? 'No informado'} />
+              <InfoRow
+                label="Ubicación"
+                value={
+                  machineDetailsLoading
+                    ? 'Obteniendo información…'
+                    : machineDetails?.location ?? payment.machine?.location ?? 'No disponible'
+                }
+              />
+              <InfoRow
+                label="Estado"
+                value={
+                  machineDetailsLoading
+                    ? 'Obteniendo información…'
+                    : machineDetails?.status ?? payment.machine?.status ?? 'No informado'
+                }
+              />
             </div>
           </section>
         </div>

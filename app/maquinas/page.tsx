@@ -9,7 +9,10 @@ function MaquinasContent() {
 
 export default function MaquinasPage() {
   return (
-    <PageWrapper requiredPermissions={["manage_machines"]}>
+    <PageWrapper
+      requiredPermissions={["machines.read.all", "machines.read.enterprise_owned"]}
+      permissionMatch="any"
+    >
       <MaquinasContent />
     </PageWrapper>
   );

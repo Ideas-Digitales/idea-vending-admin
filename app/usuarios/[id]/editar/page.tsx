@@ -6,6 +6,7 @@ import CreateUserForm from "@/components/forms/CreateUserForm";
 import type { EditUserFormData } from "@/lib/schemas/user.schema";
 import { updateUserAction } from "@/lib/actions/users";
 import { useUserStore } from '@/lib/stores/userStore';
+import { useUser as useAuthUser } from '@/lib/stores/authStore';
 import Sidebar from "@/components/Sidebar";
 import { ArrowLeft, User } from "lucide-react";
 import { notify } from '@/lib/adapters/notification.adapter';
@@ -15,8 +16,9 @@ export default function EditarUsuarioPage() {
   const userId = params.id as string;
   const [isLoading, setIsLoading] = useState(false);
   const [showNotFound, setShowNotFound] = useState(false);
-  
-  const { 
+  const authUser = useAuthUser();
+
+  const {
     selectedUser: user,
     isLoadingUser,
     userError,
@@ -25,6 +27,18 @@ export default function EditarUsuarioPage() {
     clearSelectedUser,
     clearUserError
   } = useUserStore();
+
+  useEffect(() => {
+    if (userId) {
+      console.log('[EditarUsuarioPage] Entrando a la edición del usuario', { userId });
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (user) {
+      console.log('[EditarUsuarioPage] Datos del usuario cargados', user);
+    }
+  }, [user]);
 
   // Cargar usuario al montar el componente
   useEffect(() => {
@@ -249,6 +263,7 @@ export default function EditarUsuarioPage() {
               mode="edit"
               initialData={user}
               title={`Editar Usuario: ${user.name}`}
+              canEditAllFields={authUser?.role === 'admin'}
             />
           </div>
         </main>

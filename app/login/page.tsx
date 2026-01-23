@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle, X } from 'lucide-react';
 import { useAuthStore, useIsAuthenticated, useAuthLoading, useAuthError } from '@/lib/stores/authStore';
 import ClientOnly from '@/components/ClientOnly';
 
@@ -15,6 +15,7 @@ export default function LoginPage() {
     password: ''
   });
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   const { login, clearError } = useAuthStore();
   const isAuthenticated = useIsAuthenticated();
@@ -294,9 +295,13 @@ export default function LoginPage() {
                   </label>
                 </div>
                 <div className="text-sm">
-                  <a href="#" className="font-medium text-primary hover:text-primary-dark">
+                  <button
+                    type="button"
+                    onClick={() => setIsResetModalOpen(true)}
+                    className="font-medium text-primary hover:text-primary-dark"
+                  >
                     ¿Olvidaste tu contraseña?
-                  </a>
+                  </button>
                 </div>
               </div>
 
@@ -342,10 +347,142 @@ export default function LoginPage() {
             </Link>
           </div>
           <p className="text-white/70 text-xs">
-            © 2026 Ideas Vending. Todos los derechos reservados.
+            2026 Ideas Vending. Todos los derechos reservados.
           </p>
         </div>
 
+      </div>
+
+      {isResetModalOpen && (
+        <ForgotPasswordModal onClose={() => setIsResetModalOpen(false)} />
+      )}
+    </div>
+  );
+}
+
+function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
+  const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEmail('');
+    setMessage(null);
+    setError(null);
+  }, []);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!email || !email.includes('@')) {
+      setError('Ingresa un correo electrónico válido.');
+      setMessage(null);
+      return;
+    }
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) {
+      setError('API URL no configurada. Contacta al administrador.');
+      setMessage(null);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await fetch(`${apiUrl}/password/forgot`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(
+          data?.message || data?.error || 'No se pudo enviar el enlace de recuperación.'
+        );
+      }
+
+      const data = await response.json().catch(() => ({}));
+      setMessage(data?.message ?? 'Si el correo existe, enviamos un enlace de recuperación.');
+      setEmail('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error inesperado. Intenta nuevamente.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Recuperar contraseña</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+            aria-label="Cerrar"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <p className="text-sm text-gray-600 mb-4">
+          Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.
+        </p>
+
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="reset-email" className="block text-sm font-medium text-gray-700 mb-2">
+              Correo electrónico
+            </label>
+            <input
+              id="reset-email"
+              type="email"
+              className="input-field"
+              placeholder="usuario@ejemplo.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              disabled={isSubmitting}
+              required
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {message && (
+            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-700">
+              {message}
+            </div>
+          )}
+
+          <div className="flex items-center justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800"
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="btn-primary px-4 py-2"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Enviando…' : 'Enviar enlace'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

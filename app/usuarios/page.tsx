@@ -9,7 +9,10 @@ function UsuariosContent() {
 
 export default function UsuariosPage() {
   return (
-    <PageWrapper requiredPermissions={["manage_users"]}>
+    <PageWrapper
+      requiredPermissions={["users.read.all", "users.read.own"]}
+      permissionMatch="any"
+    >
       <UsuariosContent />
     </PageWrapper>
   );
