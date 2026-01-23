@@ -59,9 +59,6 @@ export default function MachineTable({ machines, loading }: MachineTableProps) {
               Estado
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Habilitada
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Ubicación
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -93,16 +90,13 @@ export default function MachineTable({ machines, loading }: MachineTableProps) {
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(machine.status)}`}>
+                <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(machine.status)}`}>
+                  <span
+                    className={`h-2 w-2 rounded-full mr-2 ${machine.status?.toLowerCase() === 'online' ? 'bg-green-500' : 'bg-red-500'}`}
+                    aria-hidden
+                  />
                   {getStatusName(machine.status)}
                 </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm">
-                {machine.is_enabled ? (
-                  <span className="text-green-600">Sí</span>
-                ) : (
-                  <span className="text-red-600">No</span>
-                )}
               </td>
               <td className="px-6 py-4">
                 <div className="flex items-start">

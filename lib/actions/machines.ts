@@ -43,7 +43,6 @@ export async function getMachinesAction(filters?: MachinesFilters): Promise<Mach
     if (filters?.search) queryParams.append('search', filters.search);
     if (filters?.status) queryParams.append('status', filters.status);
     if (filters?.type) queryParams.append('type', filters.type);
-    if (filters?.is_enabled !== undefined) queryParams.append('is_enabled', filters.is_enabled.toString());
     if (filters?.enterprise_id) queryParams.append('enterprise_id', filters.enterprise_id.toString());
     if (filters?.page) queryParams.append('page', filters.page.toString());
     if (filters?.limit) queryParams.append('limit', filters.limit.toString());
@@ -222,8 +221,6 @@ export async function createMachineAction(machineData: CreateMachineFormData): P
       name: validatedData.name,
       location: validatedData.location,
       type: validatedData.type,
-      status: validatedData.status,
-      is_enabled: validatedData.is_enabled,
       enterprise_id: validatedData.enterprise_id,
       client_id: validatedData.client_id
     };
@@ -332,7 +329,6 @@ export async function updateMachineAction(machineId: string | number, machineDat
       location: validatedData.location,
       type: validatedData.type,
       status: validatedData.status,
-      is_enabled: validatedData.is_enabled,
       client_id: validatedData.client_id
     };
 

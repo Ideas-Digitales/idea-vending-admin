@@ -18,11 +18,10 @@ export default function EditarMaquinaPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    status: '',
+    status: 'offline',
     location: '',
     type: '',
     enterprise_id: '',
-    is_enabled: false
   });
 
   const handleBack = () => {
@@ -45,7 +44,6 @@ export default function EditarMaquinaPage() {
             location: result.machine.location,
             type: result.machine.type,
             enterprise_id: result.machine.enterprise_id.toString(),
-            is_enabled: result.machine.is_enabled
           });
         } else {
           setError(result.error || 'Máquina no encontrada');
@@ -69,12 +67,7 @@ export default function EditarMaquinaPage() {
     if (successMessage) setSuccessMessage(null);
     if (error) setError(null);
     
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({ ...prev, [name]: checked }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,9 +82,6 @@ export default function EditarMaquinaPage() {
       form.append('location', formData.location);
       form.append('type', formData.type);
       form.append('enterprise_id', formData.enterprise_id);
-      if (formData.is_enabled) {
-        form.append('is_enabled', 'on');
-      }
 
       const response = await fetch(`/maquinas/${machineId}/update`, {
         method: 'POST',
@@ -260,45 +250,6 @@ export default function EditarMaquinaPage() {
                     />
                   </div>
 
-                  {/* Estado */}
-                  <div>
-                    <label className="block text-sm font-medium text-black mb-2">
-                      Estado
-                    </label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      required
-                      className="select-custom w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black"
-                    >
-                      <option value="">Seleccionar estado</option>
-                      <option value="Active">Activa</option>
-                      <option value="Inactive">Inactiva</option>
-                      <option value="Maintenance">Mantenimiento</option>
-                      <option value="OutOfService">Fuera de Servicio</option>
-                    </select>
-                  </div>
-
-                  {/* Tipo */}
-                  <div>
-                    <label className="block text-sm font-medium text-black mb-2">
-                      Tipo de Máquina
-                    </label>
-                    <select
-                      name="type"
-                      value={formData.type}
-                      onChange={handleInputChange}
-                      required
-                      className="select-custom w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black"
-                    >
-                      <option value="">Seleccionar tipo</option>
-                      <option value="PULSES">PULSES</option>
-                      <option value="MDB">MDB</option>
-                      <option value="MDB-DEX">MDB-DEX</option>
-                    </select>
-                  </div>
-
                   {/* ID Empresa - Temporalmente oculto hasta que el API lo devuelva */}
                   {/* <div>
                     <label className="block text-sm font-medium text-black mb-2">
@@ -332,20 +283,6 @@ export default function EditarMaquinaPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black"
                     placeholder="Ingrese la ubicación de la máquina"
                   />
-                </div>
-
-                {/* Habilitada */}
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="is_enabled"
-                    checked={formData.is_enabled}
-                    onChange={handleInputChange}
-                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                  />
-                  <label className="ml-2 text-sm font-medium text-black">
-                    Máquina habilitada
-                  </label>
                 </div>
 
                 {/* Buttons */}

@@ -117,6 +117,15 @@ export const getPaymentsAction = async (filters?: PaymentFilters, token?: string
         });
       }
 
+      if (filters.enterprise_id) {
+        pushCondition({
+          type: 'and',
+          field: 'enterprise_id',
+          operator: '=',
+          value: filters.enterprise_id.toString(),
+        });
+      }
+
       if (filters.card_type) {
         pushCondition({
           type: 'and',

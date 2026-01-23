@@ -79,20 +79,20 @@ function DashboardContent() {
       href: '/maquinas'
     },
     {
-      title: 'Máquinas Activas',
-      value: `${dashboardStats.machines.active}/${dashboardStats.machines.total}`,
+      title: 'Máquinas en línea',
+      value: `${dashboardStats.machines.online}/${dashboardStats.machines.total}`,
       icon: Activity,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
-      href: '/maquinas?status=Active'
+      href: '/maquinas?status=online'
     },
     {
-      title: 'Máquinas Inactivas',
-      value: dashboardStats.machines.inactive.toString(),
+      title: 'Máquinas fuera de línea',
+      value: dashboardStats.machines.offline.toString(),
       icon: AlertTriangle,
       color: 'text-red-600',
       bgColor: 'bg-red-50',
-      href: '/maquinas?status=Inactive'
+      href: '/maquinas?status=offline'
     },
     {
       title: 'Total Usuarios',
@@ -177,12 +177,12 @@ function DashboardContent() {
                           {stat.value}
                         </p>
                         {/* Progress bar visual */}
-                        {stat.title.includes('Activas') && dashboardStats && (
+                        {stat.title.includes('en línea') && dashboardStats && (
                           <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                             <div 
                               className="bg-green-500 h-2 rounded-full transition-all duration-1000 ease-out"
                               style={{ 
-                                width: `${(dashboardStats.machines.active / dashboardStats.machines.total) * 100}%` 
+                                width: `${(dashboardStats.machines.online / dashboardStats.machines.total) * 100}%` 
                               }}
                             ></div>
                           </div>

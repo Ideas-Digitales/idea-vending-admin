@@ -7,10 +7,8 @@ import { loopPrevention } from '@/lib/utils/loopPrevention';
 export interface DashboardStats {
   machines: {
     total: number;
-    active: number;
-    inactive: number;
-    maintenance: number;
-    outOfService: number;
+    online: number;
+    offline: number;
   };
   users: {
     total: number;
@@ -65,10 +63,8 @@ export async function getDashboardStatsAction(): Promise<DashboardResponse> {
     // Calcular estadísticas de máquinas
     const machineStats = {
       total: machines.length,
-      active: machines.filter(m => m.status === 'Active').length,
-      inactive: machines.filter(m => m.status === 'Inactive').length,
-      maintenance: machines.filter(m => m.status === 'Maintenance').length,
-      outOfService: machines.filter(m => m.status === 'OutOfService').length,
+      online: machines.filter(m => m.status === 'online').length,
+      offline: machines.filter(m => m.status !== 'online').length,
     };
 
     // Calcular estadísticas de usuarios

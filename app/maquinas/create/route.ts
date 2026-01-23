@@ -12,8 +12,6 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const payload = {
       name: String(formData.get('name') || '').trim(),
-      status: String(formData.get('status') || 'Inactive'),
-      is_enabled: (formData.get('is_enabled') as string) === 'on',
       location: String(formData.get('location') || '').trim(),
       type: String(formData.get('type') || 'MDB'),
       enterprise_id: Number(formData.get('enterprise_id') || 0),

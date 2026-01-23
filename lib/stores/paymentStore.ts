@@ -21,12 +21,15 @@ interface PaymentState {
   
   // Error states
   error: string | null;
+  lastRealtimePayment: Payment | null;
+  lastRealtimeReceivedAt: string | null;
   
   // Actions
   fetchPayments: (filters?: PaymentFilters) => Promise<void>;
   refreshPayments: () => Promise<void>;
   setFilters: (filters: PaymentFilters) => void;
   clearError: () => void;
+  addRealtimePayment: (payment: Payment) => void;
   
   // Computed getters
   getTotalPayments: () => number;
@@ -45,6 +48,8 @@ export const usePaymentStore = create<PaymentState>()(
       isLoading: false,
       isRefreshing: false,
       error: null,
+      lastRealtimePayment: null,
+      lastRealtimeReceivedAt: null,
 
       // Actions
       fetchPayments: async (filters?: PaymentFilters) => {
@@ -135,6 +140,24 @@ export const usePaymentStore = create<PaymentState>()(
         set({ error: null });
       },
 
+      addRealtimePayment: (payment: Payment) => {
+        set((state) => {
+          if (!matchesFilters(payment, state.currentFilters)) {
+            return state;
+          }
+
+          const mergedPayments = upsertPayment(state.payments, payment);
+          const limit = state.currentFilters?.limit;
+          const constrainedPayments = typeof limit === 'number' ? mergedPayments.slice(0, limit) : mergedPayments;
+
+          return {
+            payments: constrainedPayments,
+            lastRealtimePayment: payment,
+            lastRealtimeReceivedAt: new Date().toISOString(),
+          };
+        });
+      },
+
       // Computed getters
       getTotalPayments: () => {
         const { pagination } = get();
@@ -162,7 +185,92 @@ export const usePaymentStore = create<PaymentState>()(
         payments: state.payments,
         pagination: state.pagination,
         currentFilters: state.currentFilters,
+        lastRealtimeReceivedAt: state.lastRealtimeReceivedAt,
       }),
     }
   )
 );
+
+function matchesFilters(payment: Payment, filters: PaymentFilters | undefined): boolean {
+  if (!filters) {
+    return true;
+  }
+
+  if (filters.successful !== undefined && filters.successful !== null && payment.successful !== filters.successful) {
+    return false;
+  }
+
+  if (filters.machine_id && payment.machine_id !== filters.machine_id) {
+    return false;
+  }
+
+  if (filters.enterprise_id && payment.enterprise_id !== filters.enterprise_id) {
+    return false;
+  }
+
+  if (filters.card_type && payment.card_type?.toLowerCase() !== filters.card_type.toLowerCase()) {
+    return false;
+  }
+
+  if (filters.card_brand) {
+    const brandMatch = payment.card_brand?.toLowerCase().includes(filters.card_brand.toLowerCase());
+    if (!brandMatch) {
+      return false;
+    }
+  }
+
+  if (filters.date_from) {
+    const paymentDate = new Date(payment.date);
+    if (paymentDate < new Date(filters.date_from)) {
+      return false;
+    }
+  }
+
+  if (filters.date_to) {
+    const paymentDate = new Date(payment.date);
+    if (paymentDate > new Date(filters.date_to)) {
+      return false;
+    }
+  }
+
+  if (filters.search) {
+    const query = filters.search.toLowerCase();
+    const searchableFields = [
+      payment.product,
+      payment.operation_number,
+      payment.card_brand,
+      payment.last_digits,
+      payment.machine_name ?? undefined,
+    ]
+      .filter(Boolean)
+      .map((value) => value!.toLowerCase());
+
+    const match = searchableFields.some((field) => field.includes(query));
+    if (!match) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function upsertPayment(payments: Payment[], incoming: Payment): Payment[] {
+  const list = [...payments];
+  const index = list.findIndex((payment) => {
+    if (incoming.id && payment.id === incoming.id) {
+      return true;
+    }
+    if (incoming.operation_number && payment.operation_number === incoming.operation_number) {
+      return true;
+    }
+    return false;
+  });
+
+  if (index >= 0) {
+    list[index] = incoming;
+  } else {
+    list.unshift(incoming);
+  }
+
+  return list;
+}

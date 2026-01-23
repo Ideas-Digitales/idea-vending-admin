@@ -14,13 +14,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const payload: Record<string, unknown> = {};
     const name = formData.get('name');
     const status = formData.get('status');
-    const is_enabled = formData.get('is_enabled');
     const location = formData.get('location');
     const type = formData.get('type');
 
     if (name !== null && String(name).trim() !== '') payload.name = String(name);
     if (status !== null && String(status).trim() !== '') payload.status = String(status);
-    if (is_enabled !== null) payload.is_enabled = String(is_enabled) === 'on';
     if (location !== null && String(location).trim() !== '') payload.location = String(location);
     if (type !== null && String(type).trim() !== '') payload.type = String(type);
     

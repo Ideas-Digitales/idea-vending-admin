@@ -14,11 +14,9 @@ export default function MachineSearchFilters() {
     searchTerm,
     statusFilter,
     typeFilter,
-    isEnabledFilter,
     setSearchTerm,
     setStatusFilter,
     setTypeFilter,
-    setIsEnabledFilter,
     clearFilters
   } = useMachineFilters();
 
@@ -56,9 +54,8 @@ export default function MachineSearchFilters() {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="">Todos los estados</option>
-              <option value="Active">Activa</option>
-              <option value="Inactive">Inactiva</option>
-              <option value="Maintenance">Mantenimiento</option>
+              <option value="online">En línea</option>
+              <option value="offline">Fuera de línea</option>
             </select>
             <select 
               className="input-field flex-1 select-custom"
@@ -70,19 +67,10 @@ export default function MachineSearchFilters() {
               <option value="MDB">MDB</option>
               <option value="MDB-DEX">MDB-DEX</option>
             </select>
-            <select 
-              className="input-field flex-1 select-custom"
-              value={isEnabledFilter}
-              onChange={(e) => setIsEnabledFilter(e.target.value as '' | 'enabled' | 'disabled')}
-            >
-              <option value="">Todas</option>
-              <option value="enabled">Habilitadas (Sí)</option>
-              <option value="disabled">Deshabilitadas (No)</option>
-            </select>
           </div>
         
           {/* Filtros activos */}
-          {(searchTerm || statusFilter || typeFilter || isEnabledFilter) && (
+          {(searchTerm || statusFilter || typeFilter) && (
             <div className="mt-4 flex flex-wrap gap-2">
               {searchTerm && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
@@ -95,34 +83,12 @@ export default function MachineSearchFilters() {
                   </button>
                 </span>
               )}
-              {statusFilter && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
-                  Estado: {getStatusName(statusFilter)}
-                  <button 
-                    onClick={() => setStatusFilter('')}
-                    className="ml-2 hover:text-purple-600"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
               {typeFilter && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-green-100 text-green-800">
                   Tipo: {getTypeFilterLabel(typeFilter)}
                   <button 
                     onClick={() => setTypeFilter('')}
                     className="ml-2 hover:text-green-600"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {isEnabledFilter && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-amber-100 text-amber-800">
-                  Habilitada: {isEnabledFilter === 'enabled' ? 'Sí' : 'No'}
-                  <button 
-                    onClick={() => setIsEnabledFilter('')}
-                    className="ml-2 hover:text-amber-600"
                   >
                     ×
                   </button>

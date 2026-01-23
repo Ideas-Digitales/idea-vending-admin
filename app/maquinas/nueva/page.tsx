@@ -17,8 +17,6 @@ export default function NuevaMaquinaPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    status: 'Inactive' as CreateMachineFormData['status'],
-    is_enabled: true,
     location: '',
     type: 'MDB' as CreateMachineFormData['type'],
     enterprise_id: 0,
@@ -80,8 +78,7 @@ export default function NuevaMaquinaPage() {
     const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : 
-              name === 'enterprise_id' ? Number(value) : value
+      [name]: name === 'enterprise_id' ? Number(value) : value
     }));
   };
 
@@ -116,36 +113,6 @@ export default function NuevaMaquinaPage() {
                   placeholder="Nombre de la máquina" 
                   required 
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-black mb-2">Estado</label>
-                <select 
-                  name="status" 
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black select-custom" 
-                  required
-                >
-                  <option value="Inactive">Inactiva</option>
-                  <option value="Active">Activa</option>
-                  <option value="Maintenance">Mantenimiento</option>
-                  <option value="OutOfService">Fuera de Servicio</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-black mb-2">Habilitada</label>
-                <div className="flex items-center space-x-2">
-                  <input 
-                    type="checkbox" 
-                    name="is_enabled" 
-                    checked={formData.is_enabled}
-                    onChange={handleInputChange}
-                    className="h-4 w-4" 
-                  />
-                  <span className="text-sm text-gray-600">La máquina estará habilitada</span>
-                </div>
               </div>
 
               <div>

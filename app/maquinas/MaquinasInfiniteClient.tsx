@@ -12,7 +12,7 @@ import { notify } from '@/lib/adapters/notification.adapter';
 import { MachineAdapter } from '@/lib/adapters/machine.adapter';
 import type { Machine } from '@/lib/interfaces/machine.interface';
 
-const STATUS_FILTER_VALUES = ['Active', 'Inactive', 'Maintenance', 'OutOfService'] as const;
+const STATUS_FILTER_VALUES = ['online', 'offline'] as const;
 type MachineStatusFilter = '' | (typeof STATUS_FILTER_VALUES)[number];
 const STATUS_FILTER_SET = new Set<string>(STATUS_FILTER_VALUES);
 
@@ -51,7 +51,6 @@ export default function MaquinasInfiniteClient() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<MachineStatusFilter>(statusParamValue);
   const [typeFilter, setTypeFilter] = useState('');
-  const [enabledFilter, setEnabledFilter] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [deleteDialog, setDeleteDialog] = useState<{
     isOpen: boolean;
@@ -93,7 +92,6 @@ export default function MaquinasInfiniteClient() {
       search: debouncedSearchTerm || undefined,
       status: statusFilter || undefined,
       type: typeFilter || undefined,
-      is_enabled: enabledFilter === '' ? undefined : enabledFilter === 'true',
       page: 1, // Always reset to page 1 when filters change
       limit: 20
     };
@@ -102,14 +100,13 @@ export default function MaquinasInfiniteClient() {
       search: debouncedSearchTerm,
       status: statusFilter,
       type: typeFilter,
-      enabledFilter: enabledFilter,
-      is_enabled: filters.is_enabled,
-      is_enabled_type: typeof filters.is_enabled
+      page: filters.page,
+      limit: filters.limit
     });
 
     setFilters(filters);
     fetchMachines(filters);
-  }, [debouncedSearchTerm, statusFilter, typeFilter, enabledFilter, fetchMachines, setFilters]);
+  }, [debouncedSearchTerm, statusFilter, typeFilter, fetchMachines, setFilters]);
 
   const handlePageChange = useCallback(async (page: number) => {
     try {
@@ -157,11 +154,10 @@ export default function MaquinasInfiniteClient() {
 
       const matchesStatus = !statusFilter || machine.status === statusFilter;
       const matchesType = !typeFilter || machine.type === typeFilter;
-      const matchesEnabled = enabledFilter === '' || machine.is_enabled === (enabledFilter === 'true');
 
-      return matchesSearch && matchesStatus && matchesType && matchesEnabled;
+      return matchesSearch && matchesStatus && matchesType;
     });
-  }, [machines, searchTerm, statusFilter, typeFilter, enabledFilter]);
+  }, [machines, searchTerm, statusFilter, typeFilter]);
 
   const handleRefresh = useCallback(async () => {
     await refreshMachines();
@@ -201,7 +197,6 @@ export default function MaquinasInfiniteClient() {
     setSearchTerm('');
     setStatusFilter('');
     setTypeFilter('');
-    setEnabledFilter('');
     setDebouncedSearchTerm('');
     router.replace('/maquinas', { scroll: false });
   };
@@ -344,10 +339,8 @@ export default function MaquinasInfiniteClient() {
                     onChange={(e) => setStatusFilter(e.target.value as MachineStatusFilter)}
                   >
                     <option value="">Todos los estados</option>
-                    <option value="Active">Activa</option>
-                    <option value="Inactive">Inactiva</option>
-                    <option value="Maintenance">Mantenimiento</option>
-                    <option value="OutOfService">Fuera de Servicio</option>
+                    <option value="online">En línea</option>
+                    <option value="offline">Fuera de línea</option>
                   </select>
                   <select
                     className="input-field min-w-[120px] select-custom"
@@ -359,16 +352,7 @@ export default function MaquinasInfiniteClient() {
                     <option value="MDB">MDB</option>
                     <option value="PULSES">PULSOS</option>
                   </select>
-                  <select
-                    className="input-field min-w-[120px] select-custom"
-                    value={enabledFilter}
-                    onChange={(e) => setEnabledFilter(e.target.value)}
-                  >
-                    <option value="">Todas</option>
-                    <option value="true">Habilitadas</option>
-                    <option value="false">Deshabilitadas</option>
-                  </select>
-                  {(searchTerm || statusFilter || typeFilter || enabledFilter) && (
+                  {(searchTerm || statusFilter || typeFilter) && (
                     <button
                       onClick={clearFilters}
                       className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 hover:text-gray-900 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 whitespace-nowrap"
@@ -396,11 +380,11 @@ export default function MaquinasInfiniteClient() {
                   <Monitor className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-dark mb-2">No hay máquinas</h3>
                   <p className="text-muted mb-4">
-                    {searchTerm || statusFilter || typeFilter || enabledFilter
+                    {searchTerm || statusFilter || typeFilter
                       ? 'No se encontraron máquinas que coincidan con los filtros aplicados.'
                       : 'Aún no hay máquinas registradas en el sistema.'}
                   </p>
-                  {!(searchTerm || statusFilter || typeFilter || enabledFilter) && (
+                  {!(searchTerm || statusFilter || typeFilter) && (
                     <Link href="/maquinas/nueva" className="btn-primary">
                       Crear primera máquina
                     </Link>
@@ -419,9 +403,6 @@ export default function MaquinasInfiniteClient() {
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Estado
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Habilitada
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Ubicación
@@ -458,13 +439,6 @@ export default function MaquinasInfiniteClient() {
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${MachineAdapter.getStatusColor(machine.status)}`}>
                               {MachineAdapter.getStatusText(machine.status)}
                             </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {machine.is_enabled ? (
-                              <span className="text-green-600">Sí</span>
-                            ) : (
-                              <span className="text-red-600">No</span>
-                            )}
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-start">

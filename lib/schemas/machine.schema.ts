@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+const statusEnum = z.enum(['online', 'offline']);
+
 // Schema para crear máquina
 export const createMachineSchema = z.object({
   name: z.string()
@@ -14,11 +16,6 @@ export const createMachineSchema = z.object({
 
   type: z.string()
     .min(1, 'El tipo de máquina es requerido'),
-
-  status: z.enum(['Active', 'Inactive', 'Maintenance', 'OutOfService'])
-    .default('Inactive'),
-
-  is_enabled: z.boolean().default(true),
 
   enterprise_id: z.number()
     .int('El ID de empresa debe ser un número entero')
@@ -47,9 +44,7 @@ export const updateMachineSchema = z.object({
     .min(1, 'El tipo de máquina es requerido')
     .optional(),
 
-  status: z.enum(['Active', 'Inactive', 'Maintenance', 'OutOfService']).optional(),
-
-  is_enabled: z.boolean().optional(),
+  status: statusEnum.optional(),
 
   client_id: z.number()
     .int('El ID de cliente debe ser un número entero')
@@ -65,9 +60,8 @@ export type UpdateMachineFormData = z.infer<typeof updateMachineSchema>;
 // Schema para filtros de búsqueda
 export const machineFiltersSchema = z.object({
   search: z.string().optional(),
-  status: z.enum(['Active', 'Inactive', 'Maintenance', 'OutOfService']).optional(),
+  status: statusEnum.optional(),
   type: z.string().optional(),
-  is_enabled: z.boolean().optional(),
   enterprise_id: z.number().int().positive().optional(),
   page: z.number().int().positive().optional(),
   limit: z.number().int().positive().max(100).optional(),

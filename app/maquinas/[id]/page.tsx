@@ -58,21 +58,13 @@ export default function MaquinaDetallePage() {
   }, [machineId]);
 
   const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'active': return 'bg-green-100 text-green-800 border-green-200';
-      case 'maintenance': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'outofservice': return 'bg-orange-100 text-orange-800 border-orange-200';
-      default: return 'bg-red-100 text-red-800 border-red-200';
-    }
+    return status?.toLowerCase() === 'online'
+      ? 'bg-green-100 text-green-800 border-green-200'
+      : 'bg-red-100 text-red-800 border-red-200';
   };
 
   const getStatusLabel = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'active': return 'Activa';
-      case 'maintenance': return 'Mantenimiento';
-      case 'outofservice': return 'Fuera de Servicio';
-      default: return 'Inactiva';
-    }
+    return status?.toLowerCase() === 'online' ? 'En línea' : 'Fuera de línea';
   };
 
   if (loading) {

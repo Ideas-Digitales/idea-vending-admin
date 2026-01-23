@@ -1,12 +1,11 @@
 'use client';
 
-import { Monitor, Wifi, AlertTriangle, WifiOff } from 'lucide-react';
+import { Monitor, Wifi, WifiOff } from 'lucide-react';
 
 interface MachineStatsCardsProps {
   stats: {
     total: number;
-    active: number;
-    maintenance: number;
+    online: number;
     offline: number;
   };
   totalCount: number;
@@ -34,8 +33,8 @@ export default function MachineStatsCards({ stats, totalCount }: MachineStatsCar
         <div className="card p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-sm font-semibold text-muted mb-2">Activas</p>
-              <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+              <p className="text-sm font-semibold text-muted mb-2">En línea</p>
+              <p className="text-2xl font-bold text-green-600">{stats.online}</p>
             </div>
             <div className="p-3 rounded-xl bg-green-50 flex-shrink-0 ml-4">
               <Wifi className="h-6 w-6 text-green-600" />
@@ -46,19 +45,7 @@ export default function MachineStatsCards({ stats, totalCount }: MachineStatsCar
         <div className="card p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-muted mb-1">Mantenimiento</p>
-              <p className="text-2xl font-bold text-yellow-600">{stats.maintenance}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-yellow-50">
-              <AlertTriangle className="h-6 w-6 text-yellow-600" />
-            </div>
-          </div>
-        </div>
-        
-        <div className="card p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-muted mb-1">Sin Conexión</p>
+              <p className="text-sm font-semibold text-muted mb-1">Fuera de línea</p>
               <p className="text-2xl font-bold text-red-600">{stats.offline}</p>
             </div>
             <div className="p-3 rounded-xl bg-red-50">

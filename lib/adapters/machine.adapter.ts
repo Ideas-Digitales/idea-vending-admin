@@ -1,4 +1,4 @@
-import type { Machine, ApiMachine, ApiMachinesResponse } from '../interfaces/machine.interface';
+import type { Machine, ApiMachine, ApiMachinesResponse, MachineStatus } from '../interfaces/machine.interface';
 
 export class MachineAdapter {
   /**
@@ -8,8 +8,7 @@ export class MachineAdapter {
     return {
       id: typeof apiMachine.id === 'string' ? parseInt(apiMachine.id, 10) : (apiMachine.id || 0),
       name: apiMachine.name || apiMachine.machine_name || 'Máquina Sin Nombre',
-      status: apiMachine.status || 'Inactive',
-      is_enabled: Boolean(apiMachine.is_enabled ?? apiMachine.enabled ?? true),
+      status: this.mapMachineStatus(apiMachine.status),
       location: apiMachine.location || apiMachine.address || 'Ubicación no especificada',
       client_id: apiMachine.client_id || apiMachine.clientId || null,
       created_at: apiMachine.created_at || apiMachine.createdAt || new Date().toISOString(),
@@ -46,7 +45,6 @@ export class MachineAdapter {
     if (machine.location !== undefined) apiMachine.location = machine.location;
     if (machine.type !== undefined) apiMachine.type = machine.type;
     if (machine.status !== undefined) apiMachine.status = machine.status;
-    if (machine.is_enabled !== undefined) apiMachine.is_enabled = machine.is_enabled;
     if (machine.client_id !== undefined) apiMachine.client_id = machine.client_id;
     if (machine.enterprise_id !== undefined) apiMachine.enterprise_id = machine.enterprise_id;
 
@@ -56,20 +54,15 @@ export class MachineAdapter {
   /**
    * Mapea el estado de la máquina desde diferentes formatos de la API
    */
-  private static mapMachineStatus(apiStatus: unknown): 'Active' | 'Inactive' | 'Maintenance' {
-    if (!apiStatus) return 'Inactive';
+  private static mapMachineStatus(apiStatus: unknown): MachineStatus {
+    if (!apiStatus) return 'offline';
 
     const status = apiStatus.toString().toLowerCase();
-
-    if (status === 'active' || status === 'online' || status === 'running') {
-      return 'Active';
-    } else if (status === 'inactive' || status === 'offline' || status === 'outofservice') {
-      return 'Inactive';
-    } else if (status === 'maintenance' || status === 'repair' || status === 'service') {
-      return 'Maintenance';
-    } else {
-      return 'Inactive';
+    if (status === 'online' || status === 'active' || status === 'running') {
+      return 'online';
     }
+
+    return 'offline';
   }
 
   /**
@@ -81,7 +74,6 @@ export class MachineAdapter {
     if (filters.search) apiFilters.search = filters.search;
     if (filters.status) apiFilters.status = filters.status;
     if (filters.type) apiFilters.type = filters.type;
-    if (filters.is_enabled !== undefined) apiFilters.is_enabled = filters.is_enabled;
     if (filters.enterprise_id) apiFilters.enterprise_id = filters.enterprise_id;
     if (filters.page) apiFilters.page = filters.page;
     if (filters.limit) apiFilters.limit = filters.limit;
@@ -101,18 +93,11 @@ export class MachineAdapter {
    */
   static getStatusColor(status: string): string {
     const normalizedStatus = status.toLowerCase();
-    switch (normalizedStatus) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'maintenance':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'inactive':
-        return 'bg-red-100 text-red-800';
-      case 'outofservice':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+    if (normalizedStatus === 'online') {
+      return 'bg-green-100 text-green-800';
     }
+
+    return 'bg-red-100 text-red-800';
   }
 
   /**
@@ -120,18 +105,11 @@ export class MachineAdapter {
    */
   static getStatusText(status: string): string {
     const normalizedStatus = status.toLowerCase();
-    switch (normalizedStatus) {
-      case 'active':
-        return 'Activa';
-      case 'inactive':
-        return 'Inactiva';
-      case 'maintenance':
-        return 'Mantenimiento';
-      case 'outofservice':
-        return 'Fuera de Servicio';
-      default:
-        return status;
+    if (normalizedStatus === 'online') {
+      return 'En línea';
     }
+
+    return 'Fuera de línea';
   }
 
   /**

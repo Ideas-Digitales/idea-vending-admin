@@ -25,7 +25,6 @@ export interface Payment {
     id: number;
     name: string;
     status: string;
-    is_enabled: boolean;
     location: string;
     created_at: string;
     updated_at: string;
@@ -38,6 +37,7 @@ export interface PaymentFilters {
   search?: string;
   successful?: boolean | null;
   machine_id?: number | null;
+  enterprise_id?: number | null;
   card_type?: string;
   card_brand?: string;
   date_from?: string;

@@ -18,9 +18,8 @@ interface MachineState {
 
   // Global stats cache
   globalStats: {
-    totalActive: number;
-    totalMaintenance: number;
-    totalInactive: number;
+    totalOnline: number;
+    totalOffline: number;
     totalConnected: number;
     lastUpdated: number;
   } | null;
@@ -59,9 +58,8 @@ interface MachineState {
   // Computed getters
   getTotalMachines: () => number;
   getFilteredMachinesCount: () => number;
-  getTotalActiveMachines: () => Promise<number>;
-  getTotalMaintenanceMachines: () => Promise<number>;
-  getTotalInactiveMachines: () => Promise<number>;
+  getTotalOnlineMachines: () => Promise<number>;
+  getTotalOfflineMachines: () => Promise<number>;
   getTotalConnectedMachines: () => Promise<number>;
   hasNextPage: () => boolean;
   hasPrevPage: () => boolean;
@@ -70,447 +68,417 @@ interface MachineState {
 export const useMachineStore = create<MachineState>()(
   persist(
     (set, get) => ({
-  // Initial state
-  machines: [],
-  selectedMachine: null,
-  currentFilters: {},
-  pagination: null,
-  globalStats: null,
-  isLoading: false,
-  isLoadingMachine: false,
-  isRefreshing: false,
-  isDeleting: false,
-  isUpdating: false,
-  isCreating: false,
-  error: null,
-  machineError: null,
-  deleteError: null,
-  updateError: null,
-  createError: null,
-
-  // Actions
-  fetchMachines: async (filters?: MachinesFilters) => {
-    set({ isLoading: true, error: null });
-
-    try {
-      const response = await getMachinesAction(filters);
-
-      if (response.success && response.machines) {
-        set({
-          machines: response.machines,
-          pagination: response.pagination || null,
-          currentFilters: filters || {},
-          isLoading: false,
-          error: null,
-        });
-      } else {
-        set({
-          error: response.error || 'Error al cargar máquinas',
-          isLoading: false,
-        });
-      }
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Error inesperado',
-        isLoading: false,
-      });
-    }
-  },
-
-  fetchMachine: async (machineId: string | number) => {
-    set({ isLoadingMachine: true, machineError: null });
-
-    try {
-      const response = await getMachineAction(machineId);
-
-      if (response.success && response.machine) {
-        set({
-          selectedMachine: response.machine,
-          isLoadingMachine: false,
-          machineError: null,
-        });
-      } else {
-        set({
-          machineError: response.error || 'Error al cargar máquina',
-          isLoadingMachine: false,
-        });
-      }
-    } catch (error) {
-      set({
-        machineError: error instanceof Error ? error.message : 'Error inesperado',
-        isLoadingMachine: false,
-      });
-    }
-  },
-
-  refreshMachines: async () => {
-    const { currentFilters } = get();
-    set({ isRefreshing: true });
-
-    try {
-      const response = await getMachinesAction(currentFilters);
-
-      if (response.success && response.machines) {
-        set({
-          machines: response.machines,
-          pagination: response.pagination || null,
-          isRefreshing: false,
-          error: null,
-        });
-      } else {
-        set({
-          error: response.error || 'Error al actualizar máquinas',
-          isRefreshing: false,
-        });
-      }
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Error inesperado',
-        isRefreshing: false,
-      });
-    }
-  },
-
-  setFilters: (filters: MachinesFilters) => {
-    set({ currentFilters: filters });
-  },
-
-  initializeMachines: (machines: Machine[], pagination?: { links: PaginationLinks; meta: PaginationMeta }) => {
-    set({
-      machines,
-      pagination: pagination || null,
+      // Initial state
+      machines: [],
+      selectedMachine: null,
+      currentFilters: {},
+      pagination: null,
+      globalStats: null,
       isLoading: false,
+      isLoadingMachine: false,
+      isRefreshing: false,
+      isDeleting: false,
+      isUpdating: false,
+      isCreating: false,
       error: null,
-    });
-  },
+      machineError: null,
+      deleteError: null,
+      updateError: null,
+      createError: null,
 
-  clearError: () => {
-    set({ error: null });
-  },
+      // Actions
+      fetchMachines: async (filters?: MachinesFilters) => {
+        set({ isLoading: true, error: null });
 
-  clearMachineError: () => {
-    set({ machineError: null });
-  },
+        try {
+          const response = await getMachinesAction(filters);
 
-  clearSelectedMachine: () => {
-    set({ selectedMachine: null, machineError: null });
-  },
+          if (response.success && response.machines) {
+            set({
+              machines: response.machines,
+              pagination: response.pagination || null,
+              currentFilters: filters || {},
+              isLoading: false,
+              error: null,
+            });
+          } else {
+            set({
+              error: response.error || 'Error al cargar máquinas',
+              isLoading: false,
+            });
+          }
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Error inesperado',
+            isLoading: false,
+          });
+        }
+      },
 
-  createMachine: async (machineData: CreateMachineFormData) => {
-    set({ isCreating: true, createError: null });
+      fetchMachine: async (machineId: string | number) => {
+        set({ isLoadingMachine: true, machineError: null });
 
-    try {
-      const response = await createMachineAction(machineData);
+        try {
+          const response = await getMachineAction(machineId);
 
-      if (response.success && response.machine) {
-        const { machines, pagination } = get();
-        const updatedMachines = [response.machine, ...machines];
+          if (response.success && response.machine) {
+            set({
+              selectedMachine: response.machine,
+              isLoadingMachine: false,
+              machineError: null,
+            });
+          } else {
+            set({
+              machineError: response.error || 'Error al cargar máquina',
+              isLoadingMachine: false,
+            });
+          }
+        } catch (error) {
+          set({
+            machineError: error instanceof Error ? error.message : 'Error inesperado',
+            isLoadingMachine: false,
+          });
+        }
+      },
 
-        const updatedPagination = pagination
-          ? {
+      refreshMachines: async () => {
+        const { currentFilters } = get();
+        set({ isRefreshing: true });
+
+        try {
+          const response = await getMachinesAction(currentFilters);
+
+          if (response.success && response.machines) {
+            set({
+              machines: response.machines,
+              pagination: response.pagination || null,
+              isRefreshing: false,
+              error: null,
+            });
+          } else {
+            set({
+              error: response.error || 'Error al actualizar máquinas',
+              isRefreshing: false,
+            });
+          }
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Error inesperado',
+            isRefreshing: false,
+          });
+        }
+      },
+
+      setFilters: (filters: MachinesFilters) => {
+        set({ currentFilters: filters });
+      },
+
+      initializeMachines: (machines: Machine[], pagination?: { links: PaginationLinks; meta: PaginationMeta }) => {
+        set({
+          machines,
+          pagination: pagination || null,
+          isLoading: false,
+          error: null,
+        });
+      },
+
+      clearError: () => {
+        set({ error: null });
+      },
+
+      clearMachineError: () => {
+        set({ machineError: null });
+      },
+
+      clearSelectedMachine: () => {
+        set({ selectedMachine: null, machineError: null });
+      },
+
+      createMachine: async (machineData: CreateMachineFormData) => {
+        set({ isCreating: true, createError: null });
+
+        try {
+          const response = await createMachineAction(machineData);
+
+          if (response.success && response.machine) {
+            const { machines, pagination } = get();
+            const updatedMachines = [response.machine, ...machines];
+
+            const updatedPagination = pagination
+              ? {
+                  ...pagination,
+                  meta: {
+                    ...pagination.meta,
+                    total: pagination.meta.total + 1,
+                  },
+                }
+              : null;
+
+            set({
+              machines: updatedMachines,
+              pagination: updatedPagination,
+              isCreating: false,
+              createError: null,
+            });
+
+            return true;
+          } else {
+            set({
+              createError: response.error || "Error al crear máquina",
+              isCreating: false,
+            });
+            return false;
+          }
+        } catch (error) {
+          set({
+            createError:
+              error instanceof Error ? error.message : "Error inesperado",
+            isCreating: false,
+          });
+          return false;
+        }
+      },
+
+      deleteMachine: async (machineId: string | number) => {
+        const { machines } = get();
+
+        // Optimistic update: remove machine from local state immediately
+        const machineToDelete = machines.find(m => m.id === machineId);
+        if (!machineToDelete) {
+          set({ deleteError: 'Máquina no encontrada' });
+          return false;
+        }
+
+        const optimisticMachines = machines.filter(m => m.id !== machineId);
+
+        set({
+          machines: optimisticMachines,
+          isDeleting: true,
+          deleteError: null
+        });
+
+        try {
+          const response = await deleteMachineAction(machineId);
+
+          if (response.success) {
+            // Success: keep the optimistic update and update pagination
+            const { pagination } = get();
+            const updatedPagination = pagination ? {
               ...pagination,
               meta: {
                 ...pagination.meta,
-                total: pagination.meta.total + 1,
-              },
-            }
-          : null;
+                total: pagination.meta.total - 1
+              }
+            } : null;
 
-        set({
-          machines: updatedMachines,
-          pagination: updatedPagination,
-          isCreating: false,
-          createError: null,
-        });
-
-        return true;
-      } else {
-        set({
-          createError: response.error || "Error al crear máquina",
-          isCreating: false,
-        });
-        return false;
-      }
-    } catch (error) {
-      set({
-        createError:
-          error instanceof Error ? error.message : "Error inesperado",
-        isCreating: false,
-      });
-      return false;
-    }
-  },
-
-  deleteMachine: async (machineId: string | number) => {
-    const { machines } = get();
-
-    // Optimistic update: remove machine from local state immediately
-    const machineToDelete = machines.find(m => m.id === machineId);
-    if (!machineToDelete) {
-      set({ deleteError: 'Máquina no encontrada' });
-      return false;
-    }
-
-    const optimisticMachines = machines.filter(m => m.id !== machineId);
-
-    set({
-      machines: optimisticMachines,
-      isDeleting: true,
-      deleteError: null
-    });
-
-    try {
-      const response = await deleteMachineAction(machineId);
-
-      if (response.success) {
-        // Success: keep the optimistic update and update pagination
-        const { pagination } = get();
-        const updatedPagination = pagination ? {
-          ...pagination,
-          meta: {
-            ...pagination.meta,
-            total: pagination.meta.total - 1
+            set({
+              isDeleting: false,
+              deleteError: null,
+              pagination: updatedPagination
+            });
+            return true;
+          } else {
+            // Error: revert the optimistic update
+            set({
+              machines: machines, // Restore original machines
+              isDeleting: false,
+              deleteError: response.error || 'Error al eliminar máquina'
+            });
+            return false;
           }
-        } : null;
+        } catch (error) {
+          // Error: revert the optimistic update
+          set({
+            machines: machines, // Restore original machines
+            isDeleting: false,
+            deleteError: error instanceof Error ? error.message : 'Error inesperado'
+          });
+          return false;
+        }
+      },
+
+      clearDeleteError: () => {
+        set({ deleteError: null });
+      },
+
+      clearCreateError: () => {
+        set({ createError: null });
+      },
+
+      updateMachine: async (machineId: string | number, machineData: UpdateMachineFormData) => {
+        const { machines } = get();
+
+        // Optimistic update: find and update machine in local state immediately
+        const machineIndex = machines.findIndex(m => m.id === machineId);
+        if (machineIndex === -1) {
+          set({ updateError: 'Máquina no encontrada' });
+          return false;
+        }
+
+        const originalMachine = machines[machineIndex];
+        const optimisticMachines = [...machines];
+        // Update the machine with new data (merge with existing data)
+        optimisticMachines[machineIndex] = { ...originalMachine, ...machineData };
 
         set({
-          isDeleting: false,
-          deleteError: null,
-          pagination: updatedPagination
-        });
-        return true;
-      } else {
-        // Error: revert the optimistic update
-        set({
-          machines: machines, // Restore original machines
-          isDeleting: false,
-          deleteError: response.error || 'Error al eliminar máquina'
-        });
-        return false;
-      }
-    } catch (error) {
-      // Error: revert the optimistic update
-      set({
-        machines: machines, // Restore original machines
-        isDeleting: false,
-        deleteError: error instanceof Error ? error.message : 'Error inesperado'
-      });
-      return false;
-    }
-  },
-
-  clearDeleteError: () => {
-    set({ deleteError: null });
-  },
-
-  clearCreateError: () => {
-    set({ createError: null });
-  },
-
-  updateMachine: async (machineId: string | number, machineData: UpdateMachineFormData) => {
-    const { machines } = get();
-
-    // Optimistic update: find and update machine in local state immediately
-    const machineIndex = machines.findIndex(m => m.id === machineId);
-    if (machineIndex === -1) {
-      set({ updateError: 'Máquina no encontrada' });
-      return false;
-    }
-
-    const originalMachine = machines[machineIndex];
-    const optimisticMachines = [...machines];
-    // Update the machine with new data (merge with existing data)
-    optimisticMachines[machineIndex] = { ...originalMachine, ...machineData };
-
-    set({
-      machines: optimisticMachines,
-      isUpdating: true,
-      updateError: null
-    });
-
-    try {
-      const response = await updateMachineAction(machineId, machineData);
-
-      if (response.success && response.machine) {
-        // Success: update with real data from server
-        const finalMachines = [...machines];
-        finalMachines[machineIndex] = response.machine;
-
-        set({
-          machines: finalMachines,
-          selectedMachine: response.machine, // Update selected machine if it's the same
-          isUpdating: false,
+          machines: optimisticMachines,
+          isUpdating: true,
           updateError: null
         });
-        return true;
-      } else {
-        // Error: revert the optimistic update
-        set({
-          machines: machines, // Restore original machines
-          isUpdating: false,
-          updateError: response.error || 'Error al actualizar máquina'
-        });
-        return false;
-      }
-    } catch (error) {
-      // Error: revert the optimistic update
-      set({
-        machines: machines, // Restore original machines
-        isUpdating: false,
-        updateError: error instanceof Error ? error.message : 'Error inesperado'
-      });
-      return false;
-    }
-  },
 
-  clearUpdateError: () => {
-    set({ updateError: null });
-  },
+        try {
+          const response = await updateMachineAction(machineId, machineData);
 
-  // Computed getters
-  getTotalMachines: () => {
-    const { pagination } = get();
-    return pagination?.meta?.total || 0;
-  },
+          if (response.success && response.machine) {
+            // Success: update with real data from server
+            const finalMachines = [...machines];
+            finalMachines[machineIndex] = response.machine;
 
-  getFilteredMachinesCount: () => {
-    const { machines } = get();
-    return machines.length;
-  },
+            set({
+              machines: finalMachines,
+              selectedMachine: response.machine, // Update selected machine if it's the same
+              isUpdating: false,
+              updateError: null
+            });
+            return true;
+          } else {
+            // Error: revert the optimistic update
+            set({
+              machines: machines, // Restore original machines
+              isUpdating: false,
+              updateError: response.error || 'Error al actualizar máquina'
+            });
+            return false;
+          }
+        } catch (error) {
+          // Error: revert the optimistic update
+          set({
+            machines: machines, // Restore original machines
+            isUpdating: false,
+            updateError: error instanceof Error ? error.message : 'Error inesperado'
+          });
+          return false;
+        }
+      },
 
-  hasNextPage: () => {
-    const { pagination } = get();
-    return !!pagination?.links?.next;
-  },
+      clearUpdateError: () => {
+        set({ updateError: null });
+      },
 
-  hasPrevPage: () => {
-    const { pagination } = get();
-    return !!pagination?.links?.prev;
-  },
+      // Computed getters
+      getTotalMachines: () => {
+        const { pagination } = get();
+        return pagination?.meta?.total || 0;
+      },
 
-  // Global stats functions
-  getTotalActiveMachines: async () => {
-    const { globalStats } = get();
+      getFilteredMachinesCount: () => {
+        const { machines } = get();
+        return machines.length;
+      },
 
-    // Si tenemos stats en cache y son recientes (menos de 5 minutos), usarlas
-    if (globalStats && Date.now() - globalStats.lastUpdated < 5 * 60 * 1000) {
-      return globalStats.totalActive;
-    }
+      getTotalOnlineMachines: async () => {
+        const { globalStats } = get();
 
-    // Si no, calcular desde todas las máquinas del servidor
-    try {
-      const response = await getMachinesAction({ status: 'Active' });
-      if (response.success && response.pagination?.meta) {
-        const totalActive = response.pagination.meta.total;
+        // Si tenemos stats en cache y son recientes (menos de 5 minutos), usarlas
+        if (globalStats && Date.now() - globalStats.lastUpdated < 5 * 60 * 1000) {
+          return globalStats.totalOnline;
+        }
 
-        // Actualizar cache
-        set(state => ({
-          globalStats: {
-            ...state.globalStats,
-            totalActive,
-            lastUpdated: Date.now(),
-          } as typeof state.globalStats
-        }));
+        // Si no, calcular desde todas las máquinas del servidor
+        try {
+          const response = await getMachinesAction({ status: 'online' });
+          if (response.success && response.pagination?.meta) {
+            const totalOnline = response.pagination.meta.total;
 
-        return totalActive;
-      }
-    } catch (error) {
-      console.error('Error getting total active machines:', error);
-    }
+            // Actualizar cache
+            set(state => ({
+              globalStats: {
+                ...state.globalStats,
+                totalOnline,
+                lastUpdated: Date.now(),
+              } as typeof state.globalStats
+            }));
 
-    return 0;
-  },
+            return totalOnline;
+          }
+        } catch (error) {
+          console.error('Error getting total online machines:', error);
+        }
 
-  getTotalMaintenanceMachines: async () => {
-    const { globalStats } = get();
+        return 0;
+      },
 
-    if (globalStats && Date.now() - globalStats.lastUpdated < 5 * 60 * 1000) {
-      return globalStats.totalMaintenance;
-    }
+      getTotalOfflineMachines: async () => {
+        const { globalStats } = get();
 
-    try {
-      const response = await getMachinesAction({ status: 'Maintenance' });
-      if (response.success && response.pagination?.meta) {
-        const totalMaintenance = response.pagination.meta.total;
+        if (globalStats && Date.now() - globalStats.lastUpdated < 5 * 60 * 1000) {
+          return globalStats.totalOffline;
+        }
 
-        set(state => ({
-          globalStats: {
-            ...state.globalStats,
-            totalMaintenance,
-            lastUpdated: Date.now(),
-          } as typeof state.globalStats
-        }));
+        try {
+          const response = await getMachinesAction({ status: 'offline' });
+          if (response.success && response.pagination?.meta) {
+            const totalOffline = response.pagination.meta.total;
 
-        return totalMaintenance;
-      }
-    } catch (error) {
-      console.error('Error getting total maintenance machines:', error);
-    }
+            set(state => ({
+              globalStats: {
+                ...state.globalStats,
+                totalOffline,
+                lastUpdated: Date.now(),
+              } as typeof state.globalStats
+            }));
 
-    return 0;
-  },
+            return totalOffline;
+          }
+        } catch (error) {
+          console.error('Error getting total offline machines:', error);
+        }
 
-  getTotalInactiveMachines: async () => {
-    const { globalStats } = get();
+        return 0;
+      },
 
-    if (globalStats && Date.now() - globalStats.lastUpdated < 5 * 60 * 1000) {
-      return globalStats.totalInactive;
-    }
+      getTotalConnectedMachines: async () => {
+        const { globalStats } = get();
 
-    try {
-      const response = await getMachinesAction({ status: 'Inactive' });
-      if (response.success && response.pagination?.meta) {
-        const totalInactive = response.pagination.meta.total;
+        if (globalStats && Date.now() - globalStats.lastUpdated < 5 * 60 * 1000) {
+          return globalStats.totalConnected;
+        }
 
-        set(state => ({
-          globalStats: {
-            ...state.globalStats,
-            totalInactive,
-            lastUpdated: Date.now(),
-          } as typeof state.globalStats
-        }));
+        try {
+          // Para máquinas conectadas, calculamos desde las máquinas actuales
+          // ya que no hay filtro específico en la API para connection_status
+          const { machines } = get();
+          const totalConnected = machines.filter(m => m.connection_status).length;
 
-        return totalInactive;
-      }
-    } catch (error) {
-      console.error('Error getting total inactive machines:', error);
-    }
+          set(state => ({
+            globalStats: {
+              ...state.globalStats,
+              totalConnected,
+              lastUpdated: Date.now(),
+            } as typeof state.globalStats
+          }));
 
-    return 0;
-  },
+          return totalConnected;
+        } catch (error) {
+          console.error('Error getting total connected machines:', error);
+        }
 
-  getTotalConnectedMachines: async () => {
-    const { globalStats } = get();
+        return 0;
+      },
 
-    if (globalStats && Date.now() - globalStats.lastUpdated < 5 * 60 * 1000) {
-      return globalStats.totalConnected;
-    }
+      hasNextPage: () => {
+        const { pagination } = get();
+        return !!pagination?.links?.next;
+      },
 
-    try {
-      // Para máquinas conectadas, calculamos desde las máquinas actuales
-      // ya que no hay filtro específico en la API para connection_status
-      const { machines } = get();
-      const totalConnected = machines.filter(m => m.connection_status).length;
-
-      set(state => ({
-        globalStats: {
-          ...state.globalStats,
-          totalConnected,
-          lastUpdated: Date.now(),
-        } as typeof state.globalStats
-      }));
-
-      return totalConnected;
-    } catch (error) {
-      console.error('Error getting total connected machines:', error);
-    }
-
-    return 0;
-  },
-}),
+      hasPrevPage: () => {
+        const { pagination } = get();
+        return !!pagination?.links?.prev;
+      },
+    }),
     {
       name: 'machine-store',
-      partialize: (state) => ({
+      partialize: (state: MachineState) => ({
         machines: state.machines,
         pagination: state.pagination,
         currentFilters: state.currentFilters,

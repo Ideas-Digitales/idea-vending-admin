@@ -9,11 +9,13 @@ export interface MqttUser {
   connection_status: boolean;
 }
 
+export type MachineStatus = 'online' | 'offline';
+
 // Machine interfaces
 export interface Machine {
   id: number;
   name: string;
-  status: string;
+  status: MachineStatus;
   location: string;
   created_at: string;
   updated_at: string;
@@ -21,7 +23,6 @@ export interface Machine {
   enterprise_id: number;
   client_id?: number | null;
   mqtt_user?: MqttUser;
-  is_enabled: boolean;
   connection_status: boolean;
 }
 
@@ -31,8 +32,6 @@ export interface ApiMachine {
   name?: string;
   machine_name?: string;
   status?: string;
-  is_enabled?: boolean;
-  enabled?: boolean;
   location?: string;
   address?: string;
   client_id?: number | null;
@@ -102,9 +101,8 @@ export interface MachineResponse {
 
 export interface MachinesFilters {
   search?: string;
-  status?: string;
+  status?: MachineStatus;
   type?: string;
-  is_enabled?: boolean;
   enterprise_id?: number;
   page?: number;
   limit?: number;
@@ -115,8 +113,6 @@ export interface CreateMachine {
   name: string;
   location: string;
   type: string;
-  status: string;
-  is_enabled: boolean;
   enterprise_id: number;
   client_id?: number | null;
 }
@@ -125,7 +121,6 @@ export interface UpdateMachine {
   name?: string;
   location?: string;
   type?: string;
-  status?: string;
-  is_enabled?: boolean;
+  status?: MachineStatus;
   client_id?: number | null;
 }
