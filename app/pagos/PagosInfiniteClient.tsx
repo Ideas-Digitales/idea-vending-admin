@@ -24,6 +24,7 @@ import { useRealtimePayments, type RealtimePaymentStatus } from '@/lib/hooks/use
 import { getEnterprisesAction } from '@/lib/actions/enterprise';
 import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 import { getMachinesAction } from '@/lib/actions/machines';
+import PaymentDetailModal from './PaymentDetailModal';
 
 const createDefaultFilters = (): PaymentFilters => ({
   page: 1,
@@ -148,6 +149,8 @@ export default function PagosInfiniteClient() {
   const liveScrollRef = useRef<HTMLDivElement | null>(null);
   const [liveRetentionMs, setLiveRetentionMs] = useState(DEFAULT_REALTIME_RETENTION_MS);
   const [expandedPaymentId, setExpandedPaymentId] = useState<string | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [selectedPaymentEnterpriseName, setSelectedPaymentEnterpriseName] = useState<string | null>(null);
 
   const realtimeMachineId = filters.machine_id ?? undefined;
   const realtimeEnterpriseId = filters.enterprise_id ?? undefined;
@@ -515,6 +518,21 @@ export default function PagosInfiniteClient() {
     setExpandedPaymentId((current) => (current === paymentKey ? null : paymentKey));
   }, []);
 
+  const openPaymentDetail = useCallback((payment: Payment) => {
+    setSelectedPayment(payment);
+    if (payment.enterprise_id && enterprises.length > 0) {
+      const enterprise = enterprises.find((entry) => entry.id === payment.enterprise_id);
+      setSelectedPaymentEnterpriseName(enterprise?.name ?? null);
+    } else {
+      setSelectedPaymentEnterpriseName(null);
+    }
+  }, [enterprises]);
+
+  const closePaymentDetail = useCallback(() => {
+    setSelectedPayment(null);
+    setSelectedPaymentEnterpriseName(null);
+  }, []);
+
   // No statistics needed - removed cards
 
   return (
@@ -753,7 +771,7 @@ export default function PagosInfiniteClient() {
                                     transition={{ duration: 0.25 }}
                                     className="mt-2 w-full md:max-w-xl xl:max-w-2xl"
                                   >
-                                    <div className="rounded-2xl border border-dashed border-gray-200 bg-white/80 text-xs text-gray-600 p-4 space-y-2 shadow-inner">
+                                    <div className="rounded-2xl border border-dashed border-gray-200 bg-white/80 text-xs text-gray-600 p-4 space-y-3 shadow-inner">
                                       <div className="grid gap-2 sm:grid-cols-2">
                                         <DetailRow label="Respuesta" value={`${payment.response_code} · ${payment.response_message}`} />
                                         <DetailRow label="Autorización" value={payment.authorization_code ?? 'N/D'} />
@@ -763,6 +781,15 @@ export default function PagosInfiniteClient() {
                                         <DetailRow label="Cuotas" value={payment.shares_number ? `${payment.shares_number}x (${payment.share_type ?? 'sin tipo'})` : 'Pago único'} />
                                         <DetailRow label="Máquina" value={payment.machine_name ?? `ID ${payment.machine_id ?? 'N/D'}`} />
                                         <DetailRow label="Registrado" value={new Date(payment.created_at).toLocaleString('es-CL')} />
+                                      </div>
+                                      <div className="flex justify-end">
+                                        <button
+                                          type="button"
+                                          onClick={() => openPaymentDetail(payment)}
+                                          className="inline-flex items-center gap-2 rounded-lg border border-primary/30 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/5 transition"
+                                        >
+                                          Ver detalle completo
+                                        </button>
                                       </div>
                                       <div className="text-right text-[11px] text-gray-400">
                                         Última actualización {new Date(payment.updated_at).toLocaleTimeString('es-CL')}
@@ -972,6 +999,9 @@ export default function PagosInfiniteClient() {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Fecha
                           </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Acciones
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -1010,6 +1040,15 @@ export default function PagosInfiniteClient() {
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
                               {formatPaymentDate(payment)}
                             </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => openPaymentDetail(payment)}
+                                className="inline-flex items-center rounded-lg border border-primary/30 px-3 py-1.5 text-sm font-semibold text-primary hover:bg-primary/5 transition"
+                              >
+                                Ver detalle
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1034,6 +1073,12 @@ export default function PagosInfiniteClient() {
           )}
         </main>
       </div>
+      <PaymentDetailModal
+        payment={selectedPayment}
+        open={Boolean(selectedPayment)}
+        onClose={closePaymentDetail}
+        enterpriseName={selectedPaymentEnterpriseName}
+      />
     </div>
   );
 }
