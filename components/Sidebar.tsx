@@ -112,6 +112,8 @@ export default function Sidebar() {
     }
   ];
 
+  const hasFullAccess = user?.role === 'admin' || user?.role === 'customer';
+
   return (
     <div className="relative w-64 flex-shrink-0 bg-[#3157b2] text-white shadow-2xl h-screen sticky top-0 overflow-hidden">
       {/* Animated cubes */}
@@ -163,7 +165,11 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
         {navigationItems
-          .filter(item => {
+          .filter((item) => {
+            if (hasFullAccess) {
+              return true;
+            }
+
             if (!item.requiredPermissions || item.requiredPermissions.length === 0) {
               return true;
             }

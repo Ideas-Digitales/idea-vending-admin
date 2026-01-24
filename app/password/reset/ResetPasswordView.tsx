@@ -3,68 +3,70 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Lock, CheckCircle, X, AlertCircle } from 'lucide-react';
+import { Lock, CheckCircle, AlertCircle } from 'lucide-react';
 import ClientOnly from '@/components/ClientOnly';
 
-export default function PasswordResetPage() {
+export default function ResetPasswordView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams();
-  
-  // Obtener token de la ruta y email de los query params
-  const token = params?.token as string;
+
+  const tokenFromPath = (params?.token as string | undefined) ?? null;
+  const tokenFromQuery = searchParams.get('token');
+  const token = tokenFromPath ?? tokenFromQuery;
   const email = searchParams.get('email');
-  
+
   const [formData, setFormData] = useState({
     password: '',
     password_confirmation: ''
   });
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
-  // Validar parámetros iniciales
+
   useEffect(() => {
     if (!token || !email) {
       setError('Enlace de recuperación inválido. Falta token o email.');
+    } else {
+      setError(null);
     }
   }, [token, email]);
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
     if (!token || !email) {
       setError('Datos incompletos para restablecer contraseña');
       return;
     }
-    
+
     if (formData.password !== formData.password_confirmation) {
       setError('Las contraseñas no coinciden');
       return;
     }
-    
+
     if (formData.password.length < 8) {
       setError('La contraseña debe tener al menos 8 caracteres');
       return;
     }
-    
+
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) {
       setError('API URL no configurada');
       return;
     }
-    
+
     setIsSubmitting(true);
     setError(null);
     setMessage(null);
-    
+
     try {
       const response = await fetch(`${apiUrl}/password/reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          Accept: 'application/json'
         },
         body: JSON.stringify({
           email,
@@ -73,47 +75,46 @@ export default function PasswordResetPage() {
           password_confirmation: formData.password_confirmation
         })
       });
-      
+
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         throw new Error(
           data?.message || data?.error || 'Error al restablecer contraseña'
         );
       }
-      
-      const data = await response.json();
+
+      const data = await response.json().catch(() => ({}));
       setMessage(data?.message || 'Contraseña actualizada correctamente');
-      
-      // Limpiar formulario
+
       setFormData({
         password: '',
         password_confirmation: ''
       });
-      
-      // Redirigir después de 3 segundos
+
       setTimeout(() => {
         router.push('/login');
       }, 3000);
-      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado');
     } finally {
       setIsSubmitting(false);
     }
   };
-  
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-    
-    // Limpiar errores al escribir
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData((prev) => ({
+      ...prev,
+      [event.target.name]: event.target.value
+    }));
+
     if (error) setError(null);
   };
-  
+
+  const hasToken = Boolean(token);
+  const hasEmail = Boolean(email);
+
   return (
-    <div 
+    <div
       className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
       style={{ background: 'linear-gradient(135deg, #3157b2 0%, #203c84 50%, #16265f 100%)' }}
     >
@@ -125,7 +126,19 @@ export default function PasswordResetPage() {
               Ingresa una nueva contraseña para tu cuenta
             </p>
           </div>
-          
+
+          {!hasToken || !hasEmail ? (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-3">
+              <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm text-red-700 font-semibold">Error</p>
+                <p className="text-xs text-red-600 mt-1">
+                  Debes acceder al enlace completo enviado a tu correo para restablecer la contraseña.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-3">
               <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
@@ -135,7 +148,7 @@ export default function PasswordResetPage() {
               </div>
             </div>
           )}
-          
+
           {message && (
             <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center space-x-3">
               <CheckCircle className="h-5 w-5 text-emerald-500 flex-shrink-0" />
@@ -145,10 +158,9 @@ export default function PasswordResetPage() {
               </div>
             </div>
           )}
-          
+
           <ClientOnly>
             <form className="space-y-6" onSubmit={handleSubmit}>
-              {/* Password Field */}
               <div>
                 <label htmlFor="password" className="block text-sm font-semibold text-dark mb-3">
                   Nueva Contraseña
@@ -166,13 +178,12 @@ export default function PasswordResetPage() {
                     placeholder="Ingresa tu nueva contraseña"
                     value={formData.password}
                     onChange={handleInputChange}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !hasToken || !hasEmail}
                     autoComplete="new-password"
                   />
                 </div>
               </div>
-              
-              {/* Confirm Password Field */}
+
               <div>
                 <label htmlFor="password_confirmation" className="block text-sm font-semibold text-dark mb-3">
                   Confirmar Contraseña
@@ -190,16 +201,22 @@ export default function PasswordResetPage() {
                     placeholder="Confirma tu nueva contraseña"
                     value={formData.password_confirmation}
                     onChange={handleInputChange}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !hasToken || !hasEmail}
                     autoComplete="new-password"
                   />
                 </div>
               </div>
-              
+
               <div>
                 <button
                   type="submit"
-                  disabled={isSubmitting || !formData.password || !formData.password_confirmation}
+                  disabled={
+                    isSubmitting ||
+                    !formData.password ||
+                    !formData.password_confirmation ||
+                    !hasToken ||
+                    !hasEmail
+                  }
                   className="btn-primary w-full flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
@@ -217,10 +234,10 @@ export default function PasswordResetPage() {
               </div>
             </form>
           </ClientOnly>
-          
+
           <div className="mt-6 text-center">
-            <Link 
-              href="/login" 
+            <Link
+              href="/login"
               className="text-sm font-medium text-primary hover:text-primary-dark"
             >
               ← Volver al inicio de sesión

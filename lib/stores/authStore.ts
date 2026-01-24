@@ -42,8 +42,14 @@ export const useAuthStore = create<AuthState>()(
           const result = await loginAction(credentials);
           
           if (result.success && result.user && result.token) {
+            const hasFullAccess = result.user.role === 'admin' || result.user.role === 'customer';
+            const computedPermissions = hasFullAccess
+              ? ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'manage_enterprises', 'admin']
+              : result.user.permissions;
+
             const userWithLastLogin = {
               ...result.user,
+              permissions: computedPermissions,
               lastLogin: new Date().toISOString(),
             };
 
@@ -140,8 +146,13 @@ export const useAuthStore = create<AuthState>()(
           const result = await validateTokenAction();
           
           if (result.success && result.user && result.token) {
+            const hasFullAccess = result.user.role === 'admin' || result.user.role === 'customer';
+            const computedPermissions = hasFullAccess
+              ? ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'manage_enterprises', 'admin']
+              : result.user.permissions;
+
             set({
-              user: result.user,
+              user: { ...result.user, permissions: computedPermissions },
               token: result.token,
               isAuthenticated: true,
               isLoading: false,

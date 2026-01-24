@@ -408,8 +408,8 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
         );
       }
 
-      const data = await response.json().catch(() => ({}));
-      setMessage(data?.message ?? 'Si el correo existe, enviamos un enlace de recuperación.');
+      await response.json().catch(() => ({}));
+      setMessage('Si el correo existe en nuestros registros, te enviaremos un enlace para restablecerla.');
       setEmail('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado. Intenta nuevamente.');

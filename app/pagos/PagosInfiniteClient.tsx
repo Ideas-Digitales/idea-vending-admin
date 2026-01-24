@@ -73,40 +73,6 @@ const normalizeFiltersForQuery = (filters: PaymentFilters): PaymentFilters => {
   return normalized;
 };
 
-const createMachineFromPayment = (payment: Payment): Machine | null => {
-  if (payment.machine) {
-    return {
-      id: payment.machine.id,
-      name: payment.machine.name ?? 'Sin nombre',
-      status: (payment.machine.status as Machine['status']) ?? 'offline',
-      location: payment.machine.location ?? 'Sin ubicación',
-      created_at: payment.machine.created_at ?? '',
-      updated_at: payment.machine.updated_at ?? '',
-      type: payment.machine.type ?? 'Desconocido',
-      enterprise_id: payment.machine.enterprise_id ?? payment.enterprise_id ?? 0,
-      client_id: payment.machine.client_id ?? null,
-      connection_status: payment.machine.connection_status ?? false,
-    };
-  }
-
-  if (payment.machine_id || payment.machine_name) {
-    return {
-      id: payment.machine_id ?? -1,
-      name: payment.machine_name ?? 'Sin nombre',
-      status: 'offline',
-      location: 'No disponible',
-      created_at: '',
-      updated_at: '',
-      type: 'Desconocido',
-      enterprise_id: payment.enterprise_id ?? 0,
-      client_id: null,
-      connection_status: false,
-    };
-  }
-
-  return null;
-};
-
 interface RealtimeHighlightRow {
   key: string;
   payment: Payment;
@@ -578,7 +544,7 @@ export default function PagosInfiniteClient() {
         created_at: payment.machine.created_at,
         updated_at: payment.machine.updated_at,
         type: payment.machine.type,
-        enterprise_id: payment.machine.enterprise_id,
+        enterprise_id: payment.machine.enterprise_id ?? payment.enterprise_id ?? undefined,
         connection_status: payment.machine.connection_status,
         client_id: payment.machine.client_id,
       });
