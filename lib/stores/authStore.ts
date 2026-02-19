@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { loginAction, validateTokenAction, logoutAction, type LoginCredentials, type User } from '@/lib/actions/auth';
+import { loginAction, logoutAction, type LoginCredentials, type User } from '@/lib/actions/auth';
 
 interface AuthState {
   // Estado
@@ -9,12 +9,14 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  hasValidatedSession: boolean;
+  lastSessionCheck: number | null;
 
   // Acciones
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
-  checkAuth: () => Promise<void>;
+  checkAuth: (options?: { force?: boolean }) => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
   setLoading: (loading: boolean) => void;
 }
@@ -28,28 +30,19 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      hasValidatedSession: false,
+      lastSessionCheck: null,
 
       // Acción de login
       login: async (credentials) => {
-        console.log('🚨 STORE LOGIN LLAMADO');
-        console.log('🚨 Credentials en store:', JSON.stringify(credentials, null, 2));
-        console.trace('🚨 Stack trace del store login:');
-        
         set({ isLoading: true, error: null });
-        
-        try {
-          console.log('Iniciando login desde store...');
-          const result = await loginAction(credentials);
-          
-          if (result.success && result.user && result.token) {
-            const hasFullAccess = result.user.role === 'admin' || result.user.role === 'customer';
-            const computedPermissions = hasFullAccess
-              ? ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'manage_enterprises', 'admin']
-              : result.user.permissions;
 
+        try {
+          const result = await loginAction(credentials);
+
+          if (result.success && result.user && result.token) {
             const userWithLastLogin = {
               ...result.user,
-              permissions: computedPermissions,
               lastLogin: new Date().toISOString(),
             };
 
@@ -58,17 +51,19 @@ export const useAuthStore = create<AuthState>()(
               token: result.token,
               isAuthenticated: true,
               isLoading: false,
-              error: null
+              error: null,
+              hasValidatedSession: true,
+              lastSessionCheck: Date.now()
             });
-
-            console.log('Login exitoso, usuario:', userWithLastLogin);
           } else {
             set({
               user: null,
               token: null,
               isAuthenticated: false,
               isLoading: false,
-              error: result.error || 'Error de autenticación'
+              error: result.error || 'Error de autenticación',
+              hasValidatedSession: false,
+              lastSessionCheck: null
             });
             throw new Error(result.error || 'Error de autenticación');
           }
@@ -81,7 +76,9 @@ export const useAuthStore = create<AuthState>()(
             token: null,
             isAuthenticated: false,
             isLoading: false,
-            error: errorMessage
+            error: errorMessage,
+            hasValidatedSession: false,
+            lastSessionCheck: null
           });
           throw error;
         }
@@ -93,7 +90,6 @@ export const useAuthStore = create<AuthState>()(
         
         try {
           await logoutAction();
-          console.log('Logout exitoso');
         } catch (error) {
           console.warn('Error durante logout:', error);
         } finally {
@@ -102,7 +98,9 @@ export const useAuthStore = create<AuthState>()(
             token: null,
             isAuthenticated: false,
             isLoading: false,
-            error: null
+            error: null,
+            hasValidatedSession: false,
+            lastSessionCheck: null
           });
         }
       },
@@ -115,71 +113,27 @@ export const useAuthStore = create<AuthState>()(
       // Verificar autenticación
       checkAuth: async () => {
         const currentState = get();
-        
-        console.log('🔐 checkAuth llamado:', { 
-          isAuthenticated: currentState.isAuthenticated, 
-          hasUser: !!currentState.user,
-          isLoading: currentState.isLoading 
-        });
-        
-        // Si ya está autenticado, no verificar de nuevo
-        if (currentState.isAuthenticated && currentState.user) {
-          console.log('🔐 Usuario ya autenticado, saltando verificación');
-          // Asegurar que isLoading esté en false
-          if (currentState.isLoading) {
-            set({ isLoading: false });
-          }
-          return;
-        }
 
-        // Si ya está cargando, no hacer otra verificación
-        if (currentState.isLoading) {
-          console.log('🔐 Ya está verificando, saltando...');
-          return;
-        }
-
-        console.log('🔐 Iniciando verificación de autenticación...');
-        set({ isLoading: true });
-
-        try {
-          console.log('🔐 Llamando validateTokenAction...');
-          const result = await validateTokenAction();
-          
-          if (result.success && result.user && result.token) {
-            const hasFullAccess = result.user.role === 'admin' || result.user.role === 'customer';
-            const computedPermissions = hasFullAccess
-              ? ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'manage_enterprises', 'admin']
-              : result.user.permissions;
-
-            set({
-              user: { ...result.user, permissions: computedPermissions },
-              token: result.token,
-              isAuthenticated: true,
-              isLoading: false,
-              error: null
-            });
-            console.log('Autenticación válida, usuario:', result.user);
-          } else {
-            // Solo limpiar el estado si realmente no hay token válido
-            console.log('No hay sesión válida');
-            set({
-              user: null,
-              token: null,
-              isAuthenticated: false,
-              isLoading: false,
-              error: null
-            });
-          }
-        } catch (error) {
-          console.error('Error en checkAuth:', error);
+        if (currentState.user && currentState.token) {
           set({
-            user: null,
-            token: null,
-            isAuthenticated: false,
+            isAuthenticated: true,
             isLoading: false,
-            error: null
+            error: null,
+            hasValidatedSession: true,
+            lastSessionCheck: Date.now()
           });
+          return;
         }
+
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+          hasValidatedSession: true,
+          lastSessionCheck: Date.now()
+        });
       },
 
       // Actualizar datos del usuario
@@ -188,7 +142,6 @@ export const useAuthStore = create<AuthState>()(
         if (user) {
           const updatedUser = { ...user, ...userData };
           set({ user: updatedUser });
-          console.log('Usuario actualizado:', updatedUser);
         }
       },
 

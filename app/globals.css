@@ -186,6 +186,11 @@ header.bg-white.shadow-sm.border-b.border-gray-200 .text-gray-500 {
   color: rgba(255, 255, 255, 0.8) !important;
 }
 
+/* Botón activo del selector de período (bg-white en header azul) */
+header.bg-white.shadow-sm.border-b.border-gray-200 button.bg-white {
+  color: var(--primary-blue) !important;
+}
+
 /* Icon spacing utilities */
 .icon-text {
   display: flex;

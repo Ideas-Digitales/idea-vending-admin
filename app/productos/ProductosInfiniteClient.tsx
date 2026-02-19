@@ -11,11 +11,16 @@ import ProductStorePagination from '@/components/ProductStorePagination';
 import ProductPageSkeleton from '@/components/skeletons/ProductPageSkeleton';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { useMqttProduct } from '@/lib/hooks/useMqttProduct';
+import { useUser } from '@/lib/stores/authStore';
 
 const DEFAULT_PAGE_SIZE = 20;
 
 export default function ProductosInfiniteClient() {
   const router = useRouter();
+  const user = useUser();
+  const canCreate = user?.role === 'admin' || (user?.permissions ?? []).includes('products.create');
+  const canEdit = user?.role === 'admin' || (user?.permissions ?? []).includes('products.update');
+  const canDelete = user?.role === 'admin' || (user?.permissions ?? []).includes('products.delete');
   // Store state
   const {
     products,
@@ -222,13 +227,13 @@ export default function ProductosInfiniteClient() {
                   <Loader2 className="h-4 w-4" />
                   <span>Recargar</span>
                 </button>
-                <Link 
+                {canCreate && <Link
                   href="/productos/crear"
                   className="btn-primary flex items-center space-x-2"
                 >
                   <Plus className="h-4 w-4" />
                   <span>Nuevo Producto</span>
-                </Link>
+                </Link>}
               </div>
             </div>
           </div>
@@ -370,14 +375,14 @@ export default function ProductosInfiniteClient() {
                               >
                                 <Eye className="h-4 w-4" />
                               </button>
-                              <Link
+                              {canEdit && <Link
                                 href={`/productos/${producto.id}/editar`}
                                 className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors"
                                 title="Editar"
                               >
                                 <Edit className="h-4 w-4" />
-                              </Link>
-                              <button
+                              </Link>}
+                              {canDelete && <button
                                 onClick={() =>
                                   handleDeleteClick(producto.id, producto.name, producto.enterprise_id ?? null)
                                 }
@@ -386,7 +391,7 @@ export default function ProductosInfiniteClient() {
                                 disabled={isDeleting || isPublishing}
                               >
                                 <Trash2 className="h-4 w-4" />
-                              </button>
+                              </button>}
                             </div>
                           </td>
                         </tr>

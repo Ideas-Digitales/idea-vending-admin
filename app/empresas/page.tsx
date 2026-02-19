@@ -219,12 +219,14 @@ export default function EmpresasPage() {
                       <p className="text-muted mb-4">
                         {searchTerm ? 'No se encontraron empresas que coincidan con tu búsqueda.' : 'Aún no hay empresas registradas.'}
                       </p>
-                      <button
-                        onClick={() => router.push('/empresas/crear')}
-                        className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
-                      >
-                        Crear Primera Empresa
-                      </button>
+                      {canManageEnterprises && (
+                        <button
+                          onClick={() => router.push('/empresas/crear')}
+                          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                        >
+                          Crear Primera Empresa
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -252,9 +254,11 @@ export default function EmpresasPage() {
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Dirección
                               </th>
-                              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Acciones
-                              </th>
+                              {canManageEnterprises && (
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Acciones
+                                </th>
+                              )}
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
@@ -295,23 +299,23 @@ export default function EmpresasPage() {
                                     <span className="line-clamp-2">{enterprise.address}</span>
                                   </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                  <div className="flex items-center justify-end space-x-2">
-                                    <button
-                                      onClick={() => router.push(`/empresas/${enterprise.id}`)}
-                                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-                                      title="Ver detalles"
-                                    >
-                                      <Eye className="h-4 w-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => router.push(`/empresas/${enterprise.id}/editar`)}
-                                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
-                                      title="Editar"
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </button>
-                                    {canManageEnterprises && (
+                                {canManageEnterprises && (
+                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <div className="flex items-center justify-end space-x-2">
+                                      <button
+                                        onClick={() => router.push(`/empresas/${enterprise.id}`)}
+                                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                                        title="Ver detalles"
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </button>
+                                      <button
+                                        onClick={() => router.push(`/empresas/${enterprise.id}/editar`)}
+                                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
+                                        title="Editar"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </button>
                                       <button
                                         onClick={() => handleDeleteClick(enterprise)}
                                         className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50"
@@ -320,9 +324,9 @@ export default function EmpresasPage() {
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </button>
-                                    )}
-                                  </div>
-                                </td>
+                                    </div>
+                                  </td>
+                                )}
                               </tr>
                             ))}
                           </tbody>

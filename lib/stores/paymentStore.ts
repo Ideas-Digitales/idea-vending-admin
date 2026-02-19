@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { Payment, PaymentFilters, PaginationLinks, PaginationMeta } from "../interfaces/payment.interface";
 import { getPaymentsAction } from "../actions/payments";
-import { useAuthStore } from "./authStore";
 
 interface PaymentState {
   // Data state
@@ -54,21 +53,9 @@ export const usePaymentStore = create<PaymentState>()(
       // Actions
       fetchPayments: async (filters?: PaymentFilters) => {
         set({ isLoading: true, error: null });
-        
+
         try {
-          // Get token from authStore
-          const authState = useAuthStore.getState();
-          const token = authState.token;
-          
-          if (!token) {
-            set({
-              error: 'No hay sesión activa. Por favor, inicia sesión.',
-              isLoading: false,
-            });
-            return;
-          }
-          
-          const response = await getPaymentsAction(filters, token);
+          const response = await getPaymentsAction(filters);
           
           if (response.success && response.payments) {
             set({

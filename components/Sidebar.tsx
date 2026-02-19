@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { BarChart3, ShoppingCart, Monitor, Users, Building2, LogOut, Shield, CreditCard } from 'lucide-react';
+import { BarChart3, ShoppingCart, Monitor, Users, Building2, LogOut, CreditCard, LineChart } from 'lucide-react';
 import { useAuthStore, useUser } from '@/lib/stores/authStore';
+import { ROLE_LABELS } from '@/lib/constants/roles';
+import type { UserRole } from '@/lib/constants/roles';
 
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { logout, updateUser } = useAuthStore();
+  const { logout } = useAuthStore();
   const user = useUser();
 
   const sidebarCubes = [
@@ -29,35 +30,7 @@ export default function Sidebar() {
     }
   };
 
-  const resolvedRoleLabel = useMemo(() => {
-    const normalizeRoleLabel = (value: string | undefined | null) => {
-      if (!value) return null;
-      const normalized = value.toLowerCase();
-
-      if (normalized.includes('admin')) return 'Administrador';
-      if (normalized.includes('customer') || normalized.includes('custumer') || normalized.includes('client') || normalized.includes('cliente')) {
-        return 'Cliente';
-      }
-      if (normalized.includes('operator') || normalized.includes('manager')) return 'Operador';
-      if (normalized.includes('technician') || normalized.includes('tech')) return 'Técnico';
-      if (normalized.includes('viewer') || normalized.includes('view')) return 'Visualizador';
-      return null;
-    };
-
-    const labelFromRole = normalizeRoleLabel(user?.role);
-    if (labelFromRole) return labelFromRole;
-
-    const labelFromCollection = user?.roles?.map((entry) => normalizeRoleLabel(entry?.name)).find(Boolean);
-    return labelFromCollection ?? 'Usuario';
-  }, [user?.role, JSON.stringify(user?.roles ?? [])]);
-
-  // SOLUCIÓN TEMPORAL: Forzar permisos correctos para admin (evitar setState durante render)
-  useEffect(() => {
-    if (user && user.role === 'admin' && Array.isArray(user.permissions) && !user.permissions.includes('manage_enterprises')) {
-      const correctPermissions = ['read', 'write', 'delete', 'manage_users', 'manage_machines', 'manage_enterprises'];
-      updateUser({ permissions: correctPermissions });
-    }
-  }, [user?.role, JSON.stringify(user?.permissions || [])]);
+  const roleLabel = user?.role ? (ROLE_LABELS[user.role as UserRole] ?? 'Usuario') : 'Usuario';
 
   type NavigationItem = {
     name: string;
@@ -66,6 +39,7 @@ export default function Sidebar() {
     current: boolean;
     requiredPermissions?: string[];
     match?: 'any' | 'all';
+    onlyRoles?: UserRole[];
   };
 
   const navigationItems: NavigationItem[] = [
@@ -80,7 +54,7 @@ export default function Sidebar() {
       href: '/usuarios',
       icon: Users,
       current: pathname === '/usuarios',
-      requiredPermissions: ['users.read.all', 'users.read.own']
+      requiredPermissions: ['users.read.all']
     },
     {
       name: 'Máquinas',
@@ -109,10 +83,17 @@ export default function Sidebar() {
       icon: Building2,
       current: pathname === '/empresas',
       requiredPermissions: ['enterprises.read.all', 'enterprises.read.own']
-    }
+    },
+    {
+      name: 'Métricas',
+      href: '/metricas',
+      icon: LineChart,
+      current: pathname === '/metricas',
+      onlyRoles: ['customer'],
+    },
   ];
 
-  const hasFullAccess = user?.role === 'admin' || user?.role === 'customer';
+  const hasFullAccess = user?.role === 'admin';
 
   return (
     <div className="relative w-64 flex-shrink-0 bg-[#3157b2] text-white shadow-2xl h-screen sticky top-0 overflow-hidden">
@@ -156,7 +137,7 @@ export default function Sidebar() {
               {user?.name || 'Usuario'}
             </p>
             <p className="text-xs text-white/70 truncate font-medium">
-              {resolvedRoleLabel}
+              {roleLabel}
             </p>
           </div>
         </div>
@@ -166,6 +147,11 @@ export default function Sidebar() {
       <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
         {navigationItems
           .filter((item) => {
+            // Si el ítem tiene restricción de roles, verificar sin importar el rol del usuario
+            if (item.onlyRoles) {
+              return user?.role ? item.onlyRoles.includes(user.role as UserRole) : false;
+            }
+
             if (hasFullAccess) {
               return true;
             }

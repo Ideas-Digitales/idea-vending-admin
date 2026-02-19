@@ -59,7 +59,7 @@ export function useAuthProtection({
     }
   }, [isAuthenticated, isLoading, isInitializing, router, fallbackPath]);
 
-  const shouldBypassPermissions = user?.role === 'admin' || user?.role === 'customer';
+  const shouldBypassPermissions = user?.role === 'admin';
 
   const evaluatePermissions = () => {
     if (shouldBypassPermissions) return true;

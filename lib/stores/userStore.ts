@@ -425,7 +425,7 @@ export const useUserStore = create<UserState>()(
     {
       name: 'user-store',
       partialize: (state) => ({
-        users: state.users,
+        // users no se persiste — siempre se obtienen frescos del servidor
         pagination: state.pagination,
         currentFilters: state.currentFilters,
         globalStats: state.globalStats,

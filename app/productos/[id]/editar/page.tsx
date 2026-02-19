@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Package, Save, Loader2, Edit } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import PageWrapper from '@/components/PageWrapper';
 import Link from 'next/link';
 import { useProductStore } from '@/lib/stores/productStore';
 import { notify } from '@/lib/adapters/notification.adapter';
@@ -190,9 +191,10 @@ export default function EditProductPage() {
   }
 
   return (
+    <PageWrapper requiredPermissions={['products.update']} permissionMatch="all">
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
-      
+
       <div className="flex-1 min-h-screen overflow-auto">
         {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
@@ -283,5 +285,6 @@ export default function EditProductPage() {
         </main>
       </div>
     </div>
+    </PageWrapper>
   );
 }

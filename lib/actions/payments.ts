@@ -1,71 +1,27 @@
+'use server';
+
 import { PaymentResponse, PaymentFilters } from '../interfaces/payment.interface';
+import { authenticatedFetch } from '../utils/authenticatedFetch';
+import { AuthFetchError } from '../utils/authFetchError';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+const TOKEN_EXPIRED_ERROR = 'SESSION_EXPIRED';
 
-// Helper function to get token from authStore persistent storage
-const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  
-  try {
-    // Get token from authStore persistent storage
-    const authStoreData = localStorage.getItem('auth-store');
-    if (authStoreData) {
-      const parsedData = JSON.parse(authStoreData);
-      if (parsedData?.state?.token) {
-        console.log('Token encontrado en authStore');
-        return parsedData.state.token;
-      }
-    }
-    
-    // Fallback to direct localStorage
-    const tokenFromStorage = localStorage.getItem('auth-token');
-    if (tokenFromStorage) {
-      console.log('Token encontrado en localStorage directo');
-      return tokenFromStorage;
-    }
-    
-    // Last fallback to cookies
-    const cookies = document.cookie.split(';');
-    const authCookie = cookies.find(cookie => cookie.trim().startsWith('auth-token='));
-    
-    if (authCookie) {
-      const token = authCookie.split('=')[1];
-      console.log('Token encontrado en cookies');
-      return token;
-    }
-    
-    console.log('No se encontró token en ninguna ubicación');
-    return null;
-  } catch (error) {
-    console.error('Error al obtener token:', error);
-    return null;
+function handleError(error: unknown): { success: false; error: string } {
+  if (error instanceof AuthFetchError) {
+    return { success: false, error: error.code === 'TOKEN_EXPIRED' ? TOKEN_EXPIRED_ERROR : error.message };
   }
-};
+  return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
+}
 
-export const getPaymentsAction = async (filters?: PaymentFilters, token?: string): Promise<PaymentResponse> => {
-  console.log('getPaymentsAction llamado con filtros:', filters);
-  
-  if (!apiUrl) {
-    console.error('API URL no configurada');
-    return { success: false, error: 'API URL no configurada' };
-  }
-
+export const getPaymentsAction = async (filters?: PaymentFilters): Promise<PaymentResponse> => {
   try {
-    // Get auth token from parameter or fallback to client-side storage
-    const authToken = token || getAuthToken();
-
-    if (!authToken) {
-      console.error('Token de autenticación no encontrado');
-      return { success: false, error: 'Token de autenticación no encontrado' };
-    }
-
     // Build query parameters for pagination
     const queryParams = new URLSearchParams();
-    
+
     if (filters?.page) {
       queryParams.append('page', filters.page.toString());
     }
-    
+
     if (filters?.limit) {
       queryParams.append('per_page', filters.limit.toString());
     }
@@ -95,12 +51,8 @@ export const getPaymentsAction = async (filters?: PaymentFilters, token?: string
         return conditions;
       }
 
-      const pushCondition = (condition: FilterCondition) => {
-        conditions.push(condition);
-      };
-
       if (filters.successful !== undefined && filters.successful !== null) {
-        pushCondition({
+        conditions.push({
           type: 'and',
           field: 'successful',
           operator: '=',
@@ -109,7 +61,7 @@ export const getPaymentsAction = async (filters?: PaymentFilters, token?: string
       }
 
       if (filters.machine_id) {
-        pushCondition({
+        conditions.push({
           type: 'and',
           field: 'machine_id',
           operator: '=',
@@ -118,7 +70,7 @@ export const getPaymentsAction = async (filters?: PaymentFilters, token?: string
       }
 
       if (filters.enterprise_id) {
-        pushCondition({
+        conditions.push({
           type: 'and',
           field: 'enterprise_id',
           operator: '=',
@@ -127,7 +79,7 @@ export const getPaymentsAction = async (filters?: PaymentFilters, token?: string
       }
 
       if (filters.card_type) {
-        pushCondition({
+        conditions.push({
           type: 'and',
           field: 'card_type',
           operator: '=',
@@ -136,7 +88,7 @@ export const getPaymentsAction = async (filters?: PaymentFilters, token?: string
       }
 
       if (filters.card_brand) {
-        pushCondition({
+        conditions.push({
           type: 'and',
           field: 'card_brand',
           operator: 'ilike',
@@ -145,7 +97,7 @@ export const getPaymentsAction = async (filters?: PaymentFilters, token?: string
       }
 
       if (filters.date_from) {
-        pushCondition({
+        conditions.push({
           type: 'and',
           field: 'date',
           operator: '>=',
@@ -154,7 +106,7 @@ export const getPaymentsAction = async (filters?: PaymentFilters, token?: string
       }
 
       if (filters.date_to) {
-        pushCondition({
+        conditions.push({
           type: 'and',
           field: 'date',
           operator: '<=',
@@ -187,52 +139,35 @@ export const getPaymentsAction = async (filters?: PaymentFilters, token?: string
       ];
     }
 
-    const url = `${apiUrl}/payments/search${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    console.log('URL de pagos:', url);
-    console.log('Payload de búsqueda:', searchPayload);
+    const path = `/payments/search${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
 
-    const response = await fetch(url, {
+    const { response } = await authenticatedFetch(path, {
       method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`,
-      },
       body: JSON.stringify(searchPayload),
     });
 
-    console.log('Status de respuesta:', response.status);
-
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Error al obtener pagos:', errorData);
-      return { 
-        success: false, 
-        error: errorData.message || `Error ${response.status}: ${response.statusText}` 
+      const errorData = await response.json().catch(() => ({}));
+      return {
+        success: false,
+        error: errorData.message || `Error ${response.status}: ${response.statusText}`,
       };
     }
 
     const data = await response.json();
-    console.log('Datos de pagos recibidos:', data);
 
-    // Extract payments and pagination from response
     const payments = data.data || [];
     const pagination = {
       links: data.links || {},
-      meta: data.meta || {}
+      meta: data.meta || {},
     };
 
     return {
       success: true,
       payments,
-      pagination
+      pagination,
     };
-
   } catch (error) {
-    console.error('Error en getPaymentsAction:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error inesperado'
-    };
+    return handleError(error);
   }
 };

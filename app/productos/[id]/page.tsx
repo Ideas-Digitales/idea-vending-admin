@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Package, DollarSign, Calendar, Tag, Activity, Edit, Trash2, BarChart3, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Package, Calendar, Activity, Edit, Trash2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useProductStore } from '@/lib/stores/productStore';
 
@@ -48,29 +48,10 @@ export default function ProductDetailPage() {
     window.location.href = '/productos';
   };
 
-  const getCategoryColor = (category: string) => {
-    switch (category?.toLowerCase()) {
-      case 'bebidas': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'snacks': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'dulces': return 'bg-pink-100 text-pink-800 border-pink-200';
-      case 'saludable': return 'bg-green-100 text-green-800 border-green-200';
-      case 'lácteos': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'panadería': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
   const getStatusColor = (isActive: boolean) => {
     return isActive 
       ? 'bg-green-100 text-green-800 border-green-200' 
       : 'bg-red-100 text-red-800 border-red-200';
-  };
-
-  const getStockStatus = (stock: number) => {
-    if (stock === 0) return { color: 'text-red-600', label: 'Sin stock', bgColor: 'bg-red-100', borderColor: 'border-red-200' };
-    if (stock < 10) return { color: 'text-orange-600', label: 'Stock bajo', bgColor: 'bg-orange-100', borderColor: 'border-orange-200' };
-    if (stock < 30) return { color: 'text-yellow-600', label: 'Stock medio', bgColor: 'bg-yellow-100', borderColor: 'border-yellow-200' };
-    return { color: 'text-green-600', label: 'Stock bueno', bgColor: 'bg-green-100', borderColor: 'border-green-200' };
   };
 
   // Mostrar loading si está cargando O si no hay producto y no hay error
@@ -127,8 +108,6 @@ export default function ProductDetailPage() {
       </div>
     );
   }
-
-  const stockStatus = getStockStatus(product.stock || 0);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -187,19 +166,9 @@ export default function ProductDetailPage() {
                     <h2 className="text-2xl font-bold text-dark">{product.name}</h2>
                     <p className="text-muted">ID: {product.id}</p>
                     <div className="flex items-center space-x-3 mt-2">
-                      {product.category && (
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getCategoryColor(product.category)}`}>
-                          <Tag className="h-3 w-3 mr-1" />
-                          {product.category}
-                        </span>
-                      )}
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(product.is_active || false)}`}>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(!!product.is_active)}`}>
                         <Activity className="h-3 w-3 mr-1" />
                         {product.is_active ? 'Activo' : 'Inactivo'}
-                      </span>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${stockStatus.bgColor} ${stockStatus.color} ${stockStatus.borderColor}`}>
-                        <BarChart3 className="h-3 w-3 mr-1" />
-                        {stockStatus.label}
                       </span>
                     </div>
                   </div>
@@ -207,10 +176,8 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            {/* Information Grid */}
+            {/* Información principal */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Product Information */}
               <div className="card p-6">
                 <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
                   <Package className="h-5 w-5 mr-2 text-primary" />
@@ -223,88 +190,54 @@ export default function ProductDetailPage() {
                     <p className="text-dark">{product.name}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                    <p className="text-dark">{product.description || 'Sin descripción'}</p>
-                    <span className="text-xs text-orange-600 mt-1 block">MOCK - Pendiente en API</span>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ID Producto</label>
+                    <p className="text-dark font-mono">{product.id}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Código de Barras</label>
-                    <p className="text-dark font-mono">{product.barcode || 'N/A'}</p>
-                    <span className="text-xs text-orange-600 mt-1 block">MOCK - Pendiente en API</span>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
+                    <p className="text-dark">{product.enterprise_id ?? 'No asignada'}</p>
                   </div>
+                  {product.description && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                      <p className="text-dark">{product.description}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Commercial Information */}
               <div className="card p-6">
                 <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
-                  <DollarSign className="h-5 w-5 mr-2 text-primary" />
-                  Información Comercial
+                  <Activity className="h-5 w-5 mr-2 text-primary" />
+                  Estado
                 </h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Precio</label>
-                    <p className="text-dark flex items-center text-xl font-semibold">
-                      <DollarSign className="h-5 w-5 mr-1 text-green-600" />
-                      {product.price?.toLocaleString('es-CL') || 'N/A'}
-                    </p>
-                    <span className="text-xs text-orange-600 mt-1 block">MOCK - Pendiente en API</span>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-                    {product.category ? (
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getCategoryColor(product.category)}`}>
-                        {product.category}
-                      </span>
-                    ) : (
-                      <p className="text-gray-500">Sin categoría</p>
-                    )}
-                    <span className="text-xs text-orange-600 mt-1 block">MOCK - Pendiente en API</span>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(product.is_active || false)}`}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Estado actual</label>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(!!product.is_active)}`}>
                       {product.is_active ? 'Activo' : 'Inactivo'}
                     </span>
-                    <span className="text-xs text-orange-600 mt-1 block">MOCK - Pendiente en API</span>
                   </div>
+                  {product.barcode && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Código de barras</label>
+                      <p className="text-dark font-mono">{product.barcode}</p>
+                    </div>
+                  )}
+                  {typeof product.price === 'number' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Precio</label>
+                      <p className="text-dark">${product.price.toLocaleString('es-CL')}</p>
+                    </div>
+                  )}
+                  {product.category && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                      <p className="text-dark">{product.category}</p>
+                    </div>
+                  )}
                 </div>
               </div>
-
-            </div>
-
-            {/* Stock Information */}
-            <div className="card p-6">
-              <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
-                <BarChart3 className="h-5 w-5 mr-2 text-primary" />
-                Información de Inventario
-                <span className="ml-2 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">MOCK</span>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-dark mb-1">{product.stock || 0}</div>
-                  <div className="text-sm text-muted">Unidades disponibles</div>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className={`text-2xl font-bold mb-1 ${stockStatus.color}`}>
-                    {stockStatus.label}
-                  </div>
-                  <div className="text-sm text-muted">Estado del stock</div>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-dark mb-1">{product.enterprise_id}</div>
-                  <div className="text-sm text-muted">ID Empresa</div>
-                </div>
-              </div>
-              {(product.stock || 0) < 10 && (
-                <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center">
-                  <AlertTriangle className="h-5 w-5 text-yellow-600 mr-3" />
-                  <div>
-                    <p className="text-yellow-800 font-medium">Stock bajo</p>
-                    <p className="text-yellow-700 text-sm">Este producto necesita reposición pronto.</p>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Timestamps */}
@@ -317,11 +250,11 @@ export default function ProductDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Creación</label>
-                  <p className="text-dark">{new Date(product.created_at).toLocaleString('es-ES')}</p>
+                  <p className="text-dark">{product.created_at ? new Date(product.created_at).toLocaleString('es-ES') : 'No disponible'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Última Actualización</label>
-                  <p className="text-dark">{new Date(product.updated_at).toLocaleString('es-ES')}</p>
+                  <p className="text-dark">{product.updated_at ? new Date(product.updated_at).toLocaleString('es-ES') : 'No disponible'}</p>
                 </div>
               </div>
             </div>

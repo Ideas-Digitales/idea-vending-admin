@@ -1,16 +1,26 @@
 'use server';
 
-import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-import type { 
-  UserResponse, 
-  UsersResponse, 
+import { authenticatedFetch } from '../utils/authenticatedFetch';
+import { AuthFetchError } from '../utils/authFetchError';
+import type {
+  UserResponse,
+  UsersResponse,
   UsersFilters
 } from '@/lib/interfaces';
 import type { CreateUser } from '@/lib/interfaces/user.interface';
 import { UserAdapter } from '@/lib/adapters/user.adapter';
 import type { ApiUsersResponse } from '@/lib/interfaces/user.interface';
 import type { CreateUserFormData } from '@/lib/schemas/user.schema';
+
+const TOKEN_EXPIRED_ERROR = 'SESSION_EXPIRED';
+
+function handleError(error: unknown): { success: false; error: string } {
+  if (error instanceof AuthFetchError) {
+    return { success: false, error: error.code === 'TOKEN_EXPIRED' ? TOKEN_EXPIRED_ERROR : error.message };
+  }
+  return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
+}
 
 // Helper function to build search payload for POST /users/search
 function buildUsersSearchPayload(filters: UsersFilters) {
@@ -46,73 +56,23 @@ function buildUsersSearchPayload(filters: UsersFilters) {
     };
   }
 
-  console.log('🔍 Users search payload:', JSON.stringify(payload, null, 2));
-  
+  // Add scopes if present (e.g. whereRole)
+  if (filters.scopes && filters.scopes.length > 0) {
+    payload.scopes = filters.scopes;
+  }
+
   return payload;
 }
 
 // Server Action para obtener lista de usuarios
 export async function getUsersAction(filters?: UsersFilters): Promise<UsersResponse> {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    
-    if (!apiUrl) {
-      return {
-        success: false,
-        error: 'API URL no configurada en variables de entorno',
-      };
-    }
-
-    // Obtener token de autenticación
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return {
-        success: false,
-        error: 'Token de autenticación no encontrado',
-      };
-    }
-
-    // Use POST search if there's any search term or advanced filters
-    const useSearch = filters && (
-      filters.searchObj?.value ||
-      filters.search ||
-      (filters.filters && filters.filters.length > 0)
-    );
-
-    let response: Response;
-
-    if (useSearch && filters) {
-      // Use POST /users/search for search functionality
-      const searchPayload = buildUsersSearchPayload(filters);
-      
-      response = await fetch(`${apiUrl}/users/search?include=roles`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(searchPayload),
-      });
-    } else {
-      // Use simple GET /users for basic requests
-      const queryParams = new URLSearchParams();
-      if (filters?.page) queryParams.append('page', filters.page.toString());
-      if (filters?.limit) queryParams.append('limit', filters.limit.toString());
-      queryParams.append('include', 'roles');
-
-      const url = `${apiUrl}/users?${queryParams.toString()}`;
-      
-      response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-    }
+    // Siempre usar POST /users/search para obtener datos completos (incluyendo role)
+    const searchPayload = buildUsersSearchPayload(filters || {});
+    const { response } = await authenticatedFetch('/users/search?include=role', {
+      method: 'POST',
+      body: JSON.stringify(searchPayload),
+    });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -123,6 +83,13 @@ export async function getUsersAction(filters?: UsersFilters): Promise<UsersRespo
     }
 
     const data: ApiUsersResponse = await response.json();
+
+    // Diagnostic: log raw role data from first user
+    const rawUsers = data.data || data.users || [];
+    if (rawUsers.length > 0) {
+      const first = rawUsers[0] as unknown as Record<string, unknown>;
+      console.log('🔍 [RAW API] first user role fields:', JSON.stringify({ role: first.role, roles: first.roles }));
+    }
 
     // Mapear datos usando el adaptador
     const users = UserAdapter.apiUsersToApp(data);
@@ -154,43 +121,15 @@ export async function getUsersAction(filters?: UsersFilters): Promise<UsersRespo
     };
 
   } catch (error) {
-    console.error('Error en getUsersAction:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
-    };
+    return handleError(error);
   }
 }
 
 // Server Action para obtener un usuario específico
 export async function getUserAction(userId: string | number): Promise<UserResponse> {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    
-    if (!apiUrl) {
-      return {
-        success: false,
-        error: 'API URL no configurada en variables de entorno',
-      };
-    }
-
-    // Obtener token de autenticación
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return {
-        success: false,
-        error: 'Token de autenticación no encontrado',
-      };
-    }
-
-    const response = await fetch(`${apiUrl}/users/${userId}?include=roles,permissions,enterprises`, {
+    const { response } = await authenticatedFetch(`/users/${userId}?include=roles,permissions,enterprises`, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
     });
 
     if (!response.ok) {
@@ -202,16 +141,14 @@ export async function getUserAction(userId: string | number): Promise<UserRespon
     }
 
     const data = await response.json();
-    console.log('Respuesta del API para usuario individual:', data);
-    
+
     let userData = data;
     if (data.user) {
       userData = data.user;
     } else if (data.data) {
       userData = data.data;
     }
-    
-    console.log('Datos del usuario con includes:', userData);
+
     const user = UserAdapter.apiToApp(userData);
 
     return {
@@ -220,37 +157,13 @@ export async function getUserAction(userId: string | number): Promise<UserRespon
     };
 
   } catch (error) {
-    console.error('Error en getUserAction:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
-    };
+    return handleError(error);
   }
 }
 
 // Server Action para crear un nuevo usuario
 export async function createUserAction(userData: CreateUserFormData): Promise<UserResponse> {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    
-    if (!apiUrl) {
-      return {
-        success: false,
-        error: 'API URL no configurada en variables de entorno',
-      };
-    }
-
-    // Obtener token de autenticación
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return {
-        success: false,
-        error: 'Token de autenticación no encontrado',
-      };
-    }
-
     // Mapear datos del formulario a la interfaz CreateUser
     const createUserData: CreateUser = {
       name: userData.name,
@@ -261,32 +174,21 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
       role: userData.role,
       status: userData.status
     };
-    
-    console.log('📝 Datos del formulario recibidos:', userData);
-    console.log('📤 Datos a enviar al API:', createUserData);
-    
-    const response = await fetch(`${apiUrl}/users`, {
+
+    const { response } = await authenticatedFetch('/users', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
       body: JSON.stringify(createUserData),
     });
 
     if (!response.ok) {
-      console.log('❌ Error al crear usuario:', response.status, response.statusText);
-      
       const errorData = await response.json().catch(() => ({}));
-      console.log('❌ Datos de error del API:', errorData);
-      
+
       // Manejar errores específicos
       if (response.status === 422) {
         // Errores de validación
         const validationErrors = errorData.errors || {};
         const errorMessages = [];
-        
+
         if (validationErrors.email) {
           errorMessages.push('El email ya está en uso');
         }
@@ -296,15 +198,15 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
         if (validationErrors.name) {
           errorMessages.push('El nombre es inválido');
         }
-        
+
         return {
           success: false,
-          error: errorMessages.length > 0 
-            ? errorMessages.join(', ') 
+          error: errorMessages.length > 0
+            ? errorMessages.join(', ')
             : errorData.message || 'Datos de usuario inválidos',
         };
       }
-      
+
       return {
         success: false,
         error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
@@ -312,9 +214,7 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
     }
 
     const data = await response.json();
-    
-    console.log('✅ Respuesta exitosa del API:', data);
-    
+
     // Extraer datos del usuario de la respuesta
     let userResponseData = data;
     if (data.data) {
@@ -322,9 +222,7 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
     } else if (data.user) {
       userResponseData = data.user;
     }
-    
-    console.log('👤 Usuario creado (datos extraídos):', userResponseData);
-    
+
     const user = UserAdapter.apiToApp(userResponseData);
 
     revalidatePath('/usuarios');
@@ -334,25 +232,13 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
       user,
     };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
-    };
+    return handleError(error);
   }
 }
 
 // Server Action para actualizar un usuario
 export async function updateUserAction(userId: string | number, userData: Record<string, unknown>): Promise<UserResponse> {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    
-    if (!apiUrl) {
-      return {
-        success: false,
-        error: 'API URL no configurada en variables de entorno',
-      };
-    }
-
     // Validar que los campos requeridos estén presentes
     if (!userData.name || !userData.email || !userData.rut || !userData.role || !userData.status) {
       return {
@@ -361,25 +247,9 @@ export async function updateUserAction(userId: string | number, userData: Record
       };
     }
 
-    // Obtener token de autenticación
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return {
-        success: false,
-        error: 'Token de autenticación no encontrado',
-      };
-    }
-
     // Mapear rol del schema a rol de la API
     const mapSchemaRoleToApiRole = (schemaRole: string): string => {
-      switch (schemaRole) {
-        case 'admin': return 'admin';
-        case 'customer': return 'operator';
-        case 'technician': return 'viewer';
-        default: return schemaRole;
-      }
+      return schemaRole;
     };
 
     // Preparar datos para actualización (sin password si no se proporciona)
@@ -397,27 +267,20 @@ export async function updateUserAction(userId: string | number, userData: Record
       updateData.password_confirmation = userData.confirmPassword;
     }
 
-    
-    const response = await fetch(`${apiUrl}/users/${userId}`, {
+    const { response } = await authenticatedFetch(`/users/${userId}`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
       body: JSON.stringify(updateData),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
-      
+
       // Manejar errores específicos
       if (response.status === 422) {
         // Errores de validación
         const validationErrors = errorData.errors || {};
         const errorMessages = [];
-        
+
         if (validationErrors.email) {
           errorMessages.push('El email ya está en uso');
         }
@@ -427,11 +290,11 @@ export async function updateUserAction(userId: string | number, userData: Record
         if (validationErrors.name) {
           errorMessages.push('El nombre es inválido');
         }
-        
+
         return {
           success: false,
-          error: errorMessages.length > 0 
-            ? errorMessages.join(', ') 
+          error: errorMessages.length > 0
+            ? errorMessages.join(', ')
             : errorData.message || 'Datos de usuario inválidos',
         };
       }
@@ -442,7 +305,7 @@ export async function updateUserAction(userId: string | number, userData: Record
           error: 'Usuario no encontrado',
         };
       }
-      
+
       return {
         success: false,
         error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
@@ -450,7 +313,7 @@ export async function updateUserAction(userId: string | number, userData: Record
     }
 
     const data = await response.json();
-    
+
     // La API puede devolver los datos directamente o dentro de un objeto 'data'
     const userResponseData = data.data || data.user || data;
     const user = UserAdapter.apiToApp(userResponseData);
@@ -463,47 +326,20 @@ export async function updateUserAction(userId: string | number, userData: Record
       user,
     };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
-    };
+    return handleError(error);
   }
 }
 
 // Server Action para eliminar un usuario
 export async function deleteUserAction(userId: string | number): Promise<{ success: boolean; error?: string }> {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    
-    if (!apiUrl) {
-      return {
-        success: false,
-        error: 'API URL no configurada en variables de entorno',
-      };
-    }
-
-    // Obtener token de autenticación
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return {
-        success: false,
-        error: 'Token de autenticación no encontrado',
-      };
-    }
-
-    const response = await fetch(`${apiUrl}/users/${userId}`, {
+    const { response } = await authenticatedFetch(`/users/${userId}`, {
       method: 'DELETE',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      
+
       // Manejar errores específicos
       if (response.status === 404) {
         return {
@@ -511,14 +347,14 @@ export async function deleteUserAction(userId: string | number): Promise<{ succe
           error: 'Usuario no encontrado',
         };
       }
-      
+
       if (response.status === 403) {
         return {
           success: false,
           error: 'No tienes permisos para eliminar este usuario',
         };
       }
-      
+
       return {
         success: false,
         error: errorData.message || errorData.error || `Error ${response.status}: ${response.statusText}`,
@@ -532,10 +368,6 @@ export async function deleteUserAction(userId: string | number): Promise<{ succe
     };
 
   } catch (error) {
-    console.error('Error en deleteUserAction:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
-    };
+    return handleError(error);
   }
 }

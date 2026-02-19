@@ -8,7 +8,7 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   rut: string;
-  role: 'admin' | 'operator' | 'viewer' | 'customer' | 'technician' | 'No role';
+  role: 'admin' | 'customer' | 'technician';
   status: 'active' | 'inactive' | 'No status';
   lastLogin: string;
   permissions: string[];
@@ -23,7 +23,7 @@ export interface UserApiData {
   name: string;
   email: string;
   rut: string;
-  role: string;
+  role?: string | { name: string };
   status: string;
   created_at: string;
   updated_at: string;
@@ -140,6 +140,11 @@ export interface UserFilter {
   nested?: UserFilter[];
 }
 
+export interface UserScope {
+  name: string;
+  parameters: string[];
+}
+
 export interface UsersFilters {
   search?: string;
   page?: number;
@@ -149,6 +154,7 @@ export interface UsersFilters {
     case_sensitive?: boolean;
   };
   filters?: UserFilter[];
+  scopes?: UserScope[];
   status?: 'active' | 'inactive';
   role?: 'admin' | 'customer' | 'technician';
 }
@@ -162,4 +168,5 @@ export interface CreateUser {
   password_confirmation: string;
   role: string;
   status: string;
+  roles?: string[];
 }

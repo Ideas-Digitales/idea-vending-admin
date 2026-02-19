@@ -22,23 +22,12 @@ function mapApiUserResponseToUser(rawUser: unknown, fallbackEmail?: string): Use
 
   const userRecord = normalizedUser as Record<string, unknown>;
 
-  console.log('🔍 Usuario normalizado:', userRecord);
-  console.log('🔍 mqtt_user recibido:', userRecord?.mqtt_user ?? userRecord?.mqttUser ?? null);
-
   const rawPermissions = (userRecord?.permissions ?? []) as unknown;
 
   const resolveRoleSource = (): string | null => {
-    const directRole =
-      (userRecord?.role as string | undefined) ||
-      (userRecord?.user_type as string | undefined) ||
-      (userRecord?.type as string | undefined);
-
-    if (directRole && directRole.trim().length > 0) {
-      return directRole;
-    }
-
+    // Priorizar roles[] (spatie/laravel-permission) sobre el campo role directo
     const rolesCollection = userRecord?.roles as unknown;
-    if (Array.isArray(rolesCollection)) {
+    if (Array.isArray(rolesCollection) && rolesCollection.length > 0) {
       for (const entry of rolesCollection) {
         if (typeof entry === 'string' && entry.trim().length > 0) {
           return entry;
@@ -51,6 +40,16 @@ function mapApiUserResponseToUser(rawUser: unknown, fallbackEmail?: string): Use
           }
         }
       }
+    }
+
+    // Fallback al campo role directo solo si no hay roles[]
+    const directRole =
+      (userRecord?.role as string | undefined) ||
+      (userRecord?.user_type as string | undefined) ||
+      (userRecord?.type as string | undefined);
+
+    if (directRole && directRole.trim().length > 0) {
+      return directRole;
     }
 
     return null;
@@ -75,7 +74,7 @@ function mapApiUserResponseToUser(rawUser: unknown, fallbackEmail?: string): Use
         .filter((role): role is { name: string } => Boolean(role))
     : undefined;
 
-  const resolvedRoleSource = resolveRoleSource() ?? 'admin';
+  const resolvedRoleSource = resolveRoleSource() ?? 'technician';
 
   const resolvedPermissions: string[] = Array.isArray(rawPermissions)
     ? ((rawPermissions as unknown[])
@@ -94,7 +93,7 @@ function mapApiUserResponseToUser(rawUser: unknown, fallbackEmail?: string): Use
           return null;
         })
         .filter((permission: string | null): permission is string => Boolean(permission)) ?? [])
-    : mapUserPermissions(resolvedRoleSource);
+    : [];
 
   const resolvedEmail = (userRecord?.email as string) || fallbackEmail || "usuario@ejemplo.com";
 
@@ -147,15 +146,9 @@ export async function loginAction(
       };
     }
 
-    console.log('🚨 EMERGENCY: loginAction llamado');
-    console.log('🚨 Credentials recibidas:', JSON.stringify(credentials, null, 2));
-    console.log('🚨 Timestamp:', new Date().toISOString());
-    console.trace('🚨 Stack trace del loginAction:');
-    
     // STOP INMEDIATO si las credenciales están vacías
-    if (!credentials || !credentials.email || !credentials.password || 
+    if (!credentials || !credentials.email || !credentials.password ||
         credentials.email.trim() === '' || credentials.password.trim() === '') {
-      console.log('🚨 EMERGENCY: Deteniendo login con credenciales vacías');
       return {
         success: false,
         error: "Credenciales vacías - deteniendo loop",
@@ -171,8 +164,6 @@ export async function loginAction(
       };
     }
 
-    console.log("Intentando login con:", { email: credentials.email, apiUrl });
-
     const response = await fetch(`${apiUrl}/token`, {
       method: "POST",
       headers: {
@@ -186,7 +177,6 @@ export async function loginAction(
     });
 
     const data = await response.json();
-    console.log("Respuesta de login:", { status: response.status, data });
 
     if (!response.ok) {
       return {
@@ -276,11 +266,6 @@ export async function getUserInfo(
       };
     }
 
-    console.log(
-      "Obteniendo info del usuario con token:",
-      token.substring(0, 20) + "..."
-    );
-
     const response = await fetch(`${apiUrl}/user`, {
       method: "GET",
       headers: {
@@ -290,41 +275,6 @@ export async function getUserInfo(
     });
 
     if (!response.ok) {
-      console.log(
-        "Error al obtener usuario:",
-        response.status,
-        response.statusText
-      );
-
-      // Si no hay endpoint /user, crear usuario básico
-      if (response.status === 404 && email) {
-        const basicUser: User = {
-          id: 1,
-          email: email,
-          name: email.split("@")[0],
-          rut: "Sin RUT",
-          role: "admin",
-          status: "active",
-          permissions: [
-            "read",
-            "write",
-            "delete",
-            "manage_users",
-            "manage_machines",
-            "view_reports",
-            "manage_enterprises",
-          ],
-          lastLogin: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-
-        return {
-          success: true,
-          user: basicUser,
-        };
-      }
-
       const errorData = await response.json().catch(() => ({}));
       return {
         success: false,
@@ -336,8 +286,6 @@ export async function getUserInfo(
     }
 
     const userData = await response.json();
-    console.log("Datos del usuario obtenidos:", userData);
-
     const user = mapApiUserResponseToUser(userData, email);
 
     return {
@@ -367,7 +315,6 @@ export async function validateTokenAction(): Promise<AuthResponse> {
       };
     }
 
-    console.log('🔐 validateTokenAction: Verificando token...');
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
 
@@ -439,7 +386,7 @@ export async function logoutAction(): Promise<{ success: boolean }> {
 
 // Funciones auxiliares
 function mapUserRole(apiRole: string): User['role'] {
-  if (!apiRole) return "admin";
+  if (!apiRole) return "technician";
 
   const role = apiRole.toLowerCase();
 
@@ -451,47 +398,13 @@ function mapUserRole(apiRole: string): User['role'] {
     return "admin";
   }
 
-  if (
-    role.includes("operator") ||
-    role.includes("manager") ||
-    role.includes("mod")
-  ) {
-    return "operator";
-  }
-
   if (role.includes("customer") || role.includes("client")) {
     return "customer";
   }
 
-  if (role.includes("tech") || role.includes("support")) {
+  if (role.includes("technician") || role.includes("tech") || role.includes("support")) {
     return "technician";
   }
 
-  if (role.includes("viewer") || role.includes("view") || role.includes("read")) {
-    return "viewer";
-  }
-
-  return "viewer";
-}
-
-function mapUserPermissions(apiRole: string): string[] {
-  const role = mapUserRole(apiRole);
-
-  switch (role) {
-    case "admin":
-      return [
-        "read",
-        "write",
-        "delete",
-        "manage_users",
-        "manage_machines",
-        "manage_enterprises",
-        "view_reports",
-      ];
-    case "operator":
-      return ["read", "write", "manage_machines", "view_reports"];
-    case "viewer":
-    default:
-      return ["read", "view_reports"];
-  }
+  return "technician";
 }

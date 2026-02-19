@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, Building2, Save, Loader2 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import PageWrapper from '@/components/PageWrapper';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
 import { updateEnterpriseSchema, type UpdateEnterpriseFormData } from '@/lib/schemas/enterprise.schema';
 import { updateEnterpriseAction } from '@/lib/actions/enterprise';
@@ -148,9 +149,10 @@ export default function EditEnterprisePage() {
   }
 
   return (
+    <PageWrapper requiredPermissions={['enterprises.update']} permissionMatch="all">
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
-      
+
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200">
@@ -290,5 +292,6 @@ export default function EditEnterprisePage() {
         </main>
       </div>
     </div>
+    </PageWrapper>
   );
 }

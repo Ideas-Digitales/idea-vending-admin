@@ -13,6 +13,8 @@ import { useUser } from '@/lib/stores/authStore';
 import UserPageSkeleton from '@/components/skeletons/UserPageSkeleton';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { UsersFilters } from '@/lib/interfaces/user.interface';
+import { ROLE_LABELS, ROLE_COLORS } from '@/lib/constants/roles';
+import type { UserRole } from '@/lib/constants/roles';
 
 export default function UsuariosInfiniteClient() {
   const router = useRouter();
@@ -268,6 +270,7 @@ export default function UsuariosInfiniteClient() {
             <UsersFiltersComponent
               filters={filters}
               onFiltersChange={handleFiltersChange}
+              isAdmin={canManageUsers}
             />
           </div>
 
@@ -391,19 +394,9 @@ export default function UsuariosInfiniteClient() {
                             <div className="text-sm text-dark">{user.rut}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex flex-wrap gap-1">
-                              {user.roles && user.roles.length > 0 ? (
-                                user.roles.map((role, index) => (
-                                  <span key={index} className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-800 border border-blue-200">
-                                    {role.name}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
-                                  Sin roles
-                                </span>
-                              )}
-                            </div>
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${ROLE_COLORS[user.role as UserRole] ?? 'bg-gray-100 text-gray-800'}`}>
+                              {ROLE_LABELS[user.role as UserRole] ?? user.role}
+                            </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(user.status)}`}>

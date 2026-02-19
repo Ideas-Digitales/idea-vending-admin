@@ -76,13 +76,12 @@ export default function ProtectedRoute({
 
   // Verificar permisos si el usuario está autenticado
   useEffect(() => {
-    if (isAuthenticated && user && requiredPermissions.length > 0) {
-      const hasPermission = requiredPermissions.every(permission => 
+    if (isAuthenticated && user && requiredPermissions.length > 0 && user.role !== 'admin') {
+      const hasPermission = requiredPermissions.every(permission =>
         user.permissions.includes(permission)
       );
-      
+
       if (!hasPermission) {
-        console.log('Usuario sin permisos suficientes, redirigiendo a unauthorized');
         router.push('/unauthorized');
       }
     }
@@ -98,12 +97,12 @@ export default function ProtectedRoute({
     return null;
   }
 
-  // Verificar permisos
-  if (requiredPermissions.length > 0 && user) {
-    const hasPermission = requiredPermissions.every(permission => 
+  // Verificar permisos (admin bypasses)
+  if (requiredPermissions.length > 0 && user && user.role !== 'admin') {
+    const hasPermission = requiredPermissions.every(permission =>
       user.permissions.includes(permission)
     );
-    
+
     if (!hasPermission) {
       return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">

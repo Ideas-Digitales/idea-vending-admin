@@ -9,6 +9,8 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { PaginationLinks, PaginationMeta, User } from '@/lib/interfaces';
 import { useUserStore } from '@/lib/stores/userStore';
 import { useUser } from '@/lib/stores/authStore';
+import { ROLE_LABELS, ROLE_COLORS } from '@/lib/constants/roles';
+import type { UserRole } from '@/lib/constants/roles';
 
 interface UsuariosClientProps {
   usuarios: User[];
@@ -101,12 +103,7 @@ export default function UsuariosClient({ usuarios, pagination }: UsuariosClientP
   }, [currentUsers, searchTerm, roleFilter, statusFilter]);
 
   const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'admin': return 'bg-purple-100 text-purple-800';
-      case 'operator': return 'bg-blue-100 text-blue-800';
-      case 'viewer': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+    return ROLE_COLORS[role as UserRole] ?? 'bg-gray-100 text-gray-800';
   };
 
   const getStatusColor = (status: string) => {
@@ -116,12 +113,7 @@ export default function UsuariosClient({ usuarios, pagination }: UsuariosClientP
   };
 
   const getRoleName = (role: string) => {
-    switch (role) {
-      case 'admin': return 'Administrador';
-      case 'operator': return 'Operador';
-      case 'viewer': return 'Visualizador';
-      default: return role;
-    }
+    return ROLE_LABELS[role as UserRole] ?? role;
   };
 
   // Calcular estadísticas basadas en usuarios filtrados
@@ -239,8 +231,8 @@ export default function UsuariosClient({ usuarios, pagination }: UsuariosClientP
               >
                 <option value="">Todos los roles</option>
                 <option value="admin">Administrador</option>
-                <option value="operator">Operador</option>
-                <option value="viewer">Visualizador</option>
+                <option value="customer">Cliente</option>
+                <option value="technician">Técnico</option>
               </select>
               <select 
                 className="input-field"

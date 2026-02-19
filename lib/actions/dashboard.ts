@@ -14,7 +14,7 @@ export interface DashboardStats {
     total: number;
     active: number;
     admins: number;
-    operators: number;
+    technicians: number;
   };
 }
 
@@ -72,7 +72,7 @@ export async function getDashboardStatsAction(): Promise<DashboardResponse> {
       total: users.length,
       active: users.filter(u => u.status === 'active').length,
       admins: users.filter(u => u.role === 'admin').length,
-      operators: users.filter(u => u.role === 'operator').length,
+      technicians: users.filter(u => u.role === 'technician').length,
     };
 
     return {

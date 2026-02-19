@@ -9,7 +9,7 @@ function PagosContent() {
 
 export default function PagosPage() {
   return (
-    <PageWrapper requiredPermissions={["read"]}>
+    <PageWrapper requiredPermissions={["payments.read.all", "payments.read.enterprise_owned"]} permissionMatch="any">
       <PagosContent />
     </PageWrapper>
   );

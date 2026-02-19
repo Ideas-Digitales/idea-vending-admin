@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, User, X, ChevronDown } from 'lucide-react';
 import { useUserStore } from '@/lib/stores/userStore';
 import type { User as UserType } from '@/lib/interfaces/user.interface';
+import { ROLE_LABELS } from '@/lib/constants/roles';
+import type { UserRole } from '@/lib/constants/roles';
 
 interface UserSearchInputProps {
   selectedUserId?: number | null;
@@ -187,8 +189,7 @@ export default function UserSearchInput({
                       <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
                       <p className="text-xs text-gray-500 truncate">{user.email}</p>
                       <p className="text-xs text-gray-400">
-                        {user.role === 'admin' ? 'Administrador' : 
-                         user.role === 'operator' ? 'Operador' : 'Usuario'} • ID: {user.id}
+                        {ROLE_LABELS[user.role as UserRole] ?? 'Usuario'} • ID: {user.id}
                       </p>
                     </div>
                   </div>

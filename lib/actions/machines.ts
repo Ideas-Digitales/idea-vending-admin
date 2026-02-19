@@ -1,6 +1,5 @@
 'use server';
 
-import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import {
   MachinesResponse,
@@ -11,33 +10,24 @@ import {
 } from '@/lib/interfaces/machine.interface';
 import { MachineAdapter } from '@/lib/adapters/machine.adapter';
 import { createMachineSchema, updateMachineSchema, CreateMachineFormData, UpdateMachineFormData } from '@/lib/schemas/machine.schema';
+import { authenticatedFetch } from '../utils/authenticatedFetch';
+import { AuthFetchError } from '../utils/authFetchError';
 
 // Re-export types for backward compatibility
 export type { Machine as Maquina } from '@/lib/interfaces/machine.interface';
 
+const TOKEN_EXPIRED_ERROR = 'SESSION_EXPIRED';
+
+function handleError(error: unknown): { success: false; error: string } {
+  if (error instanceof AuthFetchError) {
+    return { success: false, error: error.code === 'TOKEN_EXPIRED' ? TOKEN_EXPIRED_ERROR : error.message };
+  }
+  return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
+}
+
 // Server Action para obtener lista de máquinas
 export async function getMachinesAction(filters?: MachinesFilters): Promise<MachinesResponse> {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-    if (!apiUrl) {
-      return {
-        success: false,
-        error: 'API URL no configurada en variables de entorno',
-      };
-    }
-
-    // Obtener token de autenticación
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return {
-        success: false,
-        error: 'Token de autenticación no encontrado',
-      };
-    }
-
     // Construir query parameters
     const queryParams = new URLSearchParams();
     if (filters?.search) queryParams.append('search', filters.search);
@@ -47,21 +37,13 @@ export async function getMachinesAction(filters?: MachinesFilters): Promise<Mach
     if (filters?.page) queryParams.append('page', filters.page.toString());
     if (filters?.limit) queryParams.append('limit', filters.limit.toString());
 
-    const url = `${apiUrl}/machines${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const path = `/machines${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
 
-    console.log('Obteniendo máquinas desde:', url);
-
-    const response = await fetch(url, {
+    const { response } = await authenticatedFetch(path, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
     });
 
     if (!response.ok) {
-      console.log('Error al obtener máquinas:', response.status, response.statusText);
-
       const errorData = await response.json().catch(() => ({}));
       return {
         success: false,
@@ -70,7 +52,6 @@ export async function getMachinesAction(filters?: MachinesFilters): Promise<Mach
     }
 
     const data = await response.json();
-    console.log('Respuesta de máquinas:', data);
 
     // Mapear datos usando el adaptador
     const machines = MachineAdapter.apiMachinesToApp(data);
@@ -102,70 +83,30 @@ export async function getMachinesAction(filters?: MachinesFilters): Promise<Mach
     };
 
   } catch (error) {
-    console.error('Error en getMachinesAction:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
-    };
+    return handleError(error);
   }
 }
 
 // Server Action para obtener una máquina específica
 export async function getMachineAction(machineId: string | number, options: { include?: string } = {}): Promise<MachineResponse> {
   try {
-    console.log('getMachineAction llamada con ID:', machineId);
-    console.log('Tipo de machineId:', typeof machineId);
-    
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    console.log('API URL:', apiUrl);
+    const path = `/machines/${machineId}${options.include ? `?include=${options.include}` : ''}`;
 
-    if (!apiUrl) {
-      return {
-        success: false,
-        error: 'API URL no configurada en variables de entorno',
-      };
-    }
-
-    // Obtener token de autenticación
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      console.log('Token no encontrado');
-      return {
-        success: false,
-        error: 'Token de autenticación no encontrado',
-      };
-    }
-
-    const url = `${apiUrl}/machines/${machineId}${options.include ? `?include=${options.include}` : ''}`;
-    console.log('Haciendo petición a:', url);
-
-    const response = await fetch(url, {
+    const { response } = await authenticatedFetch(path, {
       method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
     });
 
-    console.log('Respuesta status:', response.status);
-
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await response.json().catch(() => ({}));
       console.error('Error fetching machine:', errorData);
       return { success: false, error: errorData.message || 'Error fetching machine' };
     }
 
     const data = await response.json();
-    console.log('Datos recibidos de la API:', data);
 
     // La API devuelve la máquina dentro de un objeto "data"
     const machineData = data.data || data;
-    console.log('Datos de máquina procesados:', machineData);
-    
     const machine = MachineAdapter.apiToApp(machineData);
-    console.log('Máquina adaptada:', machine);
 
     return {
       success: true,
@@ -173,11 +114,7 @@ export async function getMachineAction(machineId: string | number, options: { in
     };
 
   } catch (error) {
-    console.error('Error en getMachineAction:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
-    };
+    return handleError(error);
   }
 }
 
@@ -196,25 +133,6 @@ export async function createMachineAction(machineData: CreateMachineFormData): P
     }
 
     const validatedData = validationResult.data;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-    if (!apiUrl) {
-      return {
-        success: false,
-        error: 'API URL no configurada en variables de entorno',
-      };
-    }
-
-    // Obtener token de autenticación
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return {
-        success: false,
-        error: 'Token de autenticación no encontrado',
-      };
-    }
 
     // Mapear datos del formulario al formato de la API
     const createMachineData: CreateMachine = {
@@ -225,19 +143,12 @@ export async function createMachineAction(machineData: CreateMachineFormData): P
       client_id: validatedData.client_id
     };
 
-    const response = await fetch(`${apiUrl}/machines`, {
+    const { response } = await authenticatedFetch('/machines', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
       body: JSON.stringify(createMachineData),
     });
 
     if (!response.ok) {
-      console.log('Error al crear máquina:', response.status, response.statusText);
-
       const errorData = await response.json().catch(() => ({}));
 
       // Manejar errores específicos
@@ -281,10 +192,7 @@ export async function createMachineAction(machineData: CreateMachineFormData): P
       machine,
     };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
-    };
+    return handleError(error);
   }
 }
 
@@ -303,25 +211,6 @@ export async function updateMachineAction(machineId: string | number, machineDat
     }
 
     const validatedData = validationResult.data;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-    if (!apiUrl) {
-      return {
-        success: false,
-        error: 'API URL no configurada en variables de entorno',
-      };
-    }
-
-    // Obtener token de autenticación
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return {
-        success: false,
-        error: 'Token de autenticación no encontrado',
-      };
-    }
 
     // Preparar datos para actualización
     const updateData: UpdateMachine = {
@@ -339,13 +228,8 @@ export async function updateMachineAction(machineId: string | number, machineDat
       }
     });
 
-    const response = await fetch(`${apiUrl}/machines/${machineId}`, {
+    const { response } = await authenticatedFetch(`/machines/${machineId}`, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
       body: JSON.stringify(updateData),
     });
 
@@ -400,42 +284,15 @@ export async function updateMachineAction(machineId: string | number, machineDat
       machine,
     };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
-    };
+    return handleError(error);
   }
 }
 
 // Server Action para eliminar una máquina
 export async function deleteMachineAction(machineId: string | number): Promise<{ success: boolean; error?: string }> {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-    if (!apiUrl) {
-      return {
-        success: false,
-        error: 'API URL no configurada en variables de entorno',
-      };
-    }
-
-    // Obtener token de autenticación
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-
-    if (!token) {
-      return {
-        success: false,
-        error: 'Token de autenticación no encontrado',
-      };
-    }
-
-    const response = await fetch(`${apiUrl}/machines/${machineId}`, {
+    const { response } = await authenticatedFetch(`/machines/${machineId}`, {
       method: 'DELETE',
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
     });
 
     if (!response.ok) {
@@ -469,10 +326,6 @@ export async function deleteMachineAction(machineId: string | number): Promise<{
     };
 
   } catch (error) {
-    console.error('Error en deleteMachineAction:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Error de conexión con el servidor',
-    };
+    return handleError(error);
   }
 }

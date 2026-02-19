@@ -33,14 +33,6 @@ export default function CreateUserForm({
     technician: 'Técnico',
   };
 
-  const userRoleDisplayMap: Record<string, string> = {
-    admin: 'Administrador',
-    operator: 'Operador',
-    viewer: 'Visualizador',
-    customer: 'Cliente',
-    technician: 'Técnico',
-  };
-
   const statusLabelMap: Record<'active' | 'inactive', string> = {
     active: 'Activo',
     inactive: 'Inactivo',
@@ -54,16 +46,7 @@ export default function CreateUserForm({
       return 'admin';
     }
 
-    if (
-      normalizedRole.includes('customer') ||
-      normalizedRole.includes('custumer') ||
-      normalizedRole.includes('client') ||
-      normalizedRole.includes('cliente')
-    ) {
-      return 'customer';
-    }
-
-    if (normalizedRole.includes('operator') || normalizedRole.includes('manager')) {
+    if (normalizedRole.includes('customer') || normalizedRole.includes('client')) {
       return 'customer';
     }
 
@@ -71,17 +54,13 @@ export default function CreateUserForm({
       return 'technician';
     }
 
-    if (normalizedRole.includes('viewer') || normalizedRole.includes('view') || normalizedRole.includes('read')) {
-      return 'technician';
-    }
-
-    return 'admin';
+    return 'technician';
   };
 
   const resolveInitialRole = (user?: UserType): 'admin' | 'customer' | 'technician' => {
     if (!user) return 'admin';
 
-    if (user.role && user.role !== 'No role') {
+    if (user.role) {
       return mapUserRoleToSchemaRole(user.role);
     }
 

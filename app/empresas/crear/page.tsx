@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, Building2, Save, CheckCircle, X } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import PageWrapper from '@/components/PageWrapper';
 import UserSearchInput from '@/components/UserSearchInput';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
 import { createEnterpriseSchema, type CreateEnterpriseFormData } from '@/lib/schemas/enterprise.schema';
@@ -72,6 +73,7 @@ export default function CreateEnterprisePage() {
   };
 
   return (
+    <PageWrapper requiredPermissions={['enterprises.create']} permissionMatch="all">
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
       
@@ -280,5 +282,6 @@ export default function CreateEnterprisePage() {
         </main>
       </div>
     </div>
+    </PageWrapper>
   );
 }
