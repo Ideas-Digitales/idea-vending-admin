@@ -14,8 +14,15 @@ import {
   CircleDollarSign,
   Hash,
 } from 'lucide-react';
-import Sidebar from '@/components/Sidebar';
-import MachineStylePagination from '@/components/MachineStylePagination';
+import { AppShell, PageHeader, UnifiedPagination } from '@/components/ui-custom';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { usePaymentStore } from '@/lib/stores/paymentStore';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { PaymentFilters, type Payment } from '@/lib/interfaces/payment.interface';
@@ -130,8 +137,6 @@ export default function PagosInfiniteClient() {
     clearError,
     pagination,
     currentFilters,
-    hasNextPage,
-    hasPrevPage,
   } = usePaymentStore();
 
   // Local UI state - filtros aplicados y borrador
@@ -148,6 +153,7 @@ export default function PagosInfiniteClient() {
   const [liveVisibleCount, setLiveVisibleCount] = useState(LIVE_SCROLL_CHUNK);
   const liveScrollRef = useRef<HTMLDivElement | null>(null);
   const [liveRetentionMs, setLiveRetentionMs] = useState(DEFAULT_REALTIME_RETENTION_MS);
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const [expandedPaymentId, setExpandedPaymentId] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [selectedPaymentEnterpriseName, setSelectedPaymentEnterpriseName] = useState<string | null>(null);
@@ -628,44 +634,34 @@ export default function PagosInfiniteClient() {
   // No statistics needed - removed cards
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar />
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="h-10 w-10 bg-primary rounded-lg flex items-center justify-center">
-                  <CreditCard className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-dark">Gestión de Pagos</h1>
-                  <p className="text-muted">Monitorea transacciones y pagos del sistema</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setIsLiveMode((prev) => !prev)}
-                  className={`flex items-center space-x-2 px-4 py-2 text-sm border rounded-lg transition ${liveModeButtonColors} disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  <Activity className={`h-4 w-4 ${isLiveMode ? 'text-white' : 'text-gray-500'}`} />
-                  <span>{liveModeButtonLabel}</span>
-                </button>
-                <button
-                  onClick={refreshPayments}
-                  disabled={isLoading}
-                  className={`flex items-center space-x-2 px-4 py-2 text-sm rounded-lg border transition ${refreshButtonColors} disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  <span>Actualizar</span>
-                </button>
-              </div>
-            </div>
+    <AppShell>
+      <PageHeader
+        icon={CreditCard}
+        title="Gestión de Pagos"
+        subtitle="Monitorea transacciones y pagos del sistema"
+        variant="gradient"
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsLiveMode((prev) => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition ${liveModeButtonColors} disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              <Activity className={`h-4 w-4 ${isLiveMode ? 'text-white' : 'text-gray-500'}`} />
+              <span className="hidden sm:inline">{liveModeButtonLabel}</span>
+            </button>
+            <button
+              onClick={refreshPayments}
+              disabled={isLoading}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition ${refreshButtonColors} disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Actualizar</span>
+            </button>
           </div>
-        </header>
+        }
+      />
 
-        <main className="flex-1 p-6 overflow-auto flex flex-col">
+        <main className="flex-1 p-4 sm:p-6 overflow-auto flex flex-col">
           {realtimeError && (
             <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
               <div className="flex items-center">
@@ -910,156 +906,161 @@ export default function PagosInfiniteClient() {
           ) : (
             <>
               <div className="card mb-6">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-dark">Filtros de búsqueda</h3>
-                  <button
-                    onClick={handleResetFilters}
-                    className="text-sm text-muted hover:text-dark"
-                    type="button"
-                  >
-                    Limpiar filtros
-                  </button>
-                </div>
-                <div className="p-6 grid gap-4 lg:grid-cols-3">
-                  <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 space-y-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Búsqueda rápida</p>
+                {(() => {
+                  const activeCount = [
+                    draftFilters.search,
+                    draftFilters.successful !== undefined,
+                    draftFilters.enterprise_id,
+                    draftFilters.machine_id,
+                    draftFilters.date_from,
+                    draftFilters.date_to,
+                  ].filter(Boolean).length;
+                  return (
+                    <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-dark">Filtros</h3>
+                        {activeCount > 0 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary text-white">
+                            {activeCount}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button onClick={handleResetFilters} className="text-xs text-muted hover:text-dark" type="button">
+                          Limpiar
+                        </button>
+                        <button
+                          onClick={() => setFiltersOpen((p) => !p)}
+                          className="text-xs font-medium text-primary border border-primary/30 rounded-lg px-2.5 py-1"
+                          type="button"
+                        >
+                          {filtersOpen ? 'Ocultar' : 'Mostrar'}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium text-gray-600">Buscar</label>
-                      <input
-                        type="text"
-                        placeholder="Producto, operación, tarjeta..."
-                        value={draftFilters.search ?? ''}
-                        onChange={(event) => updateDraftFilters('search', event.target.value || undefined)}
-                        className="input rounded-lg border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium text-gray-600">Estado</label>
-                      <select
-                        value={draftFilters.successful === true ? 'success' : draftFilters.successful === false ? 'failed' : 'all'}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          if (value === 'success') {
-                            updateDraftFilters('successful', true);
-                          } else if (value === 'failed') {
-                            updateDraftFilters('successful', false);
-                          } else {
-                            updateDraftFilters('successful', undefined);
-                          }
-                        }}
-                        className="input rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      >
-                        <option value="all">Todos</option>
-                        <option value="success">Exitosos</option>
-                        <option value="failed">Rechazados</option>
-                      </select>
-                    </div>
+                  );
+                })()}
+                <div className={`${filtersOpen ? 'grid' : 'hidden'} grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 p-4`}>
+
+                  {/* Buscar — ocupa 2 cols en mobile/sm, 1 col en lg (6 campos = 6 cols exactas) */}
+                  <div className="col-span-2 sm:col-span-3 lg:col-span-1 flex flex-col gap-1">
+                    <label className="text-xs font-medium text-gray-500">Buscar</label>
+                    <input
+                      type="text"
+                      placeholder="Producto, operación, tarjeta..."
+                      value={draftFilters.search ?? ''}
+                      onChange={(e) => updateDraftFilters('search', e.target.value || undefined)}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
                   </div>
 
-                  <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 space-y-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Empresa y máquina</p>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium text-gray-600">Empresa</label>
-                      {isLoadingEnterprises ? (
-                        <div className="input rounded-lg border border-gray-300 bg-white px-3 py-2 flex items-center text-gray-500">
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          Cargando empresas...
-                        </div>
-                      ) : (
-                        <select
-                          value={draftFilters.enterprise_id ?? ''}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            const parsed = value ? Number(value) : undefined;
-                            updateDraftFilters('enterprise_id', Number.isNaN(parsed) ? undefined : parsed ?? undefined);
-                          }}
-                          className="input rounded-lg border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        >
-                          <option value="">Todas</option>
-                          {enterprises.map((enterprise) => (
-                            <option key={enterprise.id} value={enterprise.id}>
-                              {enterprise.name}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      <p className="text-xs text-gray-500">
-                        Selecciona una empresa para suscribirte a enterprises/{'{enterpriseId}'}/sales.
-                      </p>
-                      {enterpriseError && <p className="text-xs text-red-600">{enterpriseError}</p>}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium text-gray-600">Máquina</label>
+                  {/* Estado */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-gray-500">Estado</label>
+                    <select
+                      value={draftFilters.successful === true ? 'success' : draftFilters.successful === false ? 'failed' : 'all'}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        updateDraftFilters('successful', v === 'success' ? true : v === 'failed' ? false : undefined);
+                      }}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                      <option value="all">Todos</option>
+                      <option value="success">Exitosos</option>
+                      <option value="failed">Rechazados</option>
+                    </select>
+                  </div>
+
+                  {/* Empresa */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-gray-500">Empresa</label>
+                    {isLoadingEnterprises ? (
+                      <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-400">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Cargando...
+                      </div>
+                    ) : (
                       <select
-                        value={draftFilters.machine_id ?? ''}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          updateDraftFilters('machine_id', value ? Number(value) : undefined);
+                        value={draftFilters.enterprise_id ?? ''}
+                        onChange={(e) => {
+                          const parsed = e.target.value ? Number(e.target.value) : undefined;
+                          updateDraftFilters('enterprise_id', Number.isNaN(parsed) ? undefined : parsed);
                         }}
-                        className="input rounded-lg border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                       >
-                        <option value="">Todas las máquinas</option>
-                        {machineOptions.map((machine) => (
-                          <option key={machine.id} value={machine.id}>
-                            #{machine.id} · {machine.name ?? 'Sin nombre'} ({machine.location ?? 'Sin ubicación'})
-                          </option>
+                        <option value="">Todas</option>
+                        {enterprises.map((e) => (
+                          <option key={e.id} value={e.id}>{e.name}</option>
                         ))}
                       </select>
-                      {isLoadingMachines && <p className="text-xs text-gray-500">Cargando máquinas...</p>}
-                      {machineError && <p className="text-xs text-red-600">{machineError}</p>}
-                    </div>
+                    )}
+                    {enterpriseError && <p className="text-xs text-red-500">{enterpriseError}</p>}
                   </div>
 
-                  <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 space-y-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Rango de fechas</p>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-gray-600">Desde</label>
-                        <input
-                          type="date"
-                          value={draftFilters.date_from ?? ''}
-                          onChange={(event) => updateDraftFilters('date_from', event.target.value || undefined)}
-                          onClick={openNativeDatePicker}
-                          onFocus={openNativeDatePicker}
-                          className="input rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-sm font-medium text-gray-600">Hasta</label>
-                        <input
-                          type="date"
-                          value={draftFilters.date_to ?? ''}
-                          onChange={(event) => updateDraftFilters('date_to', event.target.value || undefined)}
-                          onClick={openNativeDatePicker}
-                          onFocus={openNativeDatePicker}
-                          className="input rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500">Define un rango con precisión para acotar los resultados.</p>
+                  {/* Máquina */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-gray-500">Máquina</label>
+                    <select
+                      value={draftFilters.machine_id ?? ''}
+                      onChange={(e) => updateDraftFilters('machine_id', e.target.value ? Number(e.target.value) : undefined)}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                      <option value="">Todas</option>
+                      {machineOptions.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name ?? `#${m.id}`}</option>
+                      ))}
+                    </select>
+                    {isLoadingMachines && <p className="text-xs text-gray-400">Cargando...</p>}
+                    {machineError && <p className="text-xs text-red-500">{machineError}</p>}
                   </div>
+
+                  {/* Desde */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-gray-500">Desde</label>
+                    <input
+                      type="date"
+                      value={draftFilters.date_from ?? ''}
+                      onChange={(e) => updateDraftFilters('date_from', e.target.value || undefined)}
+                      onClick={openNativeDatePicker}
+                      onFocus={openNativeDatePicker}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+
+                  {/* Hasta */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-medium text-gray-500">Hasta</label>
+                    <input
+                      type="date"
+                      value={draftFilters.date_to ?? ''}
+                      onChange={(e) => updateDraftFilters('date_to', e.target.value || undefined)}
+                      onClick={openNativeDatePicker}
+                      onFocus={openNativeDatePicker}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+
                 </div>
               </div>
 
               {/* Payments Table */}
               <div className="card overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-dark">Lista de Transacciones</h3>
-                  {isLoading && (
-                    <div className="flex items-center space-x-2 text-sm text-gray-500">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Cargando...</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-lg font-bold text-dark">Lista de Transacciones</h3>
+                    {pagination?.meta?.total !== undefined && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        {pagination.meta.total}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {displayedPayments.length === 0 && !isLoading ? (
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-primary" />
+                  </div>
+                ) : displayedPayments.length === 0 ? (
                   <div className="p-12 text-center">
                     <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No hay pagos</h3>
@@ -1067,104 +1068,88 @@ export default function PagosInfiniteClient() {
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            ID / Operación
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Producto
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Monto
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Tarjeta
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Estado
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Máquina
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Fecha
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Acciones
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-gray-50">
+                          <TableHead className="hidden sm:table-cell px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">ID / Operación</TableHead>
+                          <TableHead className="px-4 sm:px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</TableHead>
+                          <TableHead className="px-4 sm:px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</TableHead>
+                          <TableHead className="hidden sm:table-cell px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Tarjeta</TableHead>
+                          <TableHead className="px-4 sm:px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</TableHead>
+                          <TableHead className="hidden sm:table-cell px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Máquina</TableHead>
+                          <TableHead className="hidden sm:table-cell px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</TableHead>
+                          <TableHead className="px-4 sm:px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {displayedPayments.map((payment) => (
-                          <tr key={payment.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
+                          <TableRow key={payment.id} className="hover:bg-muted/50">
+                            <TableCell className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-dark">#{payment.id}</div>
                               <div className="text-sm text-muted">{payment.operation_number}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            </TableCell>
+                            <TableCell className="px-4 sm:px-6 py-4">
                               <div className="text-sm font-medium text-dark">{payment.product}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-xs text-muted sm:hidden">{formatPaymentDate(payment)}</div>
+                            </TableCell>
+                            <TableCell className="px-4 sm:px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-bold text-dark">
                                 {formatAmount(payment.amount)}
                               </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-dark">{payment.card_brand}</div>
                               <div className="text-sm text-muted">**** {payment.last_digits}</div>
                               <div className="text-xs text-muted capitalize">{payment.card_type}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            </TableCell>
+                            <TableCell className="px-4 sm:px-6 py-4 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full border ${getStatusColor(payment.successful)}`}>
                                 {getStatusIcon(payment.successful)}
-                                <span className="ml-1">{getStatusName(payment.successful)}</span>
+                                <span className="ml-1 hidden sm:inline">{getStatusName(payment.successful)}</span>
                               </span>
-                              <div className="text-xs text-muted mt-1">{payment.response_message}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-dark">{payment.machine_name || 'Sin máquina'}</div>
                               {payment.machine_id && (
                                 <div className="text-sm text-muted">ID: {payment.machine_id}</div>
                               )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell px-6 py-4 whitespace-nowrap text-sm text-muted">
                               {formatPaymentDate(payment)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            </TableCell>
+                            <TableCell className="px-4 sm:px-6 py-4 whitespace-nowrap">
                               <button
                                 type="button"
                                 onClick={() => openPaymentDetail(payment)}
                                 className="inline-flex items-center rounded-lg border border-primary/30 px-3 py-1.5 text-sm font-semibold text-primary hover:bg-primary/5 transition"
                               >
-                                Ver detalle
+                                <span className="hidden sm:inline">Ver detalle</span>
+                                <span className="sm:hidden">Ver</span>
                               </button>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
               </div>
 
               {/* Pagination */}
               {pagination?.meta && (
-                <MachineStylePagination
-                  pagination={pagination}
-                  onPageChange={handlePageChange}
-                  onPageSizeChange={handlePageSizeChange}
-                  isLoading={isLoading}
-                  itemName="pagos"
-                  hasNextPage={hasNextPage}
-                  hasPrevPage={hasPrevPage}
-                />
+                <div className="mt-6">
+                  <UnifiedPagination
+                    meta={pagination.meta}
+                    onPageChange={handlePageChange}
+                    onPageSizeChange={handlePageSizeChange}
+                    isLoading={isLoading}
+                    itemName="pagos"
+                  />
+                </div>
               )}
             </>
           )}
         </main>
-      </div>
       <PaymentDetailModal
         payment={selectedPayment}
         open={Boolean(selectedPayment)}
@@ -1174,6 +1159,6 @@ export default function PagosInfiniteClient() {
         machineDetailsLoading={selectedMachineLoading}
         machineDetailsError={selectedMachineError}
       />
-    </div>
+    </AppShell>
   );
 }

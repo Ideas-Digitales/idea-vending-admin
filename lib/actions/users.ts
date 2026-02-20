@@ -128,7 +128,7 @@ export async function getUsersAction(filters?: UsersFilters): Promise<UsersRespo
 // Server Action para obtener un usuario específico
 export async function getUserAction(userId: string | number): Promise<UserResponse> {
   try {
-    const { response } = await authenticatedFetch(`/users/${userId}?include=roles,permissions,enterprises`, {
+    const { response } = await authenticatedFetch(`/users/${userId}?include=role,permissions,enterprises`, {
       method: 'GET',
     });
 

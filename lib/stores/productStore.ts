@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { Producto, ProductsFilters, Pagination, PaginationLinks, PaginationMeta } from "../interfaces/product.interface";
 import { getProductsAction, getProductAction, deleteProductAction, updateProductAction } from "../actions/products";
+import { isSessionExpiredError, handleSessionExpired } from "../utils/sessionErrorHandler";
 
 interface ProductState {
   // Data state
@@ -50,6 +51,7 @@ interface ProductState {
   clearUpdateError: () => void;
   clearSelectedProduct: () => void;
   clearCache: () => void;
+  reset: () => void;
   
   // Computed getters
   getTotalProducts: () => number;
@@ -95,6 +97,9 @@ export const useProductStore = create<ProductState>()(
           isLoading: false,
           error: null,
         });
+      } else if (isSessionExpiredError(response.error)) {
+        set({ isLoading: false });
+        handleSessionExpired();
       } else {
         set({
           error: response.error || 'Error al cargar productos',
@@ -125,6 +130,9 @@ export const useProductStore = create<ProductState>()(
           isLoadingProduct: false,
           productError: null,
         });
+      } else if (isSessionExpiredError(response.error)) {
+        set({ isLoadingProduct: false });
+        handleSessionExpired();
       } else {
         console.log('Store: Error al cargar producto:', response.error);
         set({
@@ -154,6 +162,9 @@ export const useProductStore = create<ProductState>()(
           isRefreshing: false,
           error: null,
         });
+      } else if (isSessionExpiredError(response.error)) {
+        set({ isRefreshing: false });
+        handleSessionExpired();
       } else {
         set({
           error: response.error || 'Error al actualizar productos',
@@ -356,11 +367,25 @@ export const useProductStore = create<ProductState>()(
 
   // Clear cache to force fresh data
   clearCache: () => {
-    set({ 
+    set({
       globalStats: null,
       products: [],
       pagination: null,
       selectedProduct: null
+    });
+  },
+
+  reset: () => {
+    set({
+      products: [],
+      selectedProduct: null,
+      currentFilters: {},
+      pagination: null,
+      globalStats: null,
+      error: null,
+      productError: null,
+      deleteError: null,
+      updateError: null,
     });
   },
 

@@ -7,9 +7,10 @@ import type { EditUserFormData } from "@/lib/schemas/user.schema";
 import { updateUserAction } from "@/lib/actions/users";
 import { useUserStore } from '@/lib/stores/userStore';
 import { useUser as useAuthUser } from '@/lib/stores/authStore';
-import Sidebar from "@/components/Sidebar";
-import { ArrowLeft, User } from "lucide-react";
+import { User } from "lucide-react";
 import { notify } from '@/lib/adapters/notification.adapter';
+import { AppShell, PageHeader } from '@/components/ui-custom';
+import Link from 'next/link';
 
 export default function EditarUsuarioPage() {
   const params = useParams();
@@ -30,26 +31,12 @@ export default function EditarUsuarioPage() {
 
   useEffect(() => {
     if (userId) {
-      console.log('[EditarUsuarioPage] Entrando a la edición del usuario', { userId });
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    if (user) {
-      console.log('[EditarUsuarioPage] Datos del usuario cargados', user);
-    }
-  }, [user]);
-
-  // Cargar usuario al montar el componente
-  useEffect(() => {
-    if (userId) {
       clearSelectedUser();
       clearUserError();
       fetchUser(userId);
     }
   }, [userId, fetchUser, clearSelectedUser, clearUserError]);
 
-  // Limpiar al desmontar
   useEffect(() => {
     return () => {
       clearSelectedUser();
@@ -57,13 +44,12 @@ export default function EditarUsuarioPage() {
     };
   }, [clearSelectedUser, clearUserError]);
 
-  // Controlar cuándo mostrar "no encontrado" con delay
   useEffect(() => {
     if (!isLoadingUser && !user && !userError) {
       const timer = setTimeout(() => {
         setShowNotFound(true);
-      }, 1000); // Esperar 1 segundo antes de mostrar "no encontrado"
-      
+      }, 1000);
+
       return () => clearTimeout(timer);
     } else {
       setShowNotFound(false);
@@ -72,7 +58,7 @@ export default function EditarUsuarioPage() {
 
   const handleSubmit = async (data: EditUserFormData) => {
     if (!userId) return;
-    
+
     setIsLoading(true);
 
     try {
@@ -80,7 +66,6 @@ export default function EditarUsuarioPage() {
 
       if (result.success) {
         notify.success('Usuario actualizado exitosamente');
-        // Recargar los datos del usuario para mostrar los cambios actualizados
         await fetchUser(userId);
         await refreshUsers();
       } else {
@@ -94,83 +79,24 @@ export default function EditarUsuarioPage() {
     }
   };
 
-  // Loading state
   if (isLoadingUser) {
     return (
-      <div className="flex h-screen bg-gray-100">
-        <Sidebar />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="bg-white shadow-sm border-b border-gray-200">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between items-center py-6">
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => window.location.href = '/usuarios'}
-                    className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    <ArrowLeft className="h-5 w-5" />
-                    <span className="text-sm font-medium">Volver a Usuarios</span>
-                  </button>
-                  <div className="h-8 w-px bg-gray-300"></div>
-                  <div>
-                    <h1 className="text-xl font-semibold text-gray-900">Editar Usuario</h1>
-                    <div className="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </header>
-
-          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                    <User className="h-6 w-6 text-blue-600" />
-                    <div className="h-6 bg-gray-200 rounded w-40 animate-pulse"></div>
-                  </div>
-                </div>
-
-                {/* Skeleton form */}
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i}>
-                        <div className="h-4 bg-gray-200 rounded w-20 mb-2 animate-pulse"></div>
-                        <div className="h-10 bg-gray-100 rounded animate-pulse"></div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <div className="border-t pt-6">
-                    <div className="h-5 bg-gray-200 rounded w-48 mb-4 animate-pulse"></div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {[1, 2].map((i) => (
-                        <div key={i}>
-                          <div className="h-4 bg-gray-200 rounded w-24 mb-2 animate-pulse"></div>
-                          <div className="h-10 bg-gray-100 rounded animate-pulse"></div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-4 pt-6 border-t">
-                    <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </main>
+      <AppShell>
+        <PageHeader icon={User} title="Editar Usuario" backHref="/usuarios" variant="white" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted">Cargando datos del usuario...</p>
+          </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
-  // Error state
   if (userError) {
     return (
-      <div className="flex h-screen bg-gray-100">
-        <Sidebar />
+      <AppShell>
+        <PageHeader icon={User} title="Editar Usuario" backHref="/usuarios" variant="white" />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="text-red-500 mb-4">
@@ -178,23 +104,19 @@ export default function EditarUsuarioPage() {
             </div>
             <h3 className="text-lg font-semibold text-dark mb-2">Error al cargar usuario</h3>
             <p className="text-muted mb-4">{userError}</p>
-            <button 
-              onClick={() => window.location.href = '/usuarios'} 
-              className="btn-primary"
-            >
+            <Link href="/usuarios" className="btn-primary">
               Volver a la lista
-            </button>
+            </Link>
           </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
-  // User not found (only show after delay)
   if (showNotFound) {
     return (
-      <div className="flex h-screen bg-gray-100">
-        <Sidebar />
+      <AppShell>
+        <PageHeader icon={User} title="Editar Usuario" backHref="/usuarios" variant="white" />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="text-gray-400 mb-4">
@@ -202,72 +124,51 @@ export default function EditarUsuarioPage() {
             </div>
             <h3 className="text-lg font-semibold text-dark mb-2">Usuario no encontrado</h3>
             <p className="text-muted mb-4">El usuario solicitado no existe o no tienes permisos para editarlo.</p>
-            <button 
-              onClick={() => window.location.href = '/usuarios'} 
-              className="btn-primary"
-            >
+            <Link href="/usuarios" className="btn-primary">
               Volver a la lista
-            </button>
+            </Link>
           </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
-  // If we reach here, user should exist, but add safety check
   if (!user) {
     return (
-      <div className="flex h-screen bg-gray-100">
-        <Sidebar />
+      <AppShell>
+        <PageHeader icon={User} title="Editar Usuario" backHref="/usuarios" variant="white" />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted">Cargando datos del usuario...</p>
           </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <Sidebar />
+    <AppShell>
+      <PageHeader
+        icon={User}
+        title="Editar Usuario"
+        subtitle={user.name}
+        backHref="/usuarios"
+        variant="white"
+      />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-6">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => window.location.href = '/usuarios'}
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                  <span className="text-sm font-medium">Volver a Usuarios</span>
-                </button>
-                <div className="h-8 w-px bg-gray-300"></div>
-                <div>
-                  <h1 className="text-xl font-semibold text-gray-900">Editar Usuario</h1>
-                  <p className="text-sm text-gray-600">{user.name}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <CreateUserForm
-              onSubmit={handleSubmit}
-              isLoading={isLoading}
-              mode="edit"
-              initialData={user}
-              title={`Editar Usuario: ${user.name}`}
-              canEditAllFields={authUser?.role === 'admin'}
-            />
-          </div>
-        </main>
-      </div>
-    </div>
+      <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
+        <div className="max-w-4xl mx-auto">
+          <CreateUserForm
+            onSubmit={handleSubmit}
+            isLoading={isLoading}
+            mode="edit"
+            initialData={user}
+            title={`Editar Usuario: ${user.name}`}
+            canEditAllFields={authUser?.role === 'admin'}
+          />
+        </div>
+      </main>
+    </AppShell>
   );
 }

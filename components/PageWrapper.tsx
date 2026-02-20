@@ -1,10 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import { useAuthProtection } from '@/lib/hooks/useAuthProtection';
-import MachinePageSkeleton from './skeletons/MachinePageSkeleton';
-import UserPageSkeleton from './skeletons/UserPageSkeleton';
-import ProductPageSkeleton from './skeletons/ProductPageSkeleton';
 
 interface PageWrapperProps {
   children: React.ReactNode;
@@ -19,38 +15,18 @@ export default function PageWrapper({
   fallbackPath = '/login',
   permissionMatch = 'all'
 }: PageWrapperProps) {
-  const pathname = usePathname();
   const { shouldShowContent, isLoading, hasPermission, user } = useAuthProtection({
     requiredPermissions,
     fallbackPath,
     permissionMatch
   });
 
-  // Función para obtener el skeleton apropiado según la ruta
-  const getPageSkeleton = () => {
-    if (pathname.includes('/maquinas')) {
-      return <MachinePageSkeleton />;
-    }
-    if (pathname.includes('/usuarios')) {
-      return <UserPageSkeleton />;
-    }
-    if (pathname.includes('/productos')) {
-      return <ProductPageSkeleton />;
-    }
-    // Skeleton genérico para otras páginas
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando...</p>
-        </div>
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-200 border-t-primary" />
       </div>
     );
-  };
-
-  // Mostrar skeleton mientras carga
-  if (isLoading) {
-    return getPageSkeleton();
   }
 
   // Mostrar error de permisos si no tiene acceso

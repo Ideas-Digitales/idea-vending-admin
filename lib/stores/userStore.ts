@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { User, UsersFilters, Pagination, PaginationLinks, PaginationMeta } from '../interfaces/user.interface';
 import { getUsersAction, getUserAction, deleteUserAction, updateUserAction } from '../actions/users';
 import type { EditUserFormData } from '../schemas/user.schema';
+import { isSessionExpiredError, handleSessionExpired } from '../utils/sessionErrorHandler';
 
 interface UserState {
   // Data state
@@ -50,6 +51,7 @@ interface UserState {
   clearDeleteError: () => void;
   clearUpdateError: () => void;
   clearSelectedUser: () => void;
+  reset: () => void;
   
   // Computed getters
   getTotalUsers: () => number;
@@ -95,6 +97,9 @@ export const useUserStore = create<UserState>()(
           isLoading: false,
           error: null,
         });
+      } else if (isSessionExpiredError(response.error)) {
+        set({ isLoading: false });
+        handleSessionExpired();
       } else {
         set({
           error: response.error || 'Error al cargar usuarios',
@@ -121,6 +126,9 @@ export const useUserStore = create<UserState>()(
           isLoadingUser: false,
           userError: null,
         });
+      } else if (isSessionExpiredError(response.error)) {
+        set({ isLoadingUser: false });
+        handleSessionExpired();
       } else {
         set({
           userError: response.error || 'Error al cargar usuario',
@@ -149,6 +157,9 @@ export const useUserStore = create<UserState>()(
           isRefreshing: false,
           error: null,
         });
+      } else if (isSessionExpiredError(response.error)) {
+        set({ isRefreshing: false });
+        handleSessionExpired();
       } else {
         set({
           error: response.error || 'Error al actualizar usuarios',
@@ -186,6 +197,20 @@ export const useUserStore = create<UserState>()(
 
   clearSelectedUser: () => {
     set({ selectedUser: null, userError: null });
+  },
+
+  reset: () => {
+    set({
+      users: [],
+      selectedUser: null,
+      currentFilters: {},
+      pagination: null,
+      globalStats: null,
+      error: null,
+      userError: null,
+      deleteError: null,
+      updateError: null,
+    });
   },
 
   deleteUser: async (userId: string | number) => {

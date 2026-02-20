@@ -350,32 +350,79 @@ export async function validateTokenAction(): Promise<AuthResponse> {
   }
 }
 
+// Server Action para verificar validez del token (lightweight)
+export async function checkTokenAction(): Promise<{ valid: boolean; error?: string }> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
+      return { valid: false, error: "No hay token de autenticación" };
+    }
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) {
+      return { valid: false, error: "API URL no configurada" };
+    }
+
+    const response = await fetch(`${apiUrl}/token/check`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (response.ok) {
+      return { valid: true };
+    }
+
+    // Token inválido o expirado — eliminar cookie
+    if (response.status === 401) {
+      cookieStore.delete("auth-token");
+      return { valid: false, error: "Token inválido o expirado" };
+    }
+
+    return { valid: false, error: `Error ${response.status} al verificar token` };
+  } catch (error) {
+    return { valid: false, error: "Error al verificar token" };
+  }
+}
+
 // Server Action para logout
 export async function logoutAction(): Promise<{ success: boolean }> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth-token")?.value;
 
-    // Intentar logout en la API
+    // Eliminar cookie primero (operación local, instantánea)
+    // Esto garantiza que el token quede invalidado localmente
+    // independientemente de lo que pase con la API
+    cookieStore.delete("auth-token");
+
+    // Notificar a la API con timeout de 2 segundos (best-effort)
+    // Si la API tarda o falla, la cookie ya fue eliminada — no bloqueamos
     if (token) {
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-        if (apiUrl) {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (apiUrl) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        try {
           await fetch(`${apiUrl}/logout`, {
             method: "POST",
             headers: {
               Accept: "application/json",
               Authorization: `Bearer ${token}`,
             },
+            signal: controller.signal,
           });
+        } catch {
+          // Timeout o error de red — ignorar, la cookie ya fue eliminada
+        } finally {
+          clearTimeout(timeoutId);
         }
-      } catch (error) {
-        console.warn("Error al hacer logout en la API:", error);
       }
     }
-
-    // Eliminar cookie
-    cookieStore.delete("auth-token");
 
     return { success: true };
   } catch (error) {

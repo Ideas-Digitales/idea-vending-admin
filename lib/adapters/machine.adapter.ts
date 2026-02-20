@@ -5,6 +5,10 @@ export class MachineAdapter {
    * Convierte una máquina de la API al formato de la aplicación
    */
   static apiToApp(apiMachine: ApiMachine): Machine {
+    const enterprise = apiMachine.enterprise
+      ? { id: apiMachine.enterprise.id, name: apiMachine.enterprise.name }
+      : undefined;
+
     return {
       id: typeof apiMachine.id === 'string' ? parseInt(apiMachine.id, 10) : (apiMachine.id || 0),
       name: apiMachine.name || apiMachine.machine_name || 'Máquina Sin Nombre',
@@ -14,7 +18,8 @@ export class MachineAdapter {
       created_at: apiMachine.created_at || apiMachine.createdAt || new Date().toISOString(),
       updated_at: apiMachine.updated_at || apiMachine.updatedAt || new Date().toISOString(),
       type: apiMachine.type || apiMachine.machine_type || 'MDB-DEX',
-      enterprise_id: apiMachine.enterprise_id || apiMachine.enterpriseId || 1,
+      enterprise_id: apiMachine.enterprise_id ?? apiMachine.enterpriseId ?? enterprise?.id ?? 0,
+      enterprise,
       connection_status: Boolean(apiMachine.connection_status ?? apiMachine.connected ?? false),
       mqtt_user: apiMachine.mqtt_user ?? undefined,
     };

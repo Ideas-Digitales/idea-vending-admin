@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { Payment, PaymentFilters, PaginationLinks, PaginationMeta } from "../interfaces/payment.interface";
 import { getPaymentsAction } from "../actions/payments";
+import { useAuthStore } from "./authStore";
+import { isSessionExpiredError, handleSessionExpired } from "../utils/sessionErrorHandler";
 
 interface PaymentState {
   // Data state
@@ -29,6 +31,7 @@ interface PaymentState {
   setFilters: (filters: PaymentFilters) => void;
   clearError: () => void;
   addRealtimePayment: (payment: Payment) => void;
+  reset: () => void;
   
   // Computed getters
   getTotalPayments: () => number;
@@ -65,6 +68,9 @@ export const usePaymentStore = create<PaymentState>()(
               isLoading: false,
               error: null,
             });
+          } else if (isSessionExpiredError(response.error)) {
+            set({ isLoading: false });
+            handleSessionExpired();
           } else {
             set({
               error: response.error || 'Error al cargar pagos',
@@ -82,21 +88,9 @@ export const usePaymentStore = create<PaymentState>()(
       refreshPayments: async () => {
         const { currentFilters } = get();
         set({ isRefreshing: true });
-        
+
         try {
-          // Get token from authStore
-          const authState = useAuthStore.getState();
-          const token = authState.token;
-          
-          if (!token) {
-            set({
-              error: 'No hay sesión activa. Por favor, inicia sesión.',
-              isRefreshing: false,
-            });
-            return;
-          }
-          
-          const response = await getPaymentsAction(currentFilters, token);
+          const response = await getPaymentsAction(currentFilters);
           
           if (response.success && response.payments) {
             set({
@@ -105,6 +99,9 @@ export const usePaymentStore = create<PaymentState>()(
               isRefreshing: false,
               error: null,
             });
+          } else if (isSessionExpiredError(response.error)) {
+            set({ isRefreshing: false });
+            handleSessionExpired();
           } else {
             set({
               error: response.error || 'Error al actualizar pagos',
@@ -125,6 +122,17 @@ export const usePaymentStore = create<PaymentState>()(
 
       clearError: () => {
         set({ error: null });
+      },
+
+      reset: () => {
+        set({
+          payments: [],
+          currentFilters: {},
+          pagination: null,
+          error: null,
+          lastRealtimePayment: null,
+          lastRealtimeReceivedAt: null,
+        });
       },
 
       addRealtimePayment: (payment: Payment) => {

@@ -1,16 +1,23 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { BarChart3, ShoppingCart, Monitor, Users, Building2, LogOut, CreditCard, LineChart } from 'lucide-react';
+import Link from 'next/link';
+import { BarChart3, ShoppingCart, Monitor, Users, Building2, LogOut, CreditCard, LineChart, X, Loader2 } from 'lucide-react';
 import { useAuthStore, useUser } from '@/lib/stores/authStore';
 import { ROLE_LABELS } from '@/lib/constants/roles';
 import type { UserRole } from '@/lib/constants/roles';
 
-export default function Sidebar() {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+export default function Sidebar({ onClose }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { logout } = useAuthStore();
   const user = useUser();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const sidebarCubes = [
     { className: 'top-6 right-4 w-32 h-32 bg-white/10 rounded-3xl animate-float', delay: '0s' },
@@ -21,11 +28,13 @@ export default function Sidebar() {
   ];
 
   const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
     try {
       await logout();
-      router.push('/login');
     } catch (error) {
       console.error('Error durante logout:', error);
+    } finally {
       router.push('/login');
     }
   };
@@ -118,10 +127,17 @@ export default function Sidebar() {
           height={36}
           className="h-9 w-9 object-contain"
         />
-        <div className="flex flex-col">
+        <div className="flex flex-col flex-1">
           <span className="text-lg font-bold text-white leading-tight">Ideas Digitales</span>
           <span className="text-xs text-white/70 font-medium">Plataforma Vending</span>
         </div>
+        <button
+          onClick={onClose}
+          className="md:hidden p-1.5 rounded-lg hover:bg-white/15 text-white/80 hover:text-white transition-colors"
+          aria-label="Cerrar menú"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       {/* User Info */}
@@ -170,9 +186,10 @@ export default function Sidebar() {
             return item.requiredPermissions.some((permission) => userPermissions.includes(permission));
           })
           .map((item) => (
-          <a
+          <Link
             key={item.name}
             href={item.href}
+            onClick={onClose}
             className={`flex items-center px-4 py-3 rounded-lg transition-colors border ${
               item.current
                 ? 'text-[#3157b2] bg-white border-white font-semibold shadow-sm'
@@ -181,18 +198,22 @@ export default function Sidebar() {
           >
             <item.icon className="h-5 w-5 mr-3 flex-shrink-0" />
             <span className="truncate">{item.name}</span>
-          </a>
+          </Link>
         ))}
       </nav>
 
       {/* Logout Button */}
       <div className="px-4 py-4 border-t border-white/15">
-        <button 
+        <button
           onClick={handleLogout}
-          className="flex items-center w-full px-4 py-3 text-white/80 hover:bg-white/10 hover:text-white rounded-lg transition-colors font-medium"
+          disabled={isLoggingOut}
+          className="flex items-center w-full px-4 py-3 text-white/80 hover:bg-white/10 hover:text-white rounded-lg transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <LogOut className="h-5 w-5 mr-3 flex-shrink-0" />
-          <span>Cerrar sesión</span>
+          {isLoggingOut
+            ? <Loader2 className="h-5 w-5 mr-3 flex-shrink-0 animate-spin" />
+            : <LogOut className="h-5 w-5 mr-3 flex-shrink-0" />
+          }
+          <span>{isLoggingOut ? 'Cerrando sesión...' : 'Cerrar sesión'}</span>
         </button>
       </div>
       </div>

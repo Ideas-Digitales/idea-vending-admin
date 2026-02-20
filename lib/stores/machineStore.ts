@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { Machine, MachinesFilters, PaginationLinks, PaginationMeta } from "../interfaces/machine.interface";
 import { getMachinesAction, getMachineAction, deleteMachineAction, updateMachineAction, createMachineAction } from "../actions/machines";
 import { CreateMachineFormData, UpdateMachineFormData } from "../schemas/machine.schema";
+import { isSessionExpiredError, handleSessionExpired } from "../utils/sessionErrorHandler";
 
 interface MachineState {
   // Data state
@@ -54,6 +55,7 @@ interface MachineState {
   clearUpdateError: () => void;
   clearCreateError: () => void;
   clearSelectedMachine: () => void;
+  reset: () => void;
 
   // Computed getters
   getTotalMachines: () => number;
@@ -101,6 +103,9 @@ export const useMachineStore = create<MachineState>()(
               isLoading: false,
               error: null,
             });
+          } else if (isSessionExpiredError(response.error)) {
+            set({ isLoading: false });
+            handleSessionExpired();
           } else {
             set({
               error: response.error || 'Error al cargar máquinas',
@@ -119,7 +124,7 @@ export const useMachineStore = create<MachineState>()(
         set({ isLoadingMachine: true, machineError: null });
 
         try {
-          const response = await getMachineAction(machineId);
+          const response = await getMachineAction(machineId, { include: 'enterprise' });
 
           if (response.success && response.machine) {
             set({
@@ -127,6 +132,9 @@ export const useMachineStore = create<MachineState>()(
               isLoadingMachine: false,
               machineError: null,
             });
+          } else if (isSessionExpiredError(response.error)) {
+            set({ isLoadingMachine: false });
+            handleSessionExpired();
           } else {
             set({
               machineError: response.error || 'Error al cargar máquina',
@@ -155,6 +163,9 @@ export const useMachineStore = create<MachineState>()(
               isRefreshing: false,
               error: null,
             });
+          } else if (isSessionExpiredError(response.error)) {
+            set({ isRefreshing: false });
+            handleSessionExpired();
           } else {
             set({
               error: response.error || 'Error al actualizar máquinas',
@@ -192,6 +203,21 @@ export const useMachineStore = create<MachineState>()(
 
       clearSelectedMachine: () => {
         set({ selectedMachine: null, machineError: null });
+      },
+
+      reset: () => {
+        set({
+          machines: [],
+          selectedMachine: null,
+          currentFilters: {},
+          pagination: null,
+          globalStats: null,
+          error: null,
+          machineError: null,
+          deleteError: null,
+          updateError: null,
+          createError: null,
+        });
       },
 
       createMachine: async (machineData: CreateMachineFormData) => {

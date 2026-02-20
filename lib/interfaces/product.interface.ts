@@ -97,6 +97,7 @@ export interface ProductsFilters {
     value?: string;
     case_sensitive?: boolean;
   };
+  enterpriseId?: number;
 }
 
 // Create product interface

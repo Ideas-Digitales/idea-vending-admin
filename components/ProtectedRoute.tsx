@@ -1,11 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuthStore, useIsAuthenticated, useAuthLoading, useUser } from '@/lib/stores/authStore';
-import MachinePageSkeleton from './skeletons/MachinePageSkeleton';
-import UserPageSkeleton from './skeletons/UserPageSkeleton';
-import ProductPageSkeleton from './skeletons/ProductPageSkeleton';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -19,34 +16,11 @@ export default function ProtectedRoute({
   fallbackPath = '/login' 
 }: ProtectedRouteProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const isAuthenticated = useIsAuthenticated();
   const isLoading = useAuthLoading();
   const user = useUser();
   const { checkAuth } = useAuthStore();
   const hasCheckedAuth = useRef(false);
-
-  // Función para obtener el skeleton apropiado según la ruta
-  const getPageSkeleton = () => {
-    if (pathname.includes('/maquinas')) {
-      return <MachinePageSkeleton />;
-    }
-    if (pathname.includes('/usuarios')) {
-      return <UserPageSkeleton />;
-    }
-    if (pathname.includes('/productos')) {
-      return <ProductPageSkeleton />;
-    }
-    // Skeleton genérico para otras páginas
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Verificando sesión...</p>
-        </div>
-      </div>
-    );
-  };
 
   useEffect(() => {
     // Resetear flag cuando el usuario se autentica
@@ -87,9 +61,12 @@ export default function ProtectedRoute({
     }
   }, [isAuthenticated, user, requiredPermissions, router]);
 
-  // Mostrar skeleton específico de la página mientras se verifica la autenticación
   if (isLoading) {
-    return getPageSkeleton();
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-gray-200 border-t-primary" />
+      </div>
+    );
   }
 
   // No renderizar hijos si no está autenticado

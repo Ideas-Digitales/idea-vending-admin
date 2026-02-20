@@ -124,7 +124,7 @@ export default function CreateUserForm({
   const lockedInputClasses = isLimitedEdit ? 'bg-gray-50 text-gray-500 cursor-not-allowed focus:ring-gray-200 focus:border-gray-200' : '';
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <User className="h-6 w-6 text-blue-600" />

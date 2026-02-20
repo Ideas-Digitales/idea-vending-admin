@@ -5,6 +5,7 @@ import {
   PaginationMeta,
   PaginationLinks,
 } from '../interfaces/enterprise.interface';
+import { isSessionExpiredError, handleSessionExpired } from '../utils/sessionErrorHandler';
 import {
   getEnterprisesAction,
   getEnterpriseAction,
@@ -80,6 +81,9 @@ export const useEnterpriseStore = create<EnterpriseState>((set, get) => ({
           isLoading: false,
           error: null,
         });
+      } else if (isSessionExpiredError(response.error)) {
+        set({ isLoading: false });
+        handleSessionExpired();
       } else {
         set({
           enterprises: [],
@@ -112,6 +116,9 @@ export const useEnterpriseStore = create<EnterpriseState>((set, get) => ({
           isLoadingEnterprise: false,
           enterpriseError: null,
         });
+      } else if (isSessionExpiredError(response.error)) {
+        set({ isLoadingEnterprise: false });
+        handleSessionExpired();
       } else {
         set({
           selectedEnterprise: null,

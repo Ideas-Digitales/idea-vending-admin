@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { loginAction, logoutAction, type LoginCredentials, type User } from '@/lib/actions/auth';
+import { loginAction, logoutAction, checkTokenAction, type LoginCredentials, type User } from '@/lib/actions/auth';
+import { resetAllDataStores } from './storeReset';
 
 interface AuthState {
   // Estado
@@ -15,6 +16,7 @@ interface AuthState {
   // Acciones
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
+  invalidateSession: () => void;
   clearError: () => void;
   checkAuth: (options?: { force?: boolean }) => Promise<void>;
   updateUser: (userData: Partial<User>) => void;
@@ -86,23 +88,40 @@ export const useAuthStore = create<AuthState>()(
 
       // Acción de logout
       logout: async () => {
-        set({ isLoading: true });
-        
+        // 1. Limpiar estado local inmediatamente (sin poner isLoading: true,
+        //    para no bloquear la UI con un spinner infinito si la API es lenta)
+        resetAllDataStores();
+
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+          hasValidatedSession: false,
+          lastSessionCheck: null
+        });
+
+        // 2. Eliminar cookie y notificar a la API (máximo 2 segundos)
+        //    logoutAction() elimina la cookie primero y luego llama a la API con timeout
         try {
           await logoutAction();
-        } catch (error) {
-          console.warn('Error durante logout:', error);
-        } finally {
-          set({
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: null,
-            hasValidatedSession: false,
-            lastSessionCheck: null
-          });
+        } catch (err) {
+          console.warn('Error durante logoutAction:', err);
         }
+      },
+
+      // Invalidar sesión (token expirado mid-session, sin llamar API de logout)
+      invalidateSession: () => {
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+          hasValidatedSession: true,
+          lastSessionCheck: Date.now(),
+        });
       },
 
       // Limpiar error
@@ -111,12 +130,16 @@ export const useAuthStore = create<AuthState>()(
       },
 
       // Verificar autenticación
-      checkAuth: async () => {
+      checkAuth: async (options) => {
         const currentState = get();
+        const SESSION_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutos
 
-        if (currentState.user && currentState.token) {
+        // Si no hay sesión local, marcar como no autenticado inmediatamente
+        if (!currentState.user || !currentState.token) {
           set({
-            isAuthenticated: true,
+            user: null,
+            token: null,
+            isAuthenticated: false,
             isLoading: false,
             error: null,
             hasValidatedSession: true,
@@ -125,15 +148,42 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
 
-        set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-          isLoading: false,
-          error: null,
-          hasValidatedSession: true,
-          lastSessionCheck: Date.now()
-        });
+        // Si ya verificamos recientemente (dentro del intervalo) y no es forzado, reutilizar resultado
+        const now = Date.now();
+        if (
+          !options?.force &&
+          currentState.hasValidatedSession &&
+          currentState.lastSessionCheck &&
+          now - currentState.lastSessionCheck < SESSION_CHECK_INTERVAL
+        ) {
+          // Estado ya es correcto, no actualizar para evitar re-renders innecesarios
+          return;
+        }
+
+        // Verificar contra el servidor con el endpoint ligero
+        set({ isLoading: true });
+        const result = await checkTokenAction();
+
+        if (result.valid) {
+          set({
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+            hasValidatedSession: true,
+            lastSessionCheck: Date.now()
+          });
+        } else {
+          // Token inválido — limpiar sesión
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null,
+            hasValidatedSession: true,
+            lastSessionCheck: Date.now()
+          });
+        }
       },
 
       // Actualizar datos del usuario

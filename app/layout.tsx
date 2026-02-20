@@ -4,6 +4,7 @@ import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,6 +40,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white min-h-screen`}
       >
         <AuthProvider>
+          <TooltipProvider>
           {children}
           <ToastContainer
             position="top-right"
@@ -52,6 +54,7 @@ export default function RootLayout({
             pauseOnHover
             theme="light"
           />
+          </TooltipProvider>
         </AuthProvider>
       </body>
     </html>

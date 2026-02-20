@@ -11,6 +11,11 @@ export interface MqttUser {
 
 export type MachineStatus = 'online' | 'offline';
 
+export interface MachineEnterprise {
+  id: number;
+  name: string;
+}
+
 // Machine interfaces
 export interface Machine {
   id: number;
@@ -21,6 +26,7 @@ export interface Machine {
   updated_at: string;
   type: string;
   enterprise_id: number;
+  enterprise?: MachineEnterprise;
   client_id?: number | null;
   mqtt_user?: MqttUser;
   connection_status: boolean;
@@ -44,6 +50,7 @@ export interface ApiMachine {
   machine_type?: string;
   enterprise_id?: number;
   enterpriseId?: number;
+  enterprise?: { id: number; name: string };
   connection_status?: boolean;
   connected?: boolean;
   mqtt_user?: MqttUser | null;

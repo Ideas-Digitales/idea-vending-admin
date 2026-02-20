@@ -47,6 +47,13 @@ function buildProductsSearchPayload(filters: ProductsFilters = {}) {
     };
   }
 
+  // Add enterprise_id filter if present
+  if (filters.enterpriseId) {
+    payload.filters = [
+      { field: 'enterprise_id', operator: '=', value: filters.enterpriseId },
+    ];
+  }
+
   return payload;
 }
 
@@ -56,7 +63,8 @@ export async function getProductsAction(filters?: ProductsFilters): Promise<Prod
     // Use POST search if there's any search term
     const useSearch = filters && (
       filters.searchObj?.value ||
-      filters.search
+      filters.search ||
+      filters.enterpriseId
     );
 
     let response: Response;
