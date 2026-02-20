@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Monitor, Plus, Edit, Trash2, Eye, Loader2, AlertCircle, MapPin, Package, RefreshCw } from 'lucide-react';
+import { Monitor, Plus, Edit, Trash2, Eye, Loader2, AlertCircle, MapPin, Package } from 'lucide-react';
 import { PageLayout, DataTable, FilterBar, ConfirmActionDialog, UnifiedPagination, StatusBadge } from '@/components/ui-custom';
 import type { ColumnDef } from '@/components/ui-custom';
 
@@ -46,7 +46,6 @@ export default function MaquinasInfiniteClient() {
     isLoading,
     error,
     fetchMachines,
-    refreshMachines,
     setFilters,
     clearError,
     deleteMachine,
@@ -292,31 +291,12 @@ export default function MaquinasInfiniteClient() {
       requiredPermissions={['machines.read.all', 'machines.read.enterprise_owned']}
       permissionMatch="any"
       actions={
-        <div className="flex items-center space-x-3">
-          <Button
-            className="flex items-center gap-2 font-semibold shadow-sm bg-slate-900 text-white hover:bg-slate-800 focus-visible:ring-slate-900"
-            disabled={isLoading}
-            onClick={() => refreshMachines()}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Actualizando...</span>
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4" />
-                <span>Actualizar</span>
-              </>
-            )}
-          </Button>
-          <Button asChild className="btn-primary flex items-center gap-2 font-semibold shadow-sm">
-            <Link href="/maquinas/nueva">
-              <Plus className="h-4 w-4" />
-              <span>Nueva Máquina</span>
-            </Link>
-          </Button>
-        </div>
+        <Button asChild className="btn-primary flex items-center gap-2 font-semibold shadow-sm">
+          <Link href="/maquinas/nueva">
+            <Plus className="h-4 w-4" />
+            <span>Nueva Máquina</span>
+          </Link>
+        </Button>
       }
     >
       {error && machines.length > 0 && (

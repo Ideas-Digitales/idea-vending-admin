@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { X, Printer } from 'lucide-react';
+import { X, Download } from 'lucide-react';
 import type { Machine } from '@/lib/interfaces/machine.interface';
 
 interface MachineQRLabelProps {
@@ -11,6 +11,8 @@ interface MachineQRLabelProps {
 }
 
 export default function MachineQRLabel({ machine, onClose }: MachineQRLabelProps) {
+  const [downloading, setDownloading] = useState(false);
+
   // Full URL so any QR reader (app o cámara) puede navegar directamente a la máquina
   const qrValue = typeof window !== 'undefined'
     ? `${window.location.origin}/maquinas/${machine.id}`
@@ -25,43 +27,22 @@ export default function MachineQRLabel({ machine, onClose }: MachineQRLabelProps
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  const handlePrint = () => {
-    const printStyle = document.createElement('style');
-    printStyle.id = 'machine-qr-print-style';
-    printStyle.innerHTML = `
-      @media print {
-        body * { visibility: hidden !important; }
-        #machine-qr-print-label,
-        #machine-qr-print-label * {
-          visibility: visible !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        #machine-qr-print-label {
-          position: fixed !important;
-          top: 0 !important;
-          left: 0 !important;
-          width: 100vw !important;
-          height: 100vh !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          border: none !important;
-          border-radius: 0 !important;
-          background: white !important;
-        }
-      }
-    `;
-    document.head.appendChild(printStyle);
-
-    const cleanup = () => {
-      const el = document.getElementById('machine-qr-print-style');
-      if (el) document.head.removeChild(el);
-      window.removeEventListener('afterprint', cleanup);
-    };
-    window.addEventListener('afterprint', cleanup);
-
-    window.print();
+  const handleDownload = async () => {
+    const el = document.getElementById('machine-qr-print-label');
+    if (!el) return;
+    setDownloading(true);
+    try {
+      // html-to-image usa foreignObject SVG — el browser renderiza el CSS
+      // (incluido oklch) sin necesidad de parsearlo en JS
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(el, { pixelRatio: 3 });
+      const link = document.createElement('a');
+      link.download = `etiqueta-maquina-${machine.id}.png`;
+      link.href = dataUrl;
+      link.click();
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -208,11 +189,12 @@ export default function MachineQRLabel({ machine, onClose }: MachineQRLabelProps
             Cerrar
           </button>
           <button
-            onClick={handlePrint}
-            className="btn-primary flex items-center gap-1.5 !py-2 !px-4"
+            onClick={handleDownload}
+            disabled={downloading}
+            className="btn-primary flex items-center gap-1.5 !py-2 !px-4 disabled:opacity-60"
           >
-            <Printer className="h-4 w-4" />
-            Imprimir etiqueta
+            <Download className="h-4 w-4" />
+            {downloading ? 'Descargando…' : 'Descargar etiqueta'}
           </button>
         </div>
       </div>

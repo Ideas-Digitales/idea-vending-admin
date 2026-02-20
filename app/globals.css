@@ -198,6 +198,16 @@ select.input-field {
   font-weight: 400;
 }
 
+/* Prevent iOS Safari auto-zoom on input focus.
+   Safari zooms when font-size < 16px; max() keeps the original size if already >= 16px. */
+@supports (-webkit-touch-callout: none) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
 /* Card styles */
 .card {
   background: #ffffff;
