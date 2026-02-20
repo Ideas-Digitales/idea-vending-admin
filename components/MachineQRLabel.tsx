@@ -11,8 +11,10 @@ interface MachineQRLabelProps {
 }
 
 export default function MachineQRLabel({ machine, onClose }: MachineQRLabelProps) {
-  // Encode machine ID — compatible with QRScannerModal parser
-  const qrValue = String(machine.id);
+  // Full URL so any QR reader (app o cámara) puede navegar directamente a la máquina
+  const qrValue = typeof window !== 'undefined'
+    ? `${window.location.origin}/maquinas/${machine.id}`
+    : `/maquinas/${machine.id}`;
 
   // Close on Escape key
   useEffect(() => {
@@ -30,7 +32,11 @@ export default function MachineQRLabel({ machine, onClose }: MachineQRLabelProps
       @media print {
         body * { visibility: hidden !important; }
         #machine-qr-print-label,
-        #machine-qr-print-label * { visibility: visible !important; }
+        #machine-qr-print-label * {
+          visibility: visible !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
         #machine-qr-print-label {
           position: fixed !important;
           top: 0 !important;
@@ -98,7 +104,9 @@ export default function MachineQRLabel({ machine, onClose }: MachineQRLabelProps
                   display: 'flex',
                   alignItems: 'center',
                   gap: '10px',
-                }}
+                  WebkitPrintColorAdjust: 'exact',
+                  printColorAdjust: 'exact',
+                } as React.CSSProperties}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -173,23 +181,6 @@ export default function MachineQRLabel({ machine, onClose }: MachineQRLabelProps
                     </div>
                   )}
 
-                  {/* ID badge */}
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      background: '#eff2fb',
-                      color: '#3157b2',
-                      fontWeight: '600',
-                      fontSize: '11px',
-                      padding: '3px 10px',
-                      borderRadius: '20px',
-                      border: '1px solid #d4ddf5',
-                    }}
-                  >
-                    ID #{machine.id}
-                  </div>
                 </div>
 
                 {/* Scan hint */}
@@ -213,14 +204,14 @@ export default function MachineQRLabel({ machine, onClose }: MachineQRLabelProps
 
         {/* Actions */}
         <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-100">
-          <button onClick={onClose} className="btn-secondary text-sm px-3 py-1.5">
+          <button onClick={onClose} className="btn-secondary !py-2 !px-4">
             Cerrar
           </button>
           <button
             onClick={handlePrint}
-            className="btn-primary flex items-center gap-1.5 text-sm px-3 py-1.5"
+            className="btn-primary flex items-center gap-1.5 !py-2 !px-4"
           >
-            <Printer className="h-3.5 w-3.5" />
+            <Printer className="h-4 w-4" />
             Imprimir etiqueta
           </button>
         </div>

@@ -109,43 +109,43 @@ export default function MaquinaDetallePage() {
         subtitle="Información completa y gestión de la máquina"
         backHref="/maquinas"
         variant="white"
-        actions={
-          <>
-            <button
-              onClick={() => setIsQROpen(true)}
-              className="btn-secondary flex items-center space-x-2"
-            >
-              <QrCode className="h-4 w-4" />
-              <span className="hidden sm:inline">Generar QR</span>
-            </button>
-            <Link
-              href={`/maquinas/${machine.id}/slots`}
-              className="btn-secondary flex items-center space-x-2"
-            >
-              <Package className="h-4 w-4" />
-              <span className="hidden sm:inline">Gestionar Slots</span>
-            </Link>
-            <Link
-              href={`/maquinas/${machine.id}/editar`}
-              className="btn-secondary flex items-center space-x-2"
-            >
-              <Edit className="h-4 w-4" />
-              <span className="hidden sm:inline">Editar</span>
-            </Link>
-            <button
-              onClick={handleReboot}
-              disabled={rebootLoading || !hasCredentials}
-              className="btn-secondary flex items-center space-x-2 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              <RotateCcw className={`h-4 w-4 ${rebootLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">{rebootLoading ? 'Reiniciando...' : 'Reiniciar máquina'}</span>
-            </button>
-          </>
-        }
       />
 
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-4xl mx-auto space-y-6">
+
+          {/* Action bar */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsQROpen(true)}
+              className="inline-flex items-center gap-2 py-2 px-4 rounded-lg border border-[#3157b2]/40 text-[#3157b2] text-sm font-semibold bg-white hover:bg-[#3157b2]/5 transition-colors"
+            >
+              <QrCode className="h-4 w-4 shrink-0" />
+              Generar QR
+            </button>
+            <Link
+              href={`/maquinas/${machine.id}/slots`}
+              className="inline-flex items-center gap-2 py-2 px-4 rounded-lg border border-[#3157b2]/40 text-[#3157b2] text-sm font-semibold bg-white hover:bg-[#3157b2]/5 transition-colors"
+            >
+              <Package className="h-4 w-4 shrink-0" />
+              Gestionar Slots
+            </Link>
+            <Link
+              href={`/maquinas/${machine.id}/editar`}
+              className="inline-flex items-center gap-2 py-2 px-4 rounded-lg border border-[#3157b2]/40 text-[#3157b2] text-sm font-semibold bg-white hover:bg-[#3157b2]/5 transition-colors"
+            >
+              <Edit className="h-4 w-4 shrink-0" />
+              Editar
+            </Link>
+            <button
+              onClick={handleReboot}
+              disabled={rebootLoading || !hasCredentials}
+              className="inline-flex items-center gap-2 py-2 px-4 rounded-lg border border-red-200 text-red-600 text-sm font-semibold bg-white hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RotateCcw className={`h-4 w-4 shrink-0 ${rebootLoading ? 'animate-spin' : ''}`} />
+              {rebootLoading ? 'Reiniciando...' : 'Reiniciar máquina'}
+            </button>
+          </div>
 
           {/* Profile Card */}
           <div className="card p-6">
