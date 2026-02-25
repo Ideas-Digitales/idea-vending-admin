@@ -197,7 +197,7 @@ export default function LoginPage() {
         <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8">
           {/* Error Message */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-3">
+            <div data-cy="login-error" className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-3">
               <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
               <div className="flex-1">
                 <p className="text-sm text-red-700 font-semibold">Error de autenticación</p>
@@ -234,6 +234,7 @@ export default function LoginPage() {
                     name="email"
                     type="email"
                     required
+                    data-cy="email-input"
                     className="input-field pl-12"
                     placeholder="tu-email@ejemplo.com"
                     value={formData.email}
@@ -258,6 +259,7 @@ export default function LoginPage() {
                     name="password"
                     type={showPassword ? 'text' : 'password'}
                     required
+                    data-cy="password-input"
                     className="input-field pl-12 pr-12"
                     placeholder="Ingresa tu contraseña"
                     value={formData.password}
@@ -309,6 +311,7 @@ export default function LoginPage() {
               <div>
                 <button
                   type="submit"
+                  data-cy="login-submit"
                   disabled={isLoading || !formData.email || !formData.password}
                   className="btn-primary w-full flex justify-center items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >

@@ -190,6 +190,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
             key={item.name}
             href={item.href}
             onClick={onClose}
+            data-cy={`nav-${item.href.replace('/', '')}`}
             className={`flex items-center px-4 py-3 rounded-lg transition-colors border ${
               item.current
                 ? 'text-[#3157b2] bg-white border-white font-semibold shadow-sm'
@@ -207,6 +208,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         <button
           onClick={handleLogout}
           disabled={isLoggingOut}
+          data-cy="sidebar-logout"
           className="flex items-center w-full px-4 py-3 text-white/80 hover:bg-white/10 hover:text-white rounded-lg transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {isLoggingOut

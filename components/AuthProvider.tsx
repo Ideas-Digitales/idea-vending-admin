@@ -9,18 +9,17 @@ interface AuthProviderProps {
 }
 
 export default function AuthProvider({ children }: AuthProviderProps) {
-  const { checkAuth, isAuthenticated } = useAuthStore();
+  const { checkAuth } = useAuthStore();
   const isHydrated = useHydration();
   const hasChecked = useRef(false);
 
   useEffect(() => {
-    // Solo verificar autenticación una vez después de la hidratación y si no está ya autenticado
-    if (isHydrated && !hasChecked.current && !isAuthenticated) {
-      console.log('AuthProvider: Inicializando verificación de autenticación');
+    // Verificar siempre al montar; checkAuth() usa caché de 5 min para no generar llamadas extra
+    if (isHydrated && !hasChecked.current) {
       hasChecked.current = true;
       checkAuth();
     }
-  }, [checkAuth, isHydrated, isAuthenticated]);
+  }, [checkAuth, isHydrated]);
 
   return <>{children}</>;
 }

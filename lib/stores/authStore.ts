@@ -172,8 +172,11 @@ export const useAuthStore = create<AuthState>()(
             hasValidatedSession: true,
             lastSessionCheck: Date.now()
           });
+        } else if (result.reason === 'SERVER_ERROR') {
+          // Error momentáneo del servidor o red — mantener sesión, no alertar
+          set({ isLoading: false });
         } else {
-          // Token inválido — limpiar sesión
+          // NO_TOKEN o UNAUTHORIZED — limpiar sesión
           set({
             user: null,
             token: null,

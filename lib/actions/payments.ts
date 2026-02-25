@@ -4,11 +4,30 @@ import { PaymentResponse, PaymentFilters } from '../interfaces/payment.interface
 import { authenticatedFetch } from '../utils/authenticatedFetch';
 import { AuthFetchError } from '../utils/authFetchError';
 
+export interface AggregateFilters {
+  start_date?: string;
+  end_date?: string;
+  machine_id?: number;
+  enterprise_id?: number;
+  product_id?: number;
+}
+
+export interface AggregateResult {
+  success: boolean;
+  total_amount?: number;
+  total_count?: number;
+  filters_applied?: object;
+  error?: string;
+}
+
 const TOKEN_EXPIRED_ERROR = 'SESSION_EXPIRED';
 
 function handleError(error: unknown): { success: false; error: string } {
   if (error instanceof AuthFetchError) {
-    return { success: false, error: error.code === 'TOKEN_EXPIRED' ? TOKEN_EXPIRED_ERROR : error.message };
+    if (error.code === 'TOKEN_EXPIRED' || error.code === 'NO_TOKEN') {
+      return { success: false, error: TOKEN_EXPIRED_ERROR };
+    }
+    return { success: false, error: error.message };
   }
   return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
 }
@@ -166,6 +185,121 @@ export const getPaymentsAction = async (filters?: PaymentFilters): Promise<Payme
       success: true,
       payments,
       pagination,
+    };
+  } catch (error) {
+    return handleError(error);
+  }
+};
+
+export interface ProductRankingFilters {
+  start_date?: string;
+  end_date?: string;
+  limit?: number;
+}
+
+export interface RankedProduct {
+  id: number;
+  name: string;
+  payments_quantity: number;
+  payments_amount: number;
+}
+
+export interface ProductRankingResult {
+  success: boolean;
+  metadata?: { start_date: string; end_date: string; total_products_analyzed: number };
+  top_performers?: RankedProduct[];
+  low_performers?: RankedProduct[];
+  error?: string;
+}
+
+export const productRankingAction = async (filters?: ProductRankingFilters): Promise<ProductRankingResult> => {
+  try {
+    const { response } = await authenticatedFetch('/payments/reports/product-ranking', {
+      method: 'POST',
+      body: JSON.stringify(filters ?? {}),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, error: errorData.message || `Error ${response.status}` };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      metadata:       data.metadata,
+      top_performers: data.data?.top_performers ?? [],
+      low_performers: data.data?.low_performers ?? [],
+    };
+  } catch (error) {
+    return handleError(error);
+  }
+};
+
+export interface MachineRankingFilters {
+  enterprise_id: number;
+  start_date?: string;
+  end_date?: string;
+  limit?: number;
+}
+
+export interface RankedMachine {
+  id: number;
+  name: string;
+  payments_quantity: number;
+  payments_amount: number;
+}
+
+export interface MachineRankingResult {
+  success: boolean;
+  metadata?: { start_date: string; end_date: string; total_products_analyzed: number };
+  top_performers?: RankedMachine[];
+  low_performers?: RankedMachine[];
+  error?: string;
+}
+
+export const machineRankingAction = async (filters: MachineRankingFilters): Promise<MachineRankingResult> => {
+  try {
+    const { response } = await authenticatedFetch('/payments/reports/machine-ranking', {
+      method: 'POST',
+      body: JSON.stringify(filters),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, error: errorData.message || `Error ${response.status}` };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      metadata:       data.metadata,
+      top_performers: data.data?.top_performers ?? [],
+      low_performers: data.data?.low_performers ?? [],
+    };
+  } catch (error) {
+    return handleError(error);
+  }
+};
+
+export const aggregatePaymentsAction = async (filters?: AggregateFilters): Promise<AggregateResult> => {
+  try {
+    const { response } = await authenticatedFetch('/payments/aggregate', {
+      method: 'POST',
+      body: JSON.stringify(filters ?? {}),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, error: errorData.message || `Error ${response.status}` };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      total_amount: data.total_amount,
+      total_count: data.total_count,
+      filters_applied: data.filters_applied,
     };
   } catch (error) {
     return handleError(error);

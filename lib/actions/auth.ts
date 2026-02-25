@@ -351,20 +351,20 @@ export async function validateTokenAction(): Promise<AuthResponse> {
 }
 
 // Server Action para verificar validez del token (lightweight)
-export async function checkTokenAction(): Promise<{ valid: boolean; error?: string }> {
+type CheckTokenResult =
+  | { valid: true }
+  | { valid: false; reason: 'NO_TOKEN' | 'UNAUTHORIZED' | 'SERVER_ERROR' };
+
+export async function checkTokenAction(): Promise<CheckTokenResult> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth-token")?.value;
+
+  if (!token) return { valid: false, reason: 'NO_TOKEN' };
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (!apiUrl) return { valid: false, reason: 'SERVER_ERROR' };
+
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("auth-token")?.value;
-
-    if (!token) {
-      return { valid: false, error: "No hay token de autenticación" };
-    }
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) {
-      return { valid: false, error: "API URL no configurada" };
-    }
-
     const response = await fetch(`${apiUrl}/token/check`, {
       method: "GET",
       headers: {
@@ -373,19 +373,18 @@ export async function checkTokenAction(): Promise<{ valid: boolean; error?: stri
       },
     });
 
-    if (response.ok) {
-      return { valid: true };
-    }
+    if (response.ok) return { valid: true };
 
-    // Token inválido o expirado — eliminar cookie
     if (response.status === 401) {
       cookieStore.delete("auth-token");
-      return { valid: false, error: "Token inválido o expirado" };
+      return { valid: false, reason: 'UNAUTHORIZED' };
     }
 
-    return { valid: false, error: `Error ${response.status} al verificar token` };
-  } catch (error) {
-    return { valid: false, error: "Error al verificar token" };
+    // 500, 503, etc. — error del servidor, no tocar la cookie
+    return { valid: false, reason: 'SERVER_ERROR' };
+  } catch {
+    // Timeout o error de red — mantener sesión
+    return { valid: false, reason: 'SERVER_ERROR' };
   }
 }
 

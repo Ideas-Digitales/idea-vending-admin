@@ -19,7 +19,10 @@ const TOKEN_EXPIRED_ERROR = 'SESSION_EXPIRED';
 
 function handleError(error: unknown): { success: false; error: string } {
   if (error instanceof AuthFetchError) {
-    return { success: false, error: error.code === 'TOKEN_EXPIRED' ? TOKEN_EXPIRED_ERROR : error.message };
+    if (error.code === 'TOKEN_EXPIRED' || error.code === 'NO_TOKEN') {
+      return { success: false, error: TOKEN_EXPIRED_ERROR };
+    }
+    return { success: false, error: error.message };
   }
   return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
 }
