@@ -104,7 +104,7 @@ export default function EmpresasPage() {
           </div>
           <div>
             <div className="text-sm font-semibold text-dark group-hover:text-primary transition-colors">{e.name}</div>
-            <div className="text-xs text-muted sm:hidden">{e.rut}</div>
+            <div className="text-xs text-muted font-mono">ID: {e.id}</div>
           </div>
         </Link>
       ),

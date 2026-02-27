@@ -446,7 +446,10 @@ export default function MaquinaDetallePage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-black mb-1">Nombre</label>
-                  <p className="text-dark">{machine.name}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-dark">{machine.name}</p>
+                    <span className="text-xs font-mono text-muted bg-gray-100 px-1.5 py-0.5 rounded">ID: {machine.id}</span>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-black mb-1">Ubicación</label>
@@ -461,7 +464,10 @@ export default function MaquinaDetallePage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-black mb-1">Empresa</label>
-                  <p className="text-dark">{machine.enterprise?.name ?? `ID: ${machine.enterprise_id}`}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-dark">{machine.enterprise?.name ?? '—'}</p>
+                    <span className="text-xs font-mono text-muted bg-gray-100 px-1.5 py-0.5 rounded">ID: {machine.enterprise_id}</span>
+                  </div>
                 </div>
               </div>
             </div>

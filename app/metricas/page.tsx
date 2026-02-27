@@ -16,8 +16,6 @@ import { AppShell, PageHeader } from '@/components/ui-custom';
 import { useUser } from '@/lib/stores/authStore';
 import { aggregatePaymentsAction, productRankingAction, machineRankingAction } from '@/lib/actions/payments';
 import type { RankedProduct, RankedMachine, AggregateDataPoint } from '@/lib/actions/payments';
-import { getMachinesAction } from '@/lib/actions/machines';
-import type { Machine } from '@/lib/interfaces/machine.interface';
 import { TourRunner, type Step } from '@/components/help/TourRunner';
 import { HelpTooltip } from '@/components/help/HelpTooltip';
 
@@ -246,14 +244,15 @@ function SalesAreaChart({ data }: { data: { label: string; value: number }[] }) 
   );
 }
 
-function MiniChart({ data, id }: { data: { label: string; value: number }[]; id: string }) {
+function MiniChart({ data, id, compact = false }: { data: { label: string; value: number }[]; id: string; compact?: boolean }) {
+  const height = compact ? 28 : 56;
   const hasData = data.some(d => d.value > 0);
   if (!hasData) {
-    return <div className="h-14 flex items-center justify-center text-xs text-gray-300">Sin datos</div>;
+    return <div style={{ height }} className="flex items-center justify-center text-xs text-gray-300">—</div>;
   }
   return (
-    <ResponsiveContainer width="100%" height={56}>
-      <AreaChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+    <ResponsiveContainer width="100%" height={height}>
+      <AreaChart data={data} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id={`mg-${id}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#3157b2" stopOpacity={0.18} />
@@ -281,16 +280,20 @@ export default function MetricasPage() {
   const [chartData, setChartData]   = useState<{ label: string; value: number }[]>([]);
   const [loading, setLoading]       = useState(true);
 
-  // Máquinas
-  type MachineStats = Machine & { total_amount: number; total_count: number; sparkline: { label: string; value: number }[] };
-  const [machines, setMachines]         = useState<Machine[]>([]);
-  const [machineStats, setMachineStats] = useState<MachineStats[]>([]);
-  const [loadingMachines, setLoadingMachines] = useState(true);
+  // Máquinas — top performers con sparklines
+  type MachineStat = RankedMachine & { sparkline: { label: string; value: number }[] };
+  const [machineTopStats, setMachineTopStats]         = useState<MachineStat[]>([]);
+  const [loadingMachineSparklines, setLoadingMachineSparklines] = useState(false);
 
   // Product ranking (para tab Productos)
   const [rankingTop, setRankingTop]       = useState<RankedProduct[]>([]);
   const [rankingLow, setRankingLow]       = useState<RankedProduct[]>([]);
   const [loadingRanking, setLoadingRanking] = useState(true);
+
+  // Product stats con sparklines (derivado de rankingTop)
+  type ProductStat = RankedProduct & { sparkline: { label: string; value: number }[] };
+  const [productStats, setProductStats]         = useState<ProductStat[]>([]);
+  const [loadingProductStats, setLoadingProductStats] = useState(false);
 
   // Machine ranking (para tab Máquinas — Mayor/Menor rendimiento)
   const [machineRankingTop, setMachineRankingTop] = useState<RankedMachine[]>([]);
@@ -333,44 +336,28 @@ export default function MetricasPage() {
       .finally(() => setLoading(false));
   }, [period, user]);
 
-  // Carga lista de máquinas (una sola vez al montar)
+  // Sparklines por máquina — solo para el top del ranking (máx 8 calls)
   useEffect(() => {
-    if (user?.role !== 'customer') return;
-    const enterpriseId = user.enterprises?.[0]?.id;
-    getMachinesAction({ enterprise_id: enterpriseId, limit: 100 })
-      .then(res => { if (res.success) setMachines(res.machines ?? []); })
-      .catch(() => {});
-  }, [user]);
-
-  // Carga stats + sparklines por máquina cuando cambia el período o la lista
-  useEffect(() => {
-    if (!machines.length) { setLoadingMachines(false); return; }
-
-    setLoadingMachines(true);
-    setMachineStats([]);
-
+    if (!machineRankingTop.length) { setMachineTopStats([]); return; }
+    setLoadingMachineSparklines(true);
     const { start, end } = getPeriodRange(period);
     const groupBy      = getGroupBy(period);
     const enterpriseId = user?.enterprises?.[0]?.id;
     const base         = enterpriseId != null ? { enterprise_id: enterpriseId } : {};
-
-    // Una sola llamada agrupada por máquina — incluye total + puntos del sparkline
     Promise.all(
-      machines.map(m =>
+      machineRankingTop.map(m =>
         aggregatePaymentsAction({ ...base, machine_id: m.id, start_date: start, end_date: end, group_by: groupBy })
       )
     )
       .then(results => {
-        setMachineStats(machines.map((m, i) => ({
+        setMachineTopStats(machineRankingTop.map((m, i) => ({
           ...m,
-          total_amount: results[i]?.success ? (results[i].total_amount ?? 0) : 0,
-          total_count:  results[i]?.success ? (results[i].total_count  ?? 0) : 0,
           sparkline: mapGroupedData(results[i]?.data, groupBy, period),
         })));
       })
       .catch(() => {})
-      .finally(() => setLoadingMachines(false));
-  }, [period, machines, user]);
+      .finally(() => setLoadingMachineSparklines(false));
+  }, [machineRankingTop, period, user]);
 
   // Carga product ranking cuando cambia el período
   useEffect(() => {
@@ -387,6 +374,29 @@ export default function MetricasPage() {
       .catch(() => {})
       .finally(() => setLoadingRanking(false));
   }, [period, user]);
+
+  // Sparklines por producto — se dispara cuando cambia rankingTop o período
+  useEffect(() => {
+    if (!rankingTop.length) { setProductStats([]); return; }
+    setLoadingProductStats(true);
+    const { start, end } = getPeriodRange(period);
+    const groupBy      = getGroupBy(period);
+    const enterpriseId = user?.enterprises?.[0]?.id;
+    const base         = enterpriseId != null ? { enterprise_id: enterpriseId } : {};
+    Promise.all(
+      rankingTop.map(p =>
+        aggregatePaymentsAction({ ...base, product_id: p.id, start_date: start, end_date: end, group_by: groupBy })
+      )
+    )
+      .then(results => {
+        setProductStats(rankingTop.map((p, i) => ({
+          ...p,
+          sparkline: mapGroupedData(results[i]?.data, groupBy, period),
+        })));
+      })
+      .catch(() => {})
+      .finally(() => setLoadingProductStats(false));
+  }, [rankingTop, period, user]);
 
   // Carga machine ranking cuando cambia el período
   useEffect(() => {
@@ -670,149 +680,104 @@ export default function MetricasPage() {
             TAB: MÁQUINAS
         ══════════════════════════════════════ */}
         {activeTab === 'maquinas' && (() => {
-          const sorted     = [...machineStats].sort((a, b) => b.total_amount - a.total_amount);
-          const grandTotal = sorted.reduce((s, m) => s + m.total_amount, 0);
+          const grandTotal = machineTopStats.reduce((s, m) => s + m.payments_amount, 0);
+          const skeletonRows = Array.from({ length: 5 });
           return (
-            <>
-              {/* Lista de máquinas con sparkline */}
-              {loadingMachines ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="card p-4 animate-pulse">
-                      <div className="flex items-center gap-4">
-                        <div className="h-4 w-4 bg-gray-100 rounded" />
-                        <div className="flex-1 space-y-1.5">
-                          <div className="h-4 w-40 bg-gray-100 rounded" />
-                          <div className="h-3 w-28 bg-gray-100 rounded" />
-                        </div>
-                        <div className="h-4 w-20 bg-gray-100 rounded" />
-                      </div>
-                      <div className="mt-3 h-14 bg-gray-50 rounded" />
-                    </div>
-                  ))}
-                </div>
-              ) : sorted.length === 0 ? (
-                <div className="card p-10 text-center">
-                  <Monitor className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-sm text-muted">No hay máquinas registradas</p>
-                </div>
-              ) : (
-                <div className="card overflow-hidden">
-                  <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+            <div className="space-y-4">
+              {/* Lista compacta */}
+              <div className="card overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
                     <Monitor className="h-4 w-4 text-primary" />
-                    <h2 className="text-sm font-semibold text-dark">Ventas por máquina · {periodLabel[period]}</h2>
+                    <span className="text-sm font-semibold text-dark">Ventas por máquina · {periodLabel[period]}</span>
                   </div>
-                  <div className="divide-y divide-gray-50">
-                    {sorted.map((m, i) => {
-                      const pct = grandTotal > 0 ? Math.round((m.total_amount / grandTotal) * 100) : 0;
+                  <Link href="/maquinas" className="text-xs text-primary hover:underline flex items-center gap-1">
+                    Ver todas <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                </div>
+                <div className="overflow-y-auto" style={{ maxHeight: 260 }}>
+                  {loadingMachineRanking ? (
+                    skeletonRows.map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-50 animate-pulse">
+                        <div className="w-4 h-3 bg-gray-100 rounded shrink-0" />
+                        <div className="flex-1 space-y-1"><div className="h-3.5 w-32 bg-gray-100 rounded" /><div className="h-2.5 w-20 bg-gray-100 rounded" /></div>
+                        <div className="w-20 h-7 bg-gray-100 rounded shrink-0" />
+                        <div className="w-16 h-3.5 bg-gray-100 rounded shrink-0" />
+                      </div>
+                    ))
+                  ) : machineRankingTop.length === 0 ? (
+                    <div className="py-8 text-center"><p className="text-sm text-muted">Sin ventas en este período</p></div>
+                  ) : (
+                    (loadingMachineSparklines ? machineRankingTop : machineTopStats).map((m, i) => {
+                      const amount   = m.payments_amount;
+                      const count    = m.payments_quantity;
+                      const sparkline = 'sparkline' in m ? (m as MachineStat).sparkline : [];
+                      const pct      = grandTotal > 0 ? Math.round((amount / grandTotal) * 100) : 0;
                       return (
-                        <div key={m.id} className="px-5 py-4">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="text-xs font-bold text-muted w-5 flex-shrink-0">{i + 1}</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <Link href={`/maquinas/${m.id}`} className="font-semibold text-dark text-sm truncate hover:text-primary hover:underline">{m.name}</Link>
-                                <span className={`inline-flex items-center px-1.5 py-0.5 text-xs font-semibold rounded-full border flex-shrink-0 ${
-                                  m.status === 'online'
-                                    ? 'bg-green-50 text-green-700 border-green-200'
-                                    : 'bg-red-50 text-red-700 border-red-200'
-                                }`}>
-                                  {m.status === 'online' ? 'En línea' : 'Offline'}
-                                </span>
-                              </div>
-                              <p className="text-xs text-muted truncate">{m.location}</p>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="font-bold text-dark text-sm">{clp(m.total_amount)}</p>
-                              <p className="text-xs text-muted">{m.total_count.toLocaleString('es-CL')} ventas · {pct}%</p>
-                            </div>
+                        <div key={m.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors">
+                          <span className="text-xs font-bold text-gray-400 w-4 text-center shrink-0">{i + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <Link href={`/maquinas/${m.id}`} className="text-sm font-medium text-dark truncate hover:text-primary block leading-tight">{m.name}</Link>
+                            <p className="text-xs text-muted">{count.toLocaleString('es-CL')} ventas</p>
                           </div>
-                          <div className="ml-8">
-                            <MiniChart data={m.sparkline} id={String(m.id)} />
+                          <div className="w-20 shrink-0">
+                            {loadingMachineSparklines
+                              ? <div className="h-7 bg-gray-100 rounded animate-pulse" />
+                              : <MiniChart data={sparkline} id={`mac-${m.id}`} compact />
+                            }
                           </div>
-                          <div className="ml-8 mt-1 flex items-center gap-2">
-                            <div className="flex-1 bg-gray-100 rounded-full h-1">
-                              <div className="bg-primary h-1 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="text-xs text-muted w-8 text-right">{pct}%</span>
+                          <div className="text-right shrink-0 min-w-[68px]">
+                            <p className="text-sm font-bold text-dark">{clpShort(amount)}</p>
+                            <p className="text-xs text-muted">{pct}%</p>
                           </div>
                         </div>
                       );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Mayor / Menor rendimiento — desde machine ranking endpoint */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="card p-5">
-                  <h3 className="text-sm font-semibold text-dark flex items-center gap-2 mb-4">
-                    <TrendingUp className="h-4 w-4 text-emerald-500" />
-                    Mayor rendimiento
-                  </h3>
-                  {loadingMachineRanking
-                    ? <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="animate-pulse flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                          <div className="w-6 h-6 bg-gray-200 rounded-full flex-shrink-0" />
-                          <div className="flex-1 space-y-1">
-                            <div className="h-4 w-32 bg-gray-200 rounded" />
-                            <div className="h-3 w-20 bg-gray-100 rounded" />
-                          </div>
-                          <div className="h-4 w-16 bg-gray-200 rounded" />
-                        </div>
-                      ))}</div>
-                    : machineRankingTop.length === 0
-                      ? <p className="text-sm text-muted text-center py-4">Sin datos para este período</p>
-                      : <div className="space-y-3">
-                          {machineRankingTop.map((m, i) => (
-                            <Link key={m.id} href={`/maquinas/${m.id}`} className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors">
-                              <span className="w-6 h-6 rounded-full bg-emerald-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-dark text-sm truncate">{m.name}</p>
-                                {m.location && <p className="text-xs text-muted truncate">{m.location}</p>}
-                                <p className="text-xs text-muted">{m.payments_quantity.toLocaleString('es-CL')} ventas</p>
-                              </div>
-                              <p className="font-bold text-dark text-sm flex-shrink-0">{clpShort(m.payments_amount)}</p>
-                            </Link>
-                          ))}
-                        </div>
-                  }
-                </div>
-                <div className="card p-5">
-                  <h3 className="text-sm font-semibold text-dark flex items-center gap-2 mb-4">
-                    <TrendingDown className="h-4 w-4 text-red-500" />
-                    Menor rendimiento
-                  </h3>
-                  {loadingMachineRanking
-                    ? <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="animate-pulse flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                          <div className="w-6 h-6 bg-gray-200 rounded-full flex-shrink-0" />
-                          <div className="flex-1 space-y-1">
-                            <div className="h-4 w-32 bg-gray-200 rounded" />
-                            <div className="h-3 w-20 bg-gray-100 rounded" />
-                          </div>
-                          <div className="h-4 w-16 bg-gray-200 rounded" />
-                        </div>
-                      ))}</div>
-                    : machineRankingLow.length === 0
-                      ? <p className="text-sm text-muted text-center py-4">Sin datos para este período</p>
-                      : <div className="space-y-3">
-                          {machineRankingLow.map((m, i) => (
-                            <Link key={m.id} href={`/maquinas/${m.id}`} className="flex items-center gap-3 p-3 bg-red-50 rounded-xl border border-red-100 hover:bg-red-100 transition-colors">
-                              <span className="w-6 h-6 rounded-full bg-red-400 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-dark text-sm truncate">{m.name}</p>
-                                {m.location && <p className="text-xs text-muted truncate">{m.location}</p>}
-                                <p className="text-xs text-muted">{m.payments_quantity.toLocaleString('es-CL')} ventas</p>
-                              </div>
-                              <p className="font-bold text-dark text-sm flex-shrink-0">{clpShort(m.payments_amount)}</p>
-                            </Link>
-                          ))}
-                        </div>
-                  }
+                    })
+                  )}
                 </div>
               </div>
-            </>
+
+              {/* Mayor / Menor rendimiento */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {([
+                  { label: 'Mayor rendimiento', icon: <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />, items: machineRankingTop.slice(0, 3), badge: 'bg-emerald-500', row: 'hover:bg-emerald-50/60' },
+                  { label: 'Menor rendimiento', icon: <TrendingDown className="h-3.5 w-3.5 text-red-400" />,   items: machineRankingLow.slice(0, 3), badge: 'bg-red-400',     row: 'hover:bg-red-50/60'     },
+                ] as const).map(({ label, icon, items, badge, row }) => (
+                  <div key={label} className="card overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+                      {icon}
+                      <span className="text-sm font-semibold text-dark">{label}</span>
+                    </div>
+                    {loadingMachineRanking ? (
+                      <div className="divide-y divide-gray-50">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <div key={i} className="flex items-center gap-3 px-4 py-2.5 animate-pulse">
+                            <div className="w-5 h-5 bg-gray-100 rounded-full shrink-0" />
+                            <div className="flex-1 space-y-1"><div className="h-3.5 w-28 bg-gray-100 rounded" /><div className="h-2.5 w-16 bg-gray-100 rounded" /></div>
+                            <div className="w-14 h-3.5 bg-gray-100 rounded" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : items.length === 0 ? (
+                      <p className="text-sm text-muted text-center py-6">Sin datos</p>
+                    ) : (
+                      <div className="divide-y divide-gray-50">
+                        {items.map((m, i) => (
+                          <Link key={m.id} href={`/maquinas/${m.id}`} className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${row}`}>
+                            <span className={`w-5 h-5 rounded-full ${badge} text-white text-xs font-bold flex items-center justify-center shrink-0`}>{i + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-dark truncate">{m.name}</p>
+                              <p className="text-xs text-muted">{m.payments_quantity.toLocaleString('es-CL')} ventas</p>
+                            </div>
+                            <p className="text-sm font-bold text-dark shrink-0">{clpShort(m.payments_amount)}</p>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           );
         })()}
 
@@ -820,92 +785,101 @@ export default function MetricasPage() {
             TAB: PRODUCTOS
         ══════════════════════════════════════ */}
         {activeTab === 'productos' && (() => {
-          const maxTop = rankingTop[0]?.payments_amount || 1;
-
-          if (loadingRanking) return (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {[0, 1].map(col => (
-                <div key={col} className="card p-5 space-y-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="animate-pulse flex items-center gap-3">
-                      <div className="h-3 w-3 bg-gray-100 rounded" />
-                      <div className="flex-1 space-y-1">
-                        <div className="h-4 w-36 bg-gray-100 rounded" />
-                        <div className="h-2 bg-gray-100 rounded" />
-                      </div>
-                      <div className="h-4 w-14 bg-gray-100 rounded" />
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          );
-
-          if (!rankingTop.length && !rankingLow.length) return (
-            <div className="card p-10 text-center">
-              <ShoppingCart className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-muted">Sin datos de productos para este período</p>
-            </div>
-          );
+          const grandTotal   = productStats.reduce((s, p) => s + p.payments_amount, 0);
+          const skeletonRows = Array.from({ length: 5 });
 
           return (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Top performers */}
+            <div className="space-y-4">
+              {/* Lista compacta con sparklines */}
               <div className="card overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-                  <Star className="h-4 w-4 text-emerald-500" />
-                  <h2 className="text-sm font-semibold text-dark">Más vendidos · {periodLabel[period]}</h2>
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-semibold text-dark">Ventas por producto · {periodLabel[period]}</span>
+                  </div>
+                  <Link href="/productos" className="text-xs text-primary hover:underline flex items-center gap-1">
+                    Ver todos <ArrowUpRight className="h-3 w-3" />
+                  </Link>
                 </div>
-                <div className="divide-y divide-gray-50">
-                  {rankingTop.map((p, i) => {
-                    const pct = Math.round((p.payments_amount / maxTop) * 100);
-                    return (
-                      <Link key={p.id} href={`/productos/${p.id}`} className="block px-5 py-3.5 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-bold text-muted w-5 flex-shrink-0">{i + 1}</span>
+                <div className="overflow-y-auto" style={{ maxHeight: 260 }}>
+                  {loadingRanking ? (
+                    skeletonRows.map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-50 animate-pulse">
+                        <div className="w-4 h-3 bg-gray-100 rounded shrink-0" />
+                        <div className="flex-1 space-y-1"><div className="h-3.5 w-32 bg-gray-100 rounded" /><div className="h-2.5 w-20 bg-gray-100 rounded" /></div>
+                        <div className="w-20 h-7 bg-gray-100 rounded shrink-0" />
+                        <div className="w-16 h-3.5 bg-gray-100 rounded shrink-0" />
+                      </div>
+                    ))
+                  ) : rankingTop.length === 0 ? (
+                    <div className="py-8 text-center"><p className="text-sm text-muted">Sin datos de productos para este período</p></div>
+                  ) : (
+                    (loadingProductStats ? rankingTop : productStats).map((p, i) => {
+                      const sparkline = 'sparkline' in p ? (p as ProductStat).sparkline : [];
+                      const pct       = grandTotal > 0 ? Math.round((p.payments_amount / grandTotal) * 100) : 0;
+                      return (
+                        <div key={p.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors">
+                          <span className="text-xs font-bold text-gray-400 w-4 text-center shrink-0">{i + 1}</span>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-dark truncate">{p.name}</p>
+                            <Link href={`/productos/${p.id}`} className="text-sm font-medium text-dark truncate hover:text-primary block leading-tight">{p.name}</Link>
                             <p className="text-xs text-muted">{p.payments_quantity.toLocaleString('es-CL')} ventas</p>
                           </div>
-                          <p className="text-sm font-bold text-dark flex-shrink-0">{clpShort(p.payments_amount)}</p>
-                        </div>
-                        <div className="ml-7 flex items-center gap-2">
-                          <div className="flex-1 bg-gray-100 rounded-full h-1.5">
-                            <div className="bg-emerald-500 h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          <div className="w-20 shrink-0">
+                            {loadingProductStats
+                              ? <div className="h-7 bg-gray-100 rounded animate-pulse" />
+                              : <MiniChart data={sparkline} id={`prod-${p.id}`} compact />
+                            }
                           </div>
-                          <span className="text-xs text-muted w-8 text-right">{pct}%</span>
+                          <div className="text-right shrink-0 min-w-[68px]">
+                            <p className="text-sm font-bold text-dark">{clpShort(p.payments_amount)}</p>
+                            <p className="text-xs text-muted">{pct}%</p>
+                          </div>
                         </div>
-                      </Link>
-                    );
-                  })}
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
-              {/* Low performers */}
-              <div className="card overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-                  <Package className="h-4 w-4 text-orange-500" />
-                  <h2 className="text-sm font-semibold text-dark">Menos vendidos · {periodLabel[period]}</h2>
-                </div>
-                <div className="divide-y divide-gray-50">
-                  {rankingLow.map((p, i) => (
-                    <Link key={p.id} href={`/productos/${p.id}`} className="block px-5 py-3.5 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-muted w-5 flex-shrink-0">{i + 1}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-dark truncate">{p.name}</p>
-                          <p className="text-xs text-muted">{p.payments_quantity.toLocaleString('es-CL')} ventas</p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-sm font-bold text-dark">{clpShort(p.payments_amount)}</p>
-                          {p.payments_amount === 0 && (
-                            <p className="text-xs text-red-500 font-semibold">Sin ventas</p>
-                          )}
-                        </div>
+              {/* Más / Menos vendidos */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {([
+                  { label: 'Más vendidos',   icon: <Star className="h-3.5 w-3.5 text-emerald-500" />,   items: rankingTop, badge: 'bg-emerald-500', row: 'hover:bg-emerald-50/60' },
+                  { label: 'Menos vendidos', icon: <Package className="h-3.5 w-3.5 text-orange-400" />, items: rankingLow, badge: 'bg-orange-400',   row: 'hover:bg-orange-50/60' },
+                ] as const).map(({ label, icon, items, badge, row }) => (
+                  <div key={label} className="card overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+                      {icon}
+                      <span className="text-sm font-semibold text-dark">{label}</span>
+                    </div>
+                    {loadingRanking ? (
+                      <div className="divide-y divide-gray-50">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <div key={i} className="flex items-center gap-3 px-4 py-2.5 animate-pulse">
+                            <div className="w-5 h-5 bg-gray-100 rounded-full shrink-0" />
+                            <div className="flex-1 space-y-1"><div className="h-3.5 w-28 bg-gray-100 rounded" /><div className="h-2.5 w-16 bg-gray-100 rounded" /></div>
+                            <div className="w-14 h-3.5 bg-gray-100 rounded" />
+                          </div>
+                        ))}
                       </div>
-                    </Link>
-                  ))}
-                </div>
+                    ) : items.length === 0 ? (
+                      <p className="text-sm text-muted text-center py-6">Sin datos</p>
+                    ) : (
+                      <div className="divide-y divide-gray-50">
+                        {items.map((p, i) => (
+                          <Link key={p.id} href={`/productos/${p.id}`} className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${row}`}>
+                            <span className={`w-5 h-5 rounded-full ${badge} text-white text-xs font-bold flex items-center justify-center shrink-0`}>{i + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-dark truncate">{p.name}</p>
+                              <p className="text-xs text-muted">{p.payments_quantity.toLocaleString('es-CL')} ventas</p>
+                            </div>
+                            <p className="text-sm font-bold text-dark shrink-0">{clpShort(p.payments_amount)}</p>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           );

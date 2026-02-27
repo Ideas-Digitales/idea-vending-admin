@@ -245,12 +245,12 @@ export default function MaquinasInfiniteClient() {
       key: 'nombre',
       header: 'Nombre',
       cell: (m) => (
-        <div className="flex items-center">
-          <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center mr-3">
+        <Link href={`/maquinas/${m.id}`} className="flex items-center group cursor-pointer">
+          <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center mr-3 shrink-0">
             <Monitor className="h-4 w-4 text-white" />
           </div>
-          <span className="text-sm font-medium text-dark">{m.name}</span>
-        </div>
+          <span className="text-sm font-medium text-dark group-hover:text-primary transition-colors">{m.name}</span>
+        </Link>
       ),
     },
     {

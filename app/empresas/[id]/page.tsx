@@ -152,7 +152,10 @@ export default function EnterpriseDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Nombre</p>
-                <p className="text-dark font-medium">{enterprise.name}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-dark font-medium">{enterprise.name}</p>
+                  <span className="text-xs font-mono text-muted bg-gray-100 px-1.5 py-0.5 rounded shrink-0">ID: {enterprise.id}</span>
+                </div>
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">RUT</p>

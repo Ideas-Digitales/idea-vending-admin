@@ -17,6 +17,7 @@ import {
   UserPlus,
   MonitorPlay,
   QrCode,
+  Rocket,
 } from 'lucide-react';
 import { AppShell, PageHeader } from '@/components/ui-custom';
 import { useAuthProtection } from '@/lib/hooks/useAuthProtection';
@@ -24,6 +25,7 @@ import { useUser } from '@/lib/stores/authStore';
 import { getDashboardStatsAction, type DashboardStats } from '@/lib/actions/dashboard';
 import { TourRunner, type Step } from '@/components/help/TourRunner';
 import { HelpTooltip } from '@/components/help/HelpTooltip';
+import { SetupGuideModal } from '@/components/help/SetupGuideModal';
 
 const ADMIN_TOUR_STEPS: Step[] = [
   {
@@ -63,6 +65,7 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+  const [isSetupGuideOpen, setIsSetupGuideOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -183,6 +186,14 @@ function DashboardContent() {
       bgColor: 'bg-orange-50 group-hover:bg-orange-100',
     },
     qrScanAction,
+    {
+      title: 'Alta de cliente',
+      description: 'Guía paso a paso',
+      onClick: () => setIsSetupGuideOpen(true),
+      icon: Rocket,
+      color: 'text-primary',
+      bgColor: 'bg-primary/8 group-hover:bg-primary/15',
+    },
   ];
 
   const customerQuickActions: QuickAction[] = [
@@ -347,6 +358,7 @@ function DashboardContent() {
       </main>
 
       <QRScannerModal isOpen={isQRScannerOpen} onClose={() => setIsQRScannerOpen(false)} />
+      <SetupGuideModal isOpen={isSetupGuideOpen} onClose={() => setIsSetupGuideOpen(false)} />
     </AppShell>
   );
 }
