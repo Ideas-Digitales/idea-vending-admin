@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle, X } from 'lucide-react';
 import { useAuthStore, useIsAuthenticated, useAuthLoading, useAuthError } from '@/lib/stores/authStore';
 import ClientOnly from '@/components/ClientOnly';
+import { notify } from '@/lib/adapters/notification.adapter';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -283,7 +284,7 @@ export default function LoginPage() {
               </div>
 
               {/* Remember Me */}
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 sm:justify-between">
                 <div className="flex items-center">
                   <input
                     id="remember-me"
@@ -296,15 +297,13 @@ export default function LoginPage() {
                     Recordar sesión
                   </label>
                 </div>
-                <div className="text-sm">
-                  <button
-                    type="button"
-                    onClick={() => setIsResetModalOpen(true)}
-                    className="font-medium text-primary hover:text-primary-dark"
-                  >
-                    ¿Olvidaste tu contraseña?
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsResetModalOpen(true)}
+                  className="text-sm font-medium text-primary hover:text-primary-dark"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
               </div>
 
               {/* Submit Button */}
@@ -366,54 +365,42 @@ export default function LoginPage() {
 function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setEmail('');
-    setMessage(null);
-    setError(null);
-  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!email || !email.includes('@')) {
       setError('Ingresa un correo electrónico válido.');
-      setMessage(null);
       return;
     }
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) {
-      setError('API URL no configurada. Contacta al administrador.');
-      setMessage(null);
+      setError('Error de configuración. Contacta al administrador.');
       return;
     }
 
     setIsSubmitting(true);
     setError(null);
-    setMessage(null);
 
     try {
       const response = await fetch(`${apiUrl}/password/forgot`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ email }),
       });
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-        throw new Error(
-          data?.message || data?.error || 'No se pudo enviar el enlace de recuperación.'
-        );
+        throw new Error(data?.message || data?.error || 'No se pudo enviar el enlace.');
       }
 
       await response.json().catch(() => ({}));
-      setMessage('Si el correo existe en nuestros registros, te enviaremos un enlace para restablecerla.');
-      setEmail('');
+      notify.success(
+        '📧 Revisa tu correo — si la cuenta existe recibirás un enlace para restablecer tu contraseña. No olvides revisar la carpeta de spam.',
+        { autoClose: 8000 }
+      );
+      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error inesperado. Intenta nuevamente.');
     } finally {
@@ -424,7 +411,7 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-1">
           <h3 className="text-lg font-semibold text-gray-900">Recuperar contraseña</h3>
           <button
             onClick={onClose}
@@ -435,8 +422,8 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <p className="text-sm text-gray-600 mb-4">
-          Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.
+        <p className="text-sm text-gray-500 mb-5">
+          Ingresa el correo asociado a tu cuenta y te enviaremos un enlace para restablecerla.
         </p>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -450,25 +437,21 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
               className="input-field"
               placeholder="usuario@ejemplo.com"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(e) => { setEmail(e.target.value); if (error) setError(null); }}
               disabled={isSubmitting}
+              autoFocus
               required
             />
           </div>
 
           {error && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+              <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
               {error}
             </div>
           )}
 
-          {message && (
-            <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-700">
-              {message}
-            </div>
-          )}
-
-          <div className="flex items-center justify-end space-x-3">
+          <div className="flex items-center justify-end gap-3 pt-1">
             <button
               type="button"
               onClick={onClose}
@@ -479,10 +462,18 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
             </button>
             <button
               type="submit"
-              className="btn-primary px-4 py-2"
-              disabled={isSubmitting}
+              className="btn-primary px-4 py-2 min-w-[120px] flex items-center justify-center gap-2"
+              disabled={isSubmitting || !email}
             >
-              {isSubmitting ? 'Enviando…' : 'Enviar enlace'}
+              {isSubmitting ? (
+                <>
+                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Enviando…
+                </>
+              ) : 'Enviar enlace'}
             </button>
           </div>
         </form>

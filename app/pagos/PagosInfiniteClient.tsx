@@ -975,7 +975,7 @@ export default function PagosInfiniteClient() {
                 })()}
                 <div className={`${filtersOpen ? 'grid' : 'hidden'} grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 p-4`}>
 
-                  {/* Buscar — ocupa 2 cols en mobile/sm, 1 col en lg (6 campos = 6 cols exactas) */}
+                  {/* Buscar — fila completa en mobile/sm, 1 col en lg */}
                   <div className="col-span-2 sm:col-span-3 lg:col-span-1 flex flex-col gap-1">
                     <label className="text-xs font-medium text-gray-500">Buscar</label>
                     <input
@@ -1030,8 +1030,8 @@ export default function PagosInfiniteClient() {
                     {enterpriseError && <p className="text-xs text-red-500">{enterpriseError}</p>}
                   </div>
 
-                  {/* Máquina */}
-                  <div className="flex flex-col gap-1">
+                  {/* Máquina — fila completa en mobile, 1 col en sm+ */}
+                  <div className="col-span-2 sm:col-span-1 flex flex-col gap-1">
                     <label className="text-xs font-medium text-gray-500">Máquina</label>
                     <select
                       value={draftFilters.machine_id ?? ''}
@@ -1047,30 +1047,30 @@ export default function PagosInfiniteClient() {
                     {machineError && <p className="text-xs text-red-500">{machineError}</p>}
                   </div>
 
-                  {/* Desde */}
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-gray-500">Desde</label>
-                    <input
-                      type="date"
-                      value={draftFilters.date_from ?? ''}
-                      onChange={(e) => updateDraftFilters('date_from', e.target.value || undefined)}
-                      onClick={openNativeDatePicker}
-                      onFocus={openNativeDatePicker}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-
-                  {/* Hasta */}
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-gray-500">Hasta</label>
-                    <input
-                      type="date"
-                      value={draftFilters.date_to ?? ''}
-                      onChange={(e) => updateDraftFilters('date_to', e.target.value || undefined)}
-                      onClick={openNativeDatePicker}
-                      onFocus={openNativeDatePicker}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
+                  {/* Desde + Hasta — siempre juntos, fila completa en mobile y sm */}
+                  <div className="col-span-2 sm:col-span-2 lg:col-span-2 grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <label className="text-xs font-medium text-gray-500">Desde</label>
+                      <input
+                        type="date"
+                        value={draftFilters.date_from ?? ''}
+                        onChange={(e) => updateDraftFilters('date_from', e.target.value || undefined)}
+                        onClick={openNativeDatePicker}
+                        onFocus={openNativeDatePicker}
+                        className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <label className="text-xs font-medium text-gray-500">Hasta</label>
+                      <input
+                        type="date"
+                        value={draftFilters.date_to ?? ''}
+                        onChange={(e) => updateDraftFilters('date_to', e.target.value || undefined)}
+                        onClick={openNativeDatePicker}
+                        onFocus={openNativeDatePicker}
+                        className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
                   </div>
 
                 </div>
