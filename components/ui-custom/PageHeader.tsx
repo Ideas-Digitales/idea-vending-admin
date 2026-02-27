@@ -77,7 +77,7 @@ export default function PageHeader({
 
             <div className="min-w-0">
               <h1
-                className={`text-xl sm:text-2xl font-bold truncate ${
+                className={`hidden sm:block text-xl sm:text-2xl font-bold truncate ${
                   isGradient ? 'text-white' : 'text-dark'
                 }`}
               >

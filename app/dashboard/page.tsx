@@ -22,6 +22,38 @@ import { AppShell, PageHeader } from '@/components/ui-custom';
 import { useAuthProtection } from '@/lib/hooks/useAuthProtection';
 import { useUser } from '@/lib/stores/authStore';
 import { getDashboardStatsAction, type DashboardStats } from '@/lib/actions/dashboard';
+import { TourRunner, type Step } from '@/components/help/TourRunner';
+import { HelpTooltip } from '@/components/help/HelpTooltip';
+
+const ADMIN_TOUR_STEPS: Step[] = [
+  {
+    element: '[data-tour="dashboard-stats"]',
+    popover: {
+      title: 'Resumen del sistema',
+      description: 'Vista en tiempo real de tus máquinas y usuarios. Haz clic en cualquier tarjeta para ir directamente a esa sección.',
+      side: 'bottom',
+    },
+  },
+  {
+    element: '[data-tour="quick-actions"]',
+    popover: {
+      title: 'Acciones rápidas',
+      description: 'Accesos directos a las operaciones más frecuentes. El escáner QR te lleva al detalle de cualquier máquina apuntando con la cámara.',
+      side: 'top',
+    },
+  },
+];
+
+const CUSTOMER_TOUR_STEPS: Step[] = [
+  {
+    element: '[data-tour="quick-actions"]',
+    popover: {
+      title: 'Acciones rápidas',
+      description: 'Desde aquí puedes acceder a tus métricas de ventas, estado de máquinas, historial de pagos y productos. El escáner QR te lleva al detalle de cualquier máquina.',
+      side: 'top',
+    },
+  },
+];
 
 const QRScannerModal = dynamic(() => import('@/components/QRScannerModal'), { ssr: false });
 
@@ -195,6 +227,8 @@ function DashboardContent() {
       ? customerQuickActions
       : [];
 
+  const tourSteps = user?.role === 'admin' ? ADMIN_TOUR_STEPS : CUSTOMER_TOUR_STEPS;
+
   return (
     <AppShell>
       <PageHeader
@@ -202,9 +236,12 @@ function DashboardContent() {
         subtitle={`Bienvenido de vuelta, ${user?.name}`}
         variant="white"
         actions={
-          <div className="hidden sm:block text-right">
-            <p className="text-sm font-medium text-dark">{user?.email}</p>
-            <p className="text-xs text-muted">{user?.role}</p>
+          <div className="flex items-center gap-2">
+            <TourRunner steps={tourSteps} theme="light" />
+            <div className="hidden sm:block text-right">
+              <p className="text-sm font-medium text-dark">{user?.email}</p>
+              <p className="text-xs text-muted">{user?.role}</p>
+            </div>
           </div>
         }
       />
@@ -228,7 +265,7 @@ function DashboardContent() {
         )}
 
         {!loading && !error && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <div data-tour="dashboard-stats" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
             {stats.map((stat, index) => (
               <Link key={index} href={stat.href} className="group">
                 <div
@@ -237,8 +274,11 @@ function DashboardContent() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-muted mb-2 group-hover:text-gray-600 transition-colors">
+                      <p className="text-sm font-semibold text-muted mb-2 group-hover:text-gray-600 transition-colors flex items-center gap-1">
                         {stat.title}
+                        {stat.title === 'Máquinas en línea' && (
+                          <HelpTooltip text="La barra muestra el porcentaje de máquinas activas sobre el total. Una máquina en línea está comunicada con el servidor y puede procesar pagos." side="top" />
+                        )}
                       </p>
                       <p className="text-2xl sm:text-3xl font-bold text-dark mb-1 group-hover:scale-105 transition-transform">
                         {stat.value}
@@ -267,7 +307,7 @@ function DashboardContent() {
         )}
 
         {quickActions.length > 0 && (
-          <div className="mb-8">
+          <div data-tour="quick-actions" className="mb-8">
             <h3 className="text-lg font-bold text-dark mb-4 flex items-center">
               <Zap className="h-5 w-5 mr-2 text-orange-500" />
               Acciones Rápidas

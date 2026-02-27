@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { Building2, Plus, MapPin, Phone, Eye, Edit, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { EditEmpresaModal } from '@/components/modals/EditEmpresaModal';
+import { CreateEmpresaModal } from '@/components/modals/CreateEmpresaModal';
 import { PageLayout, DataTable, FilterBar, ConfirmActionDialog, UnifiedPagination } from '@/components/ui-custom';
 import type { ColumnDef } from '@/components/ui-custom';
 import { Button } from '@/components/ui/button';
@@ -25,6 +27,11 @@ export default function EmpresasPage() {
     isOpen: boolean;
     enterprise: Enterprise | null;
   }>({ isOpen: false, enterprise: null });
+  const [editModal, setEditModal] = useState<{ open: boolean; enterpriseId: number | null }>({
+    open: false,
+    enterpriseId: null,
+  });
+  const [createModal, setCreateModal] = useState(false);
 
   const {
     enterprises,
@@ -159,7 +166,7 @@ export default function EmpresasPage() {
                       variant="ghost"
                       size="icon"
                       className="h-9 w-9 bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                      onClick={() => router.push(`/empresas/${e.id}/editar`)}
+                      onClick={() => setEditModal({ open: true, enterpriseId: e.id })}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -198,7 +205,7 @@ export default function EmpresasPage() {
         permissionMatch="any"
         actions={
           canManageEnterprises ? (
-            <Button onClick={() => router.push('/empresas/crear')} className="btn-primary flex items-center space-x-2">
+            <Button onClick={() => setCreateModal(true)} className="btn-primary flex items-center space-x-2">
               <Plus className="h-4 w-4" />
               <span>Nueva Empresa</span>
             </Button>
@@ -227,7 +234,7 @@ export default function EmpresasPage() {
           }
           emptyAction={
             canManageEnterprises && !searchTerm ? (
-              <Button onClick={() => router.push('/empresas/crear')} className="btn-primary">
+              <Button onClick={() => setCreateModal(true)} className="btn-primary">
                 Crear Primera Empresa
               </Button>
             ) : undefined
@@ -247,6 +254,19 @@ export default function EmpresasPage() {
             />
           </div>
         )}
+
+        <CreateEmpresaModal
+          open={createModal}
+          onOpenChange={setCreateModal}
+          onCreated={() => performSearch(searchTerm, 1)}
+        />
+
+        <EditEmpresaModal
+          open={editModal.open}
+          onOpenChange={(open) => setEditModal(prev => ({ ...prev, open }))}
+          enterpriseId={editModal.enterpriseId}
+          onSaved={() => performSearch(searchTerm, currentPage)}
+        />
 
         <ConfirmActionDialog
           isOpen={deleteDialog.isOpen}

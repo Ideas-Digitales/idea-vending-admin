@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   TrendingUp, TrendingDown, Package, Monitor, Building2,
   ShoppingCart, AlertTriangle, BarChart2, Activity,
-  ArrowUpRight, Star, LineChart as LineChartIcon, Wrench,
+  ArrowUpRight, Star, LineChart as LineChartIcon,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar,
@@ -18,6 +18,43 @@ import { aggregatePaymentsAction, productRankingAction, machineRankingAction } f
 import type { RankedProduct, RankedMachine, AggregateDataPoint } from '@/lib/actions/payments';
 import { getMachinesAction } from '@/lib/actions/machines';
 import type { Machine } from '@/lib/interfaces/machine.interface';
+import { TourRunner, type Step } from '@/components/help/TourRunner';
+import { HelpTooltip } from '@/components/help/HelpTooltip';
+
+const METRICS_TOUR_STEPS: Step[] = [
+  {
+    element: '[data-tour="period-selector"]',
+    popover: {
+      title: 'Período de análisis',
+      description: 'Selecciona el rango de tiempo: últimos 7 días, mes actual o año completo. Todos los datos se actualizan automáticamente al cambiar.',
+      side: 'bottom',
+    },
+  },
+  {
+    element: '[data-tour="metrics-tabs"]',
+    popover: {
+      title: 'Vistas de análisis',
+      description: 'Cambia entre Resumen (KPIs y gráfico), Máquinas (rendimiento por máquina), Productos (ranking de ventas) y Stock (inventario).',
+      side: 'bottom',
+    },
+  },
+  {
+    element: '[data-tour="kpi-cards"]',
+    popover: {
+      title: 'Indicadores clave (KPIs)',
+      description: 'Ventas totales, número de transacciones, ticket promedio y crecimiento vs el período anterior equivalente. Los datos se obtienen en tiempo real.',
+      side: 'bottom',
+    },
+  },
+  {
+    element: '[data-tour="sales-chart"]',
+    popover: {
+      title: 'Gráfico de ventas',
+      description: 'Evolución de ingresos en el período. Toca o pasa el cursor sobre los puntos para ver los valores exactos de cada día o mes.',
+      side: 'top',
+    },
+  },
+];
 
 // ──────────────────────────────────────────────────────────────
 // TIPOS
@@ -104,32 +141,6 @@ function mapGroupedData(
   }));
 }
 
-// ──────────────────────────────────────────────────────────────
-// DATOS ESTRUCTURALES (para tabs en desarrollo — valores en 0)
-// ──────────────────────────────────────────────────────────────
-
-const machineList = [
-  { id: 1, name: 'Mall Central',      location: 'Mall Central, Local 23',     status: 'online'  },
-  { id: 2, name: 'Torre Norte',       location: 'Torre Costanera, Piso 5',    status: 'online'  },
-  { id: 3, name: 'Campus Sur',        location: 'U. Sur, Edificio A',         status: 'online'  },
-  { id: 4, name: 'Parque Industrial', location: 'Parque Industrial, Nave 3',  status: 'online'  },
-  { id: 5, name: 'Laguna Center',     location: 'Laguna Center, Planta Baja', status: 'offline' },
-];
-
-const productList = {
-  top:    [
-    { name: 'Bebida Energética 250ml', sku: 'BEB-001' },
-    { name: 'Agua Mineral 500ml',      sku: 'AGU-001' },
-    { name: 'Snack de Nueces',         sku: 'SNA-001' },
-    { name: 'Jugo Natural Naranja',    sku: 'JUG-001' },
-    { name: 'Barra Energética',        sku: 'BAR-001' },
-  ],
-  bottom: [
-    { name: 'Café Soluble',      sku: 'CAF-001' },
-    { name: 'Pastillas Menta',   sku: 'MEN-001' },
-    { name: 'Chicle Sin Azúcar', sku: 'CHI-001' },
-  ],
-};
 
 // ──────────────────────────────────────────────────────────────
 // HELPERS
@@ -170,14 +181,6 @@ function computeInsights(period: Period, data: { label: string; value: number }[
 // ──────────────────────────────────────────────────────────────
 // UI HELPERS
 // ──────────────────────────────────────────────────────────────
-function DevBadge() {
-  return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-700 border border-amber-200">
-      <Wrench className="h-3 w-3" />
-      En desarrollo
-    </span>
-  );
-}
 
 function KpiSkeleton() {
   return <div className="h-7 w-28 bg-gray-100 rounded-lg animate-pulse" />;
@@ -424,8 +427,9 @@ export default function MetricasPage() {
   const avgTicket      = totalCount > 0 ? Math.round(totalAmount / totalCount) : 0;
   const growthPct      = (aggCurrent && aggPrev && aggPrev.total_amount > 0)
     ? Math.round(((aggCurrent.total_amount - aggPrev.total_amount) / aggPrev.total_amount) * 100)
-    : 0;
-  const growthPositive = growthPct >= 0;
+    : null;
+  const growthAvailable = growthPct !== null;
+  const growthPositive  = (growthPct ?? 0) >= 0;
   const insights       = computeInsights(period, chartData);
 
   const periodLabel: Record<Period, string> = { day: '7 días', month: 'Este mes', year: 'Este año' };
@@ -437,11 +441,11 @@ export default function MetricasPage() {
     year:  { title: 'Ventas por mes · Este año',       subtitle: 'Tendencia mensual de ingresos del año en curso'        },
   };
 
-  const tabs: { id: Tab; label: string; icon: typeof Monitor }[] = [
+  const tabs: { id: Tab; label: string; icon: typeof Monitor; disabled?: boolean }[] = [
     { id: 'resumen',   label: 'Resumen',   icon: LineChartIcon },
     { id: 'maquinas',  label: 'Máquinas',  icon: Monitor       },
     { id: 'productos', label: 'Productos', icon: ShoppingCart  },
-    { id: 'stock',     label: 'Stock',     icon: Package       },
+    { id: 'stock',     label: 'Stock',     icon: Package,      disabled: true },
   ];
 
   return (
@@ -458,39 +462,48 @@ export default function MetricasPage() {
         }
         variant="gradient"
         actions={
-          <div className="flex items-center gap-1 bg-white/15 rounded-lg p-1">
-            {(['day', 'month', 'year'] as Period[]).map(p => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${
-                  period === p
-                    ? 'bg-white text-primary shadow-sm'
-                    : 'text-white/80 hover:bg-white/15 hover:text-white'
-                }`}
-              >
-                {periodLabel[p]}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <TourRunner steps={METRICS_TOUR_STEPS} />
+            <div data-tour="period-selector" className="flex items-center gap-1 bg-white/15 rounded-lg p-1">
+              {(['day', 'month', 'year'] as Period[]).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${
+                    period === p
+                      ? 'bg-white text-primary shadow-sm'
+                      : 'text-white/80 hover:bg-white/15 hover:text-white'
+                  }`}
+                >
+                  {periodLabel[p]}
+                </button>
+              ))}
+            </div>
           </div>
         }
       />
 
       {/* Tab bar */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <div data-tour="metrics-tabs" className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <nav className="flex px-4 sm:px-6 gap-1">
           {tabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => !tab.disabled && setActiveTab(tab.id)}
+              disabled={tab.disabled}
               className={`flex items-center gap-1.5 px-3 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                tab.disabled
+                  ? 'border-transparent text-gray-400 opacity-40 cursor-not-allowed'
+                  : activeTab === tab.id
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
               <tab.icon className="h-4 w-4" />
               <span className="hidden sm:inline">{tab.label}</span>
+              {tab.disabled && (
+                <span className="hidden sm:inline ml-0.5 text-xs px-1 py-0.5 rounded bg-gray-100 text-gray-400 font-normal leading-none">Próx.</span>
+              )}
             </button>
           ))}
         </nav>
@@ -504,7 +517,7 @@ export default function MetricasPage() {
         {activeTab === 'resumen' && (
           <>
             {/* KPIs — datos reales del endpoint aggregate */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div data-tour="kpi-cards" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Ventas totales — real */}
               <div className="card p-4 sm:p-5">
                 <div className="flex items-start justify-between">
@@ -549,7 +562,10 @@ export default function MetricasPage() {
               <div className="card p-4 sm:p-5">
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 pr-2">
-                    <p className="text-xs text-muted mb-1 font-medium">Ticket promedio</p>
+                    <p className="text-xs text-muted mb-1 font-medium flex items-center gap-1">
+                      Ticket promedio
+                      <HelpTooltip text="Monto promedio por transacción: ventas totales ÷ número de ventas. Indica el valor típico de cada compra." side="bottom" />
+                    </p>
                     {loading
                       ? <KpiSkeleton />
                       : <p className="text-lg sm:text-xl font-bold text-dark truncate">{clp(avgTicket)}</p>
@@ -566,32 +582,37 @@ export default function MetricasPage() {
               </div>
 
               {/* Crecimiento — calculado de dos llamadas */}
-              <div className="card p-4 sm:p-5">
+              <div className={`card p-4 sm:p-5 transition-opacity ${!loading && !growthAvailable ? 'opacity-40' : ''}`}>
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 pr-2">
-                    <p className="text-xs text-muted mb-1 font-medium">Crecimiento</p>
+                    <p className="text-xs text-muted mb-1 font-medium flex items-center gap-1">
+                      Crecimiento
+                      <HelpTooltip text="Variación porcentual vs el período anterior equivalente. Ej: para «Este mes» compara con el mes pasado en el mismo rango de días." side="bottom" />
+                    </p>
                     {loading
                       ? <KpiSkeleton />
-                      : <p className={`text-lg sm:text-xl font-bold truncate ${growthPositive ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {growthPositive ? '+' : ''}{growthPct}%
-                        </p>
+                      : growthAvailable
+                        ? <p className={`text-lg sm:text-xl font-bold truncate ${growthPositive ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {growthPositive ? '+' : ''}{growthPct}%
+                          </p>
+                        : <p className="text-lg sm:text-xl font-bold text-gray-400">—</p>
                     }
                   </div>
-                  <div className={`p-2 rounded-xl flex-shrink-0 ${growthPositive ? 'bg-emerald-50' : 'bg-red-50'}`}>
-                    {growthPositive
-                      ? <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
-                      : <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
+                  <div className={`p-2 rounded-xl flex-shrink-0 ${growthAvailable && !growthPositive ? 'bg-red-50' : 'bg-emerald-50'}`}>
+                    {growthAvailable && !growthPositive
+                      ? <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
+                      : <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
                     }
                   </div>
                 </div>
                 <div className="mt-3 flex items-center text-xs font-semibold text-muted">
-                  <span>vs período anterior</span>
+                  <span>{growthAvailable ? 'vs período anterior' : 'sin datos anteriores'}</span>
                 </div>
               </div>
             </div>
 
             {/* ── Gráfico de ventas vs tiempo ── */}
-            <div className="card overflow-hidden">
+            <div data-tour="sales-chart" className="card overflow-hidden">
               {/* Header */}
               <div className="page-header-gradient px-5 py-4 flex items-center justify-between gap-4">
                 <div>
@@ -891,37 +912,15 @@ export default function MetricasPage() {
         })()}
 
         {/* ══════════════════════════════════════
-            TAB: STOCK — En desarrollo
+            TAB: STOCK — Próximamente
         ══════════════════════════════════════ */}
         {activeTab === 'stock' && (
-          <div className="card p-5">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-semibold text-dark">Nivel de stock actual por máquina</h2>
-                <DevBadge />
-              </div>
-              <span className="text-xs text-muted">Tiempo real</span>
+          <div className="card p-10 text-center">
+            <div className="mx-auto h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <Package className="h-6 w-6 text-gray-400" />
             </div>
-            <div className="space-y-4">
-              {machineList.map(m => (
-                <div key={m.id} className="flex items-center gap-4">
-                  <div className="w-40 flex-shrink-0">
-                    <p className="text-sm font-semibold text-dark truncate">{m.name}</p>
-                    <p className="text-xs text-muted truncate">{m.location}</p>
-                  </div>
-                  <div className="flex-1 flex items-center gap-3">
-                    <div className="flex-1 bg-gray-200 rounded-full h-3">
-                      <div className="bg-gray-300 h-3 rounded-full" style={{ width: '0%' }} />
-                    </div>
-                    <span className="text-sm font-bold w-10 text-right text-gray-400">0%</span>
-                    <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full border bg-gray-50 text-gray-500 border-gray-200 w-14 justify-center">
-                      —
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <h3 className="text-sm font-semibold text-dark mb-1">Stock · Próximamente</h3>
+            <p className="text-sm text-muted max-w-xs mx-auto">Esta sección estará disponible cuando la API de inventario esté integrada.</p>
           </div>
         )}
 

@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { Package, Plus, Edit, Trash2, Eye, AlertCircle } from 'lucide-react';
+import { EditProductoModal } from '@/components/modals/EditProductoModal';
+import { CreateProductoModal } from '@/components/modals/CreateProductoModal';
 import { PageLayout, DataTable, FilterBar, ConfirmActionDialog, UnifiedPagination } from '@/components/ui-custom';
 import type { ColumnDef } from '@/components/ui-custom';
 import { Button } from '@/components/ui/button';
@@ -11,6 +13,7 @@ import { useProductStore } from '@/lib/stores/productStore';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { useMqttProduct } from '@/lib/hooks/useMqttProduct';
 import { useUser } from '@/lib/stores/authStore';
+import { getEnterprisesAction } from '@/lib/actions/enterprise';
 import type { Producto as Product } from '@/lib/interfaces/product.interface';
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -55,6 +58,12 @@ export default function ProductosInfiniteClient() {
     productName: string;
     enterpriseId: number | null;
   }>({ isOpen: false, productId: null, productName: '', enterpriseId: null });
+  const [editModal, setEditModal] = useState<{ open: boolean; productId: number | string | null }>({
+    open: false,
+    productId: null,
+  });
+  const [createModal, setCreateModal] = useState(false);
+  const [enterpriseMap, setEnterpriseMap] = useState<Record<number, string>>({});
 
   const initializedRef = useRef(false);
 
@@ -65,6 +74,18 @@ export default function ProductosInfiniteClient() {
     setFilters(initialFilters);
     fetchProducts(initialFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    getEnterprisesAction({ limit: 100 })
+      .then(res => {
+        if (res.success && res.enterprises) {
+          const map: Record<number, string> = {};
+          res.enterprises.forEach(e => { map[e.id] = e.name; });
+          setEnterpriseMap(map);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -138,29 +159,40 @@ export default function ProductosInfiniteClient() {
       key: 'producto',
       header: 'Producto',
       cell: (p) => (
-        <Link href={`/productos/${p.id}`} className="flex items-center group">
-          <div className="h-10 w-10 bg-primary rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-            <Package className="h-5 w-5 text-white" />
+        <Link href={`/productos/${p.id}`} className="flex items-center gap-3 group">
+          <div className="h-9 w-9 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+            <Package className="h-4 w-4 text-white" />
           </div>
-          <div>
-            <div className="text-sm font-medium text-dark group-hover:text-primary transition-colors">{p.name}</div>
-            <div className="text-sm text-muted">ID: {p.id}</div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-dark group-hover:text-primary transition-colors truncate">{p.name}</div>
+            <div className="text-xs text-muted">ID: {p.id}</div>
           </div>
         </Link>
       ),
     },
     {
+      key: 'empresa',
+      header: 'Empresa',
+      headerClassName: 'hidden lg:table-cell px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wider',
+      className: 'hidden lg:table-cell',
+      cell: (p) => (
+        <span className="text-sm text-dark">
+          {enterpriseMap[p.enterprise_id] ?? <span className="text-muted font-mono">#{p.enterprise_id}</span>}
+        </span>
+      ),
+    },
+    {
       key: 'creado',
       header: 'Creado',
-      headerClassName: 'hidden sm:table-cell px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider',
-      className: 'hidden sm:table-cell',
+      headerClassName: 'hidden md:table-cell px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wider',
+      className: 'hidden md:table-cell',
       cell: (p) => <span className="text-sm text-dark">{formatDate(p.created_at)}</span>,
     },
     {
       key: 'actualizado',
       header: 'Actualizado',
-      headerClassName: 'hidden sm:table-cell px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider',
-      className: 'hidden sm:table-cell',
+      headerClassName: 'hidden lg:table-cell px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wider',
+      className: 'hidden lg:table-cell',
       cell: (p) => <span className="text-sm text-dark">{formatDate(p.updated_at)}</span>,
     },
     {
@@ -179,9 +211,12 @@ export default function ProductosInfiniteClient() {
           {canEdit && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link href={`/productos/${p.id}/editar`} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-green-600 hover:bg-green-50 transition-colors">
+                <button
+                  onClick={() => setEditModal({ open: true, productId: p.id })}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-green-600 hover:bg-green-50 transition-colors"
+                >
                   <Edit className="h-4 w-4" />
-                </Link>
+                </button>
               </TooltipTrigger>
               <TooltipContent>Editar</TooltipContent>
             </Tooltip>
@@ -217,10 +252,10 @@ export default function ProductosInfiniteClient() {
       permissionMatch="any"
       actions={
         canCreate ? (
-          <Link href="/productos/crear" className="btn-primary flex items-center space-x-2">
+          <button onClick={() => setCreateModal(true)} className="btn-primary flex items-center space-x-2">
             <Plus className="h-4 w-4" />
             <span>Nuevo Producto</span>
-          </Link>
+          </button>
         ) : undefined
       }
     >
@@ -271,6 +306,19 @@ export default function ProductosInfiniteClient() {
           />
         </div>
       )}
+
+      <CreateProductoModal
+        open={createModal}
+        onOpenChange={setCreateModal}
+        onCreated={() => refreshProducts()}
+      />
+
+      <EditProductoModal
+        open={editModal.open}
+        onOpenChange={(open) => setEditModal(prev => ({ ...prev, open }))}
+        productId={editModal.productId}
+        onSaved={() => refreshProducts()}
+      />
 
       <ConfirmActionDialog
         isOpen={deleteDialog.isOpen}

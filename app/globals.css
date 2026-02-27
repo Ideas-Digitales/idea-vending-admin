@@ -63,7 +63,8 @@
   --color-secondary: var(--secondary-blue);
   --color-accent: var(--accent);
   --color-accent-brand: var(--accent-blue);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-jakarta);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -106,9 +107,25 @@ html {
 
 body {
   background: #ffffff !important;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-weight: 400;
   line-height: 1.6;
+  font-size: 0.9375rem; /* 15px base */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display), var(--font-sans), sans-serif;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+h4, h5, h6 {
+  font-family: var(--font-display), var(--font-sans), sans-serif;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 #__next {
@@ -154,6 +171,7 @@ body {
 
 /* Select dropdown arrow */
 select.input-field {
+  appearance: none;
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
   background-position: right 0.75rem center;
   background-repeat: no-repeat;
@@ -206,6 +224,115 @@ select.input-field {
   textarea {
     font-size: max(16px, 1em) !important;
   }
+}
+
+/* ──────────────────────────────────────────────────────────
+   driver.js tour — brand overrides
+   ────────────────────────────────────────────────────────── */
+.iv-tour-popover {
+  font-family: var(--font-sans), sans-serif !important;
+  border-radius: 0.875rem !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18) !important;
+  border: 1px solid rgba(229, 231, 235, 0.6) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  max-width: 340px !important;
+}
+
+.iv-tour-popover .driver-popover-title {
+  font-size: 0.9375rem !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  margin-bottom: 0.25rem !important;
+  padding: 1.125rem 1.25rem 0 !important;
+  font-family: var(--font-display), var(--font-sans), sans-serif !important;
+}
+
+.iv-tour-popover .driver-popover-description {
+  font-size: 0.875rem !important;
+  line-height: 1.65 !important;
+  color: #4B5563 !important;
+  padding: 0.5rem 1.25rem 0 !important;
+  margin: 0 !important;
+}
+
+.iv-tour-popover .driver-popover-footer {
+  padding: 0.875rem 1.25rem 1.125rem !important;
+  margin-top: 0 !important;
+  border-top: 1px solid #f3f4f6 !important;
+  margin-top: 0.875rem !important;
+}
+
+.iv-tour-popover .driver-popover-progress-text {
+  font-size: 0.75rem !important;
+  color: #9CA3AF !important;
+}
+
+.iv-tour-popover .driver-popover-next-btn {
+  background-color: var(--primary-blue) !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  padding: 0.4375rem 0.875rem !important;
+  text-shadow: none !important;
+  box-shadow: 0 2px 8px rgba(49, 87, 178, 0.3) !important;
+  transition: background-color 0.15s !important;
+}
+
+.iv-tour-popover .driver-popover-next-btn:hover {
+  background-color: var(--primary-blue-dark) !important;
+  color: #ffffff !important;
+}
+
+/* HTML content inside description */
+.iv-tour-popover .driver-popover-description b {
+  color: #111827 !important;
+  font-weight: 600 !important;
+}
+
+.iv-tour-popover .driver-popover-description ol,
+.iv-tour-popover .driver-popover-description ul {
+  padding-left: 1.125rem !important;
+  margin: 0.375rem 0 0 !important;
+}
+
+.iv-tour-popover .driver-popover-description li {
+  margin-bottom: 0.3rem !important;
+}
+
+.iv-tour-popover .driver-popover-description p {
+  margin: 0 0 0.35rem !important;
+}
+
+.iv-tour-popover .driver-popover-prev-btn {
+  background: transparent !important;
+  border: 1.5px solid #E5E7EB !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+  padding: 0.375rem 0.75rem !important;
+  text-shadow: none !important;
+  transition: border-color 0.15s !important;
+}
+
+.iv-tour-popover .driver-popover-prev-btn:hover {
+  border-color: var(--primary-blue) !important;
+  color: var(--primary-blue) !important;
+}
+
+.iv-tour-popover .driver-popover-close-btn {
+  color: #9CA3AF !important;
+  font-size: 1.25rem !important;
+  top: 0.75rem !important;
+  right: 0.875rem !important;
+}
+
+.iv-tour-popover .driver-popover-close-btn:hover {
+  color: #374151 !important;
 }
 
 /* Card styles */

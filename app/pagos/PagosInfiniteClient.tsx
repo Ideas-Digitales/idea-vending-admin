@@ -15,6 +15,7 @@ import {
   Hash,
 } from 'lucide-react';
 import { AppShell, PageHeader, UnifiedPagination } from '@/components/ui-custom';
+import { TourRunner, type Step } from '@/components/help/TourRunner';
 import {
   Table,
   TableBody,
@@ -48,6 +49,36 @@ const LIVE_RETENTION_OPTIONS = [
   { label: '60 segundos', value: 60_000 },
   { label: '2 minutos', value: 120_000 },
   { label: '5 minutos', value: 300_000 },
+];
+
+const PAGOS_TOUR_STEPS: Step[] = [
+  {
+    element: '[data-tour="payments-live"]',
+    popover: {
+      title: '🟢 Modo en vivo',
+      description: '<p>Activa el <b>Modo en vivo</b> para ver los pagos entrantes en tiempo real, sin necesidad de recargar la página.</p><p>Los pagos llegan a través de <b>MQTT</b> (protocolo de mensajería en tiempo real). Una vez activo, verás cada transacción aparecer instantáneamente en la pantalla.</p><p>Puedes configurar cuánto tiempo se conservan los pagos visibles (30 s, 1 min, 5 min) y filtrar por empresa.</p>',
+      side: 'bottom',
+      align: 'end',
+    },
+  },
+  {
+    element: '[data-tour="payments-filters"]',
+    popover: {
+      title: 'Filtros',
+      description: 'Filtra los pagos por búsqueda de texto, estado (exitoso / rechazado), empresa, máquina o rango de fechas. Puedes combinar varios filtros a la vez.',
+      side: 'bottom',
+      align: 'start',
+    },
+  },
+  {
+    element: '[data-tour="payments-table"]',
+    popover: {
+      title: 'Listado de pagos',
+      description: '<p>Cada fila muestra el producto, monto, tarjeta, estado y máquina del pago.</p><p>Pulsa <b>Ver detalle</b> para abrir el panel completo con toda la información de la transacción.</p>',
+      side: 'top',
+      align: 'start',
+    },
+  },
 ];
 
 const toDateISO = (value: string, options?: { endOfDay?: boolean }): string | undefined => {
@@ -398,10 +429,10 @@ export default function PagosInfiniteClient() {
       : 'bg-blue-500 text-white border-blue-400 hover:bg-blue-400 shadow-sm shadow-blue-900/20';
 
   const liveModeButtonColors = isLiveMode
-    ? 'bg-indigo-500 text-white border-indigo-400 hover:bg-indigo-400 shadow-sm shadow-indigo-900/20'
-    : 'bg-white/15 text-white border-white/30 hover:bg-white/25 backdrop-blur';
+    ? 'bg-emerald-500 text-white border-emerald-400 hover:bg-emerald-600 shadow-sm shadow-emerald-900/30'
+    : 'bg-emerald-500 text-white border-emerald-400 hover:bg-emerald-600 shadow-sm shadow-emerald-900/30';
 
-  const refreshButtonColors = 'bg-white/10 text-white border-white/25 hover:bg-white/20 backdrop-blur';
+  const refreshButtonColors = 'bg-white/25 text-white border-white/50 hover:bg-white/35';
 
   const formatRealtimeTimestamp = (timestamp?: string | null) => {
     if (!timestamp) return 'Hace instantes';
@@ -642,11 +673,13 @@ export default function PagosInfiniteClient() {
         variant="gradient"
         actions={
           <div className="flex items-center gap-2">
+            <TourRunner steps={PAGOS_TOUR_STEPS} />
             <button
+              data-tour="payments-live"
               onClick={() => setIsLiveMode((prev) => !prev)}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition ${liveModeButtonColors} disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-              <Activity className={`h-4 w-4 ${isLiveMode ? 'text-white' : 'text-gray-500'}`} />
+              <Activity className={`h-4 w-4 text-white ${isLiveMode ? 'animate-pulse' : ''}`} />
               <span className="hidden sm:inline">{liveModeButtonLabel}</span>
             </button>
             <button
@@ -905,7 +938,7 @@ export default function PagosInfiniteClient() {
             </div>
           ) : (
             <>
-              <div className="card mb-6">
+              <div data-tour="payments-filters" className="card mb-6">
                 {(() => {
                   const activeCount = [
                     draftFilters.search,
@@ -1044,7 +1077,7 @@ export default function PagosInfiniteClient() {
               </div>
 
               {/* Payments Table */}
-              <div className="card overflow-hidden">
+              <div data-tour="payments-table" className="card overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <h3 className="text-lg font-bold text-dark">Lista de Transacciones</h3>
@@ -1071,53 +1104,53 @@ export default function PagosInfiniteClient() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-gray-50">
-                          <TableHead className="hidden sm:table-cell px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">ID / Operación</TableHead>
-                          <TableHead className="px-4 sm:px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</TableHead>
-                          <TableHead className="px-4 sm:px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</TableHead>
-                          <TableHead className="hidden sm:table-cell px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Tarjeta</TableHead>
-                          <TableHead className="px-4 sm:px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</TableHead>
-                          <TableHead className="hidden sm:table-cell px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Máquina</TableHead>
-                          <TableHead className="hidden sm:table-cell px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</TableHead>
-                          <TableHead className="px-4 sm:px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</TableHead>
+                          <TableHead className="hidden sm:table-cell px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">ID / Operación</TableHead>
+                          <TableHead className="px-4 sm:px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</TableHead>
+                          <TableHead className="px-4 sm:px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</TableHead>
+                          <TableHead className="hidden sm:table-cell px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Tarjeta</TableHead>
+                          <TableHead className="px-4 sm:px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</TableHead>
+                          <TableHead className="hidden sm:table-cell px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Máquina</TableHead>
+                          <TableHead className="hidden sm:table-cell px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</TableHead>
+                          <TableHead className="px-4 sm:px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {displayedPayments.map((payment) => (
-                          <TableRow key={payment.id} className="hover:bg-muted/50">
-                            <TableCell className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
+                          <TableRow key={payment.id} className="hover:bg-blue-50/60">
+                            <TableCell className="hidden sm:table-cell px-6 py-2.5 whitespace-nowrap">
                               <div className="text-sm font-medium text-dark">#{payment.id}</div>
                               <div className="text-sm text-muted">{payment.operation_number}</div>
                             </TableCell>
-                            <TableCell className="px-4 sm:px-6 py-4">
+                            <TableCell className="px-4 sm:px-6 py-2.5">
                               <div className="text-sm font-medium text-dark">{payment.product}</div>
                               <div className="text-xs text-muted sm:hidden">{formatPaymentDate(payment)}</div>
                             </TableCell>
-                            <TableCell className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                            <TableCell className="px-4 sm:px-6 py-2.5 whitespace-nowrap">
                               <div className="text-sm font-bold text-dark">
                                 {formatAmount(payment.amount)}
                               </div>
                             </TableCell>
-                            <TableCell className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
+                            <TableCell className="hidden sm:table-cell px-6 py-2.5 whitespace-nowrap">
                               <div className="text-sm text-dark">{payment.card_brand}</div>
                               <div className="text-sm text-muted">**** {payment.last_digits}</div>
                               <div className="text-xs text-muted capitalize">{payment.card_type}</div>
                             </TableCell>
-                            <TableCell className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                            <TableCell className="px-4 sm:px-6 py-2.5 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full border ${getStatusColor(payment.successful)}`}>
                                 {getStatusIcon(payment.successful)}
                                 <span className="ml-1 hidden sm:inline">{getStatusName(payment.successful)}</span>
                               </span>
                             </TableCell>
-                            <TableCell className="hidden sm:table-cell px-6 py-4 whitespace-nowrap">
+                            <TableCell className="hidden sm:table-cell px-6 py-2.5 whitespace-nowrap">
                               <div className="text-sm text-dark">{payment.machine_name || 'Sin máquina'}</div>
                               {payment.machine_id && (
                                 <div className="text-sm text-muted">ID: {payment.machine_id}</div>
                               )}
                             </TableCell>
-                            <TableCell className="hidden sm:table-cell px-6 py-4 whitespace-nowrap text-sm text-muted">
+                            <TableCell className="hidden sm:table-cell px-6 py-2.5 whitespace-nowrap text-sm text-muted">
                               {formatPaymentDate(payment)}
                             </TableCell>
-                            <TableCell className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                            <TableCell className="px-4 sm:px-6 py-2.5 whitespace-nowrap">
                               <button
                                 type="button"
                                 onClick={() => openPaymentDetail(payment)}

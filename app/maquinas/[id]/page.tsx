@@ -9,6 +9,7 @@ import { Machine } from '@/lib/interfaces/machine.interface';
 import {
   Monitor, Wifi, WifiOff, MapPin, Calendar, Activity, Edit, Package,
   Shield, RotateCcw, QrCode, TrendingUp, TrendingDown, BarChart2,
+  ChevronDown, Eye, EyeOff, Copy, Check,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar,
@@ -17,6 +18,44 @@ import {
 import { useMqttReboot } from '@/lib/hooks/useMqttReboot';
 import { AppShell, PageHeader } from '@/components/ui-custom';
 import Link from 'next/link';
+import { HelpTooltip } from '@/components/help/HelpTooltip';
+import { TourRunner, type Step } from '@/components/help/TourRunner';
+
+const MACHINE_DETAIL_TOUR: Step[] = [
+  {
+    element: '[data-tour="machine-actions"]',
+    popover: {
+      title: 'Acciones de la máquina',
+      description: '<p><b>📲 Generar QR</b> — descarga el código QR para imprimir en la máquina.</p><p><b>📦 Gestionar Slots</b> — configura los compartimentos y los productos cargados.</p><p><b>✏️ Editar</b> — modifica nombre, ubicación o tipo de protocolo.</p><p><b>🔄 Reiniciar</b> — envía un comando de reinicio por MQTT (requiere conexión activa).</p>',
+      side: 'bottom',
+      align: 'start',
+    },
+  },
+  {
+    element: '[data-tour="machine-metrics"]',
+    popover: {
+      title: 'Métricas de ventas',
+      description: 'Ingresos, número de transacciones y ticket promedio de esta máquina. Cambia el período con los botones Hoy / Este mes / Este año para ver distintos rangos. El gráfico muestra la evolución temporal.',
+      side: 'top',
+    },
+  },
+  {
+    element: '[data-tour="machine-info"]',
+    popover: {
+      title: 'Información y estado',
+      description: '<p><b>Información</b>: nombre, ubicación física, tipo de protocolo y empresa propietaria.</p><p><b>Estado y Conexión</b>: <i>En línea</i> indica que la máquina procesa pagos. La conexión MQTT es el canal en tiempo real para comandos como el reinicio.</p>',
+      side: 'top',
+    },
+  },
+  {
+    element: '[data-tour="machine-mqtt"]',
+    popover: {
+      title: 'Credenciales MQTT',
+      description: 'Credenciales del broker MQTT asignadas a esta máquina para la comunicación en tiempo real. Son de uso interno — no las compartas.',
+      side: 'top',
+    },
+  },
+];
 
 const MachineQRLabel = dynamic(() => import('@/components/MachineQRLabel'), { ssr: false });
 
@@ -122,6 +161,9 @@ export default function MaquinaDetallePage() {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
   const [isQROpen, setIsQROpen] = useState(false);
+  const [mqttOpen, setMqttOpen] = useState(false);
+  const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+  const [copied, setCopied]     = useState<string | null>(null);
   const { rebootMachine, isLoading: rebootLoading, hasCredentials } = useMqttReboot();
 
   // Métricas
@@ -130,6 +172,13 @@ export default function MaquinaDetallePage() {
   const [aggPrev, setAggPrev]       = useState<{ total_amount: number; total_count: number } | null>(null);
   const [chartData, setChartData]   = useState<{ label: string; value: number }[]>([]);
   const [loadingMetrics, setLoadingMetrics] = useState(true);
+
+  const toggleReveal = (key: string) => setRevealed(p => ({ ...p, [key]: !p[key] }));
+  const copyField = (key: string, value: string) => {
+    navigator.clipboard.writeText(value);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
 
   const handleReboot = async () => {
     if (!machine) return;
@@ -232,51 +281,57 @@ export default function MaquinaDetallePage() {
         subtitle="Información y métricas de la máquina"
         backHref="/maquinas"
         variant="white"
+        actions={<TourRunner steps={MACHINE_DETAIL_TOUR} theme="light" />}
       />
 
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-4xl mx-auto space-y-6">
 
           {/* Action bar */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div data-tour="machine-actions" className="flex flex-wrap items-center gap-2 group/actions">
             <button
               onClick={() => setIsQROpen(true)}
-              className="inline-flex items-center gap-2 py-2 px-4 rounded-lg border border-[#3157b2]/40 text-[#3157b2] text-sm font-semibold bg-white hover:bg-[#3157b2]/5 transition-colors"
+              title="Generar QR"
+              className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-[#3157b2]/40 text-[#3157b2] text-sm font-semibold bg-white hover:bg-[#3157b2]/5 transition-colors"
             >
               <QrCode className="h-4 w-4 shrink-0" />
-              Generar QR
+              <span className="hidden sm:inline">Generar QR</span>
             </button>
             <Link
               href={`/maquinas/${machine.id}/slots`}
-              className="inline-flex items-center gap-2 py-2 px-4 rounded-lg border border-[#3157b2]/40 text-[#3157b2] text-sm font-semibold bg-white hover:bg-[#3157b2]/5 transition-colors"
+              title="Gestionar Slots"
+              className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-[#3157b2]/40 text-[#3157b2] text-sm font-semibold bg-white hover:bg-[#3157b2]/5 transition-colors"
             >
               <Package className="h-4 w-4 shrink-0" />
-              Gestionar Slots
+              <span className="hidden sm:inline">Gestionar Slots</span>
             </Link>
             <Link
               href={`/maquinas/${machine.id}/editar`}
-              className="inline-flex items-center gap-2 py-2 px-4 rounded-lg border border-[#3157b2]/40 text-[#3157b2] text-sm font-semibold bg-white hover:bg-[#3157b2]/5 transition-colors"
+              title="Editar máquina"
+              className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-[#3157b2]/40 text-[#3157b2] text-sm font-semibold bg-white hover:bg-[#3157b2]/5 transition-colors"
             >
               <Edit className="h-4 w-4 shrink-0" />
-              Editar
+              <span className="hidden sm:inline">Editar</span>
             </Link>
             <button
               onClick={handleReboot}
               disabled={rebootLoading || !hasCredentials}
-              className="inline-flex items-center gap-2 py-2 px-4 rounded-lg border border-red-200 text-red-600 text-sm font-semibold bg-white hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Reiniciar máquina"
+              className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-red-200 text-red-600 text-sm font-semibold bg-white hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RotateCcw className={`h-4 w-4 shrink-0 ${rebootLoading ? 'animate-spin' : ''}`} />
-              {rebootLoading ? 'Reiniciando...' : 'Reiniciar máquina'}
+              <span className="hidden sm:inline">{rebootLoading ? 'Reiniciando...' : 'Reiniciar'}</span>
             </button>
           </div>
 
           {/* ── MÉTRICAS DE VENTAS ── */}
-          <div className="card overflow-hidden">
+          <div data-tour="machine-metrics" className="card overflow-hidden">
             {/* Header con selector de período */}
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <BarChart2 className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold text-dark">Métricas de ventas</h3>
+                <HelpTooltip text="Ventas e ingresos de esta máquina en el período seleccionado, comparados con el período anterior equivalente." side="right" />
               </div>
               <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                 {(['day', 'month', 'year'] as Period[]).map(p => (
@@ -297,7 +352,10 @@ export default function MaquinaDetallePage() {
             <div className="grid grid-cols-3 divide-x divide-gray-100">
               {/* Ingresos */}
               <div className="px-5 py-4">
-                <p className="text-xs text-muted mb-1">Ingresos</p>
+                <p className="text-xs text-muted mb-1 flex items-center gap-1">
+                  Ingresos
+                  <HelpTooltip text="Total vendido en el período. El porcentaje indica la variación vs el período anterior equivalente." side="top" />
+                </p>
                 {loadingMetrics
                   ? <div className="h-7 w-28 bg-gray-100 rounded animate-pulse" />
                   : <p className="text-xl font-bold text-dark">{clp(totalAmount)}</p>
@@ -320,7 +378,10 @@ export default function MaquinaDetallePage() {
               </div>
               {/* Ticket promedio */}
               <div className="px-5 py-4">
-                <p className="text-xs text-muted mb-1">Ticket promedio</p>
+                <p className="text-xs text-muted mb-1 flex items-center gap-1">
+                  Ticket promedio
+                  <HelpTooltip text="Ingreso promedio por transacción: total vendido ÷ número de ventas." side="top" />
+                </p>
                 {loadingMetrics
                   ? <div className="h-7 w-20 bg-gray-100 rounded animate-pulse" />
                   : <p className="text-xl font-bold text-dark">{clp(avgTicket)}</p>
@@ -376,7 +437,7 @@ export default function MaquinaDetallePage() {
           </div>
 
           {/* ── INFORMACIÓN DE LA MÁQUINA ── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div data-tour="machine-info" className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="card p-6">
               <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
                 <Monitor className="h-5 w-5 mr-2 text-primary" />
@@ -406,9 +467,10 @@ export default function MaquinaDetallePage() {
             </div>
 
             <div className="card p-6">
-              <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
-                <Activity className="h-5 w-5 mr-2 text-primary" />
+              <h3 className="text-lg font-semibold text-dark mb-4 flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
                 Estado y Conexión
+                <HelpTooltip text="Estado: indica si la máquina puede procesar ventas. Conexión MQTT: indica si el canal de comunicación en tiempo real está activo (necesario para reiniciar o recibir notificaciones)." side="top" />
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -452,29 +514,66 @@ export default function MaquinaDetallePage() {
 
           {/* MQTT Credentials */}
           {machine.mqtt_user && (
-            <div className="card p-6">
-              <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
-                <Shield className="h-5 w-5 mr-2 text-primary" />
-                Credenciales MQTT
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-black mb-1">Usuario</label>
-                  <p className="text-dark">{machine.mqtt_user.username}</p>
+            <div data-tour="machine-mqtt" className="card overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setMqttOpen(p => !p)}
+                className="w-full px-5 py-3.5 flex items-center justify-between gap-3 hover:bg-gray-50/80 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold text-dark">Credenciales MQTT</span>
+                  <span className="text-xs px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-600 border border-amber-200 font-medium">Avanzado</span>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-black mb-1">Client ID</label>
-                  <p className="text-dark">{machine.mqtt_user.client_id || 'No asignado'}</p>
+                <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${mqttOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {mqttOpen && (
+                <div className="border-t border-gray-100 px-5 py-4 space-y-1">
+                  {([
+                    { key: 'username',  label: 'Usuario',     value: machine.mqtt_user.username,                         sensitive: false },
+                    { key: 'password',  label: 'Contraseña',  value: machine.mqtt_user.original_password ?? '—',         sensitive: true  },
+                    { key: 'client_id', label: 'Client ID',   value: machine.mqtt_user.client_id || 'No asignado',       sensitive: false },
+                  ] as { key: string; label: string; value: string; sensitive: boolean }[]).map(({ key, label, value, sensitive }) => {
+                    const isRevealed = revealed[key];
+                    const display    = sensitive && !isRevealed ? '•'.repeat(Math.min(value.length, 16)) : value;
+                    const isCopied   = copied === key;
+                    return (
+                      <div key={key} className="flex items-center justify-between gap-3 py-2.5 border-b border-gray-50 last:border-0">
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted mb-0.5">{label}</p>
+                          <p className={`text-sm font-mono font-medium text-dark select-none ${sensitive && !isRevealed ? 'tracking-widest' : ''}`}>
+                            {display}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          {sensitive && (
+                            <button
+                              type="button"
+                              onClick={() => toggleReveal(key)}
+                              title={isRevealed ? 'Ocultar' : 'Revelar'}
+                              className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                              {isRevealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => copyField(key, value)}
+                            title="Copiar"
+                            className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                          >
+                            {isCopied
+                              ? <Check className="h-3.5 w-3.5 text-green-500" />
+                              : <Copy className="h-3.5 w-3.5" />
+                            }
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-black mb-1">Superusuario</label>
-                  <p className="text-dark">{machine.mqtt_user.is_superuser ? 'Sí' : 'No'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-black mb-1">ID Máquina</label>
-                  <p className="text-dark">{machine.id}</p>
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>

@@ -4,6 +4,7 @@ import { type LucideIcon } from 'lucide-react';
 import AppShell from './AppShell';
 import PageHeader from './PageHeader';
 import { useAuthProtection } from '@/lib/hooks/useAuthProtection';
+import { TourRunner, type Step } from '@/components/help/TourRunner';
 
 interface PageLayoutProps {
   // PageHeader props
@@ -16,6 +17,8 @@ interface PageLayoutProps {
   // Auth props
   requiredPermissions?: string[];
   permissionMatch?: 'any' | 'all';
+  // Tour
+  tourSteps?: Step[];
   // Content
   children: React.ReactNode;
 }
@@ -37,6 +40,7 @@ export default function PageLayout({
   headerVariant = 'gradient',
   requiredPermissions = [],
   permissionMatch = 'all',
+  tourSteps,
   children,
 }: PageLayoutProps) {
   const { shouldShowContent, isLoading, hasPermission, user } = useAuthProtection({
@@ -73,13 +77,25 @@ export default function PageLayout({
 
   if (!shouldShowContent) return null;
 
+  const headerActions = (
+    <>
+      {tourSteps && tourSteps.length > 0 && (
+        <TourRunner
+          steps={tourSteps}
+          theme={headerVariant === 'white' ? 'light' : 'dark'}
+        />
+      )}
+      {actions}
+    </>
+  );
+
   return (
     <AppShell>
       <PageHeader
         icon={icon}
         title={title}
         subtitle={subtitle}
-        actions={actions}
+        actions={headerActions}
         backHref={backHref}
         variant={headerVariant}
       />

@@ -78,11 +78,11 @@ export default function DataTable<T>({
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-gray-50">
+              <TableRow className="bg-gray-50 hover:bg-gray-50">
                 {columns.map((col) => (
                   <TableHead
                     key={col.key}
-                    className={col.headerClassName ?? 'px-6 py-4 text-xs font-medium text-gray-500 uppercase tracking-wider'}
+                    className={col.headerClassName ?? 'px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-wider'}
                   >
                     {col.header}
                   </TableHead>
@@ -93,10 +93,9 @@ export default function DataTable<T>({
               {data.map((row, index) => (
                 <TableRow
                   key={keyExtractor ? keyExtractor(row, index) : index}
-                  className="hover:bg-muted/50"
                 >
                   {columns.map((col) => (
-                    <TableCell key={col.key} className={`px-6 py-4 ${col.className ?? ''}`.trim()}>
+                    <TableCell key={col.key} className={`px-5 py-2.5 ${col.className ?? ''}`.trim()}>
                       {col.cell(row, index)}
                     </TableCell>
                   ))}

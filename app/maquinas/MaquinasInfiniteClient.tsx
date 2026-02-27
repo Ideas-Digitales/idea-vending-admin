@@ -4,6 +4,8 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Monitor, Plus, Edit, Trash2, Eye, Loader2, AlertCircle, MapPin, Package } from 'lucide-react';
+import { EditMaquinaModal } from '@/components/modals/EditMaquinaModal';
+import { CreateMaquinaModal } from '@/components/modals/CreateMaquinaModal';
 import { PageLayout, DataTable, FilterBar, ConfirmActionDialog, UnifiedPagination, StatusBadge } from '@/components/ui-custom';
 import type { ColumnDef } from '@/components/ui-custom';
 
@@ -20,6 +22,53 @@ import { useMachineStore } from '@/lib/stores/machineStore';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { MachineAdapter } from '@/lib/adapters/machine.adapter';
 import type { Machine } from '@/lib/interfaces/machine.interface';
+import { HelpTooltip } from '@/components/help/HelpTooltip';
+import type { Step } from '@/components/help/TourRunner';
+
+const MACHINES_TOUR_STEPS: Step[] = [
+  {
+    element: '[data-tour="machines-create"]',
+    popover: {
+      title: 'Registrar máquina',
+      description: 'Agrega una nueva máquina al sistema: nombre, ubicación, tipo de protocolo y empresa asociada.',
+      side: 'bottom',
+    },
+  },
+  {
+    element: '[data-tour="machines-filter"]',
+    popover: {
+      title: 'Filtros de búsqueda',
+      description: 'Busca por nombre o ubicación. Filtra también por estado (En línea / Fuera de línea) o por tipo de protocolo (MDB, MDB-DEX, PULSOS).',
+      side: 'bottom',
+    },
+  },
+  {
+    element: '[data-tour="machines-list"]',
+    popover: {
+      title: 'Lista de máquinas',
+      description: 'Todas tus máquinas en un vistazo. Haz clic en el nombre de cualquier máquina para acceder a su detalle completo con ventas, gráficos y configuración.',
+      side: 'top',
+    },
+  },
+  {
+    element: '[data-tour="machines-actions"]',
+    popover: {
+      title: 'Botones de acción',
+      description: '<p><b>👁 Ver</b> — detalle completo: métricas, gráfico de ventas y QR.</p><p><b>📦 Slots</b> — gestiona los compartimentos y productos cargados.</p><p><b>✏️ Editar</b> — modifica nombre, ubicación o tipo.</p><p><b>🗑 Eliminar</b> — borra la máquina (requiere confirmación).</p>',
+      side: 'left',
+      align: 'start',
+    },
+  },
+  {
+    element: '[data-tour="machines-slot-btn"]',
+    popover: {
+      title: 'Cómo añadir un slot',
+      description: '<p>Un <b>slot</b> es un compartimento físico de la máquina donde se carga un producto.</p><ol><li>Haz clic en <b>Slots</b> para abrir la gestión de compartimentos.</li><li>Usa <b>Agregar slot</b> para crear una nueva posición (número de slot).</li><li>Asigna un <b>producto</b> y define la <b>cantidad disponible</b>.</li><li>Guarda los cambios — la máquina reflejará el stock actualizado.</li></ol>',
+      side: 'left',
+      align: 'start',
+    },
+  },
+];
 
 const STATUS_FILTER_VALUES = ['online', 'offline'] as const;
 type MachineStatusFilter = '' | (typeof STATUS_FILTER_VALUES)[number];
@@ -65,6 +114,11 @@ export default function MaquinasInfiniteClient() {
     machineId: number | string | null;
     machineName: string;
   }>({ isOpen: false, machineId: null, machineName: '' });
+  const [editModal, setEditModal] = useState<{ open: boolean; machineId: number | string | null }>({
+    open: false,
+    machineId: null,
+  });
+  const [createModal, setCreateModal] = useState(false);
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -201,7 +255,12 @@ export default function MaquinasInfiniteClient() {
     },
     {
       key: 'estado',
-      header: 'Estado',
+      header: (
+        <div className="flex items-center gap-1">
+          Estado
+          <HelpTooltip text="En línea: la máquina está activa y comunicada con el servidor. Fuera de línea: sin comunicación, puede estar apagada o sin red." side="top" />
+        </div>
+      ),
       cell: (m) => (
         <StatusBadge
           label={MachineAdapter.getStatusText(m.status)}
@@ -226,7 +285,12 @@ export default function MaquinasInfiniteClient() {
     },
     {
       key: 'tipo',
-      header: 'Tipo',
+      header: (
+        <div className="flex items-center gap-1">
+          Tipo
+          <HelpTooltip text="MDB: protocolo estándar para máquinas expendedoras. MDB-DEX: incluye interfaz DEX para auditoría avanzada. PULSOS: control mediante señales eléctricas." side="top" />
+        </div>
+      ),
       cell: (m) => (
         <StatusBadge
           label={m.type?.toUpperCase() === 'PULSES' ? 'PULSOS' : m.type || '-'}
@@ -236,8 +300,8 @@ export default function MaquinasInfiniteClient() {
     },
     {
       key: 'actions',
-      header: <span className="text-right block">Acciones</span>,
-      cell: (m) => (
+      header: <span data-tour="machines-actions" className="text-right block">Acciones</span>,
+      cell: (m, index) => (
         <div className="flex items-center justify-end space-x-1">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -249,7 +313,11 @@ export default function MaquinasInfiniteClient() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Link href={`/maquinas/${m.id}/slots`} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-purple-600 hover:bg-gray-100 transition-colors">
+              <Link
+                href={`/maquinas/${m.id}/slots`}
+                {...(index === 0 ? { 'data-tour': 'machines-slot-btn' } : {})}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-purple-600 hover:bg-gray-100 transition-colors"
+              >
                 <Package className="h-4 w-4" />
               </Link>
             </TooltipTrigger>
@@ -257,9 +325,12 @@ export default function MaquinasInfiniteClient() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Link href={`/maquinas/${m.id}/editar`} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-blue-600 hover:bg-gray-100 transition-colors">
+              <button
+                onClick={() => setEditModal({ open: true, machineId: m.id })}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-blue-600 hover:bg-gray-100 transition-colors"
+              >
                 <Edit className="h-4 w-4" />
-              </Link>
+              </button>
             </TooltipTrigger>
             <TooltipContent>Editar</TooltipContent>
           </Tooltip>
@@ -290,13 +361,14 @@ export default function MaquinasInfiniteClient() {
       subtitle="Monitoreo y administración de máquinas expendedoras"
       requiredPermissions={['machines.read.all', 'machines.read.enterprise_owned']}
       permissionMatch="any"
+      tourSteps={MACHINES_TOUR_STEPS}
       actions={
-        <Button asChild className="btn-primary flex items-center gap-2 font-semibold shadow-sm">
-          <Link href="/maquinas/nueva">
+        <div data-tour="machines-create">
+          <Button onClick={() => setCreateModal(true)} className="btn-primary flex items-center gap-2 font-semibold shadow-sm">
             <Plus className="h-4 w-4" />
             <span>Nueva Máquina</span>
-          </Link>
-        </Button>
+          </Button>
+        </div>
       }
     >
       {error && machines.length > 0 && (
@@ -309,12 +381,16 @@ export default function MaquinasInfiniteClient() {
         </div>
       )}
 
-      <FilterBar
-        searchValue={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Buscar por nombre o ubicación..."
-        filters={filterControls}
-      />
+      <div data-tour="machines-filter">
+        <FilterBar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar por nombre o ubicación..."
+          filters={filterControls}
+        />
+      </div>
+
+      <div data-tour="machines-list">
 
       {/* Vista móvil: tarjetas */}
       <div className="sm:hidden space-y-3">
@@ -331,11 +407,11 @@ export default function MaquinasInfiniteClient() {
               {hasFilters ? 'No coincide con los filtros aplicados.' : 'Aún no hay máquinas registradas.'}
             </p>
             {!hasFilters && (
-              <Link href="/maquinas/nueva" className="btn-primary mt-4 text-sm">Crear primera máquina</Link>
+              <button onClick={() => setCreateModal(true)} className="btn-primary mt-4 text-sm">Crear primera máquina</button>
             )}
           </div>
         ) : (
-          filteredMachines.map((m) => (
+          filteredMachines.map((m, mobileIdx) => (
             <div key={m.id} className="card p-4">
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -371,18 +447,19 @@ export default function MaquinasInfiniteClient() {
                 </Link>
                 <Link
                   href={`/maquinas/${m.id}/slots`}
+                  {...(mobileIdx === 0 ? { 'data-tour': 'machines-slot-btn' } : {})}
                   className="flex flex-col items-center gap-1 py-2 rounded-lg text-purple-600 hover:bg-purple-50 transition-colors"
                 >
                   <Package className="h-4 w-4" />
                   <span className="text-[10px] font-medium">Slots</span>
                 </Link>
-                <Link
-                  href={`/maquinas/${m.id}/editar`}
+                <button
+                  onClick={() => setEditModal({ open: true, machineId: m.id })}
                   className="flex flex-col items-center gap-1 py-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
                 >
                   <Edit className="h-4 w-4" />
                   <span className="text-[10px] font-medium">Editar</span>
-                </Link>
+                </button>
                 <button
                   disabled={isDeleting}
                   onClick={() => setDeleteDialog({ isOpen: true, machineId: m.id, machineName: m.name })}
@@ -412,7 +489,7 @@ export default function MaquinasInfiniteClient() {
           }
           emptyAction={
             !hasFilters ? (
-              <Link href="/maquinas/nueva" className="btn-primary">Crear primera máquina</Link>
+              <button onClick={() => setCreateModal(true)} className="btn-primary">Crear primera máquina</button>
             ) : undefined
           }
           title="Máquinas"
@@ -420,6 +497,8 @@ export default function MaquinasInfiniteClient() {
           keyExtractor={(m) => m.id}
         />
       </div>
+
+      </div>{/* /data-tour="machines-list" */}
 
       {pagination?.meta && (
         <div className="mt-6">
@@ -432,6 +511,22 @@ export default function MaquinasInfiniteClient() {
           />
         </div>
       )}
+
+      <CreateMaquinaModal
+        open={createModal}
+        onOpenChange={setCreateModal}
+        onCreated={() => fetchMachines({ ...currentFilters, page: 1 })}
+      />
+
+      <EditMaquinaModal
+        open={editModal.open}
+        onOpenChange={(open) => setEditModal(prev => ({ ...prev, open }))}
+        machineId={editModal.machineId}
+        onSaved={() => {
+          const filters = { ...currentFilters };
+          fetchMachines(filters);
+        }}
+      />
 
       <ConfirmActionDialog
         isOpen={deleteDialog.isOpen}
