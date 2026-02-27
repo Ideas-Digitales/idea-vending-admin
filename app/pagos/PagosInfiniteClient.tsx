@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard,
@@ -158,6 +159,16 @@ function formatPaymentDate(payment: Payment) {
 }
 
 export default function PagosInfiniteClient() {
+  const searchParams = useSearchParams();
+
+  const createInitialFilters = (): PaymentFilters => {
+    const machineId = searchParams.get('machine_id');
+    return {
+      ...createDefaultFilters(),
+      ...(machineId ? { machine_id: Number(machineId) } : {}),
+    };
+  };
+
   // Store state
   const {
     payments,
@@ -171,8 +182,8 @@ export default function PagosInfiniteClient() {
   } = usePaymentStore();
 
   // Local UI state - filtros aplicados y borrador
-  const [filters, setFilters] = useState<PaymentFilters>(() => createDefaultFilters());
-  const [draftFilters, setDraftFilters] = useState<PaymentFilters>(() => createDefaultFilters());
+  const [filters, setFilters] = useState<PaymentFilters>(() => createInitialFilters());
+  const [draftFilters, setDraftFilters] = useState<PaymentFilters>(() => createInitialFilters());
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [isLoadingEnterprises, setIsLoadingEnterprises] = useState(true);
   const [enterpriseError, setEnterpriseError] = useState<string | null>(null);

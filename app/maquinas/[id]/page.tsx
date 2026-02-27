@@ -9,7 +9,7 @@ import { Machine } from '@/lib/interfaces/machine.interface';
 import {
   Monitor, Wifi, WifiOff, MapPin, Calendar, Activity, Edit, Package,
   Shield, RotateCcw, QrCode, TrendingUp, TrendingDown, BarChart2,
-  ChevronDown, Eye, EyeOff, Copy, Check,
+  ChevronDown, Eye, EyeOff, Copy, Check, CreditCard,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar,
@@ -26,7 +26,7 @@ const MACHINE_DETAIL_TOUR: Step[] = [
     element: '[data-tour="machine-actions"]',
     popover: {
       title: 'Acciones de la máquina',
-      description: '<p><b>📲 Generar QR</b> — descarga el código QR para imprimir en la máquina.</p><p><b>📦 Gestionar Slots</b> — configura los compartimentos y los productos cargados.</p><p><b>✏️ Editar</b> — modifica nombre, ubicación o tipo de protocolo.</p><p><b>🔄 Reiniciar</b> — envía un comando de reinicio por MQTT (requiere conexión activa).</p>',
+      description: '<p><b>📲 Generar QR</b> — descarga el código QR para imprimir en la máquina.</p><p><b>📦 Gestionar Slots</b> — configura los compartimentos y los productos cargados.</p><p><b>✏️ Editar</b> — modifica nombre, ubicación o tipo de protocolo.</p><p><b>💳 Ver pagos</b> — abre el historial de pagos de esta máquina con el filtro aplicado.</p><p><b>🔄 Reiniciar</b> — envía un comando de reinicio por MQTT (requiere conexión activa).</p>',
       side: 'bottom',
       align: 'start',
     },
@@ -312,6 +312,14 @@ export default function MaquinaDetallePage() {
             >
               <Edit className="h-4 w-4 shrink-0" />
               <span className="hidden sm:inline">Editar</span>
+            </Link>
+            <Link
+              href={`/pagos?machine_id=${machine.id}`}
+              title="Ver pagos de esta máquina"
+              className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-[#3157b2]/40 text-[#3157b2] text-sm font-semibold bg-white hover:bg-[#3157b2]/5 transition-colors"
+            >
+              <CreditCard className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">Ver pagos</span>
             </Link>
             <button
               onClick={handleReboot}

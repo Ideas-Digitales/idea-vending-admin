@@ -19,7 +19,7 @@ import type { RankedProduct, RankedMachine, AggregateDataPoint } from '@/lib/act
 import { TourRunner, type Step } from '@/components/help/TourRunner';
 import { HelpTooltip } from '@/components/help/HelpTooltip';
 
-const METRICS_TOUR_STEPS: Step[] = [
+const RESUMEN_TOUR_STEPS: Step[] = [
   {
     element: '[data-tour="period-selector"]',
     popover: {
@@ -49,6 +49,60 @@ const METRICS_TOUR_STEPS: Step[] = [
     popover: {
       title: 'Gráfico de ventas',
       description: 'Evolución de ingresos en el período. Toca o pasa el cursor sobre los puntos para ver los valores exactos de cada día o mes.',
+      side: 'top',
+    },
+  },
+];
+
+const MAQUINAS_TOUR_STEPS: Step[] = [
+  {
+    element: '[data-tour="period-selector"]',
+    popover: {
+      title: 'Período de análisis',
+      description: 'Cambia el rango de tiempo para filtrar los datos de todas las secciones: máquinas, productos y resumen.',
+      side: 'bottom',
+    },
+  },
+  {
+    element: '[data-tour="machine-list"]',
+    popover: {
+      title: 'Ventas por máquina',
+      description: 'Lista compacta con el ranking de cada máquina: posición, nombre, número de ventas, gráfico de tendencia del período y monto total con su porcentaje sobre el total. Haz clic en el nombre para ir al detalle.',
+      side: 'bottom',
+    },
+  },
+  {
+    element: '[data-tour="machine-ranking"]',
+    popover: {
+      title: 'Mayor y menor rendimiento',
+      description: 'Las 3 máquinas con más ventas y las 3 con menos ventas del período. Útil para detectar rápidamente cuáles requieren atención o reposición.',
+      side: 'top',
+    },
+  },
+];
+
+const PRODUCTOS_TOUR_STEPS: Step[] = [
+  {
+    element: '[data-tour="period-selector"]',
+    popover: {
+      title: 'Período de análisis',
+      description: 'Cambia el rango de tiempo para filtrar los datos de todas las secciones: máquinas, productos y resumen.',
+      side: 'bottom',
+    },
+  },
+  {
+    element: '[data-tour="product-list"]',
+    popover: {
+      title: 'Ventas por producto',
+      description: 'Lista compacta con el ranking de cada producto: posición, nombre, número de ventas, gráfico de tendencia del período y monto total con su porcentaje sobre el total. Haz clic en el nombre para ver el detalle del producto.',
+      side: 'bottom',
+    },
+  },
+  {
+    element: '[data-tour="product-ranking"]',
+    popover: {
+      title: 'Más y menos vendidos',
+      description: 'Los 3 productos con mayor ingreso y los 3 con menor ingreso del período. Ayuda a identificar qué productos rotan más y cuáles podrían necesitar revisión de precio o ubicación en la máquina.',
       side: 'top',
     },
   },
@@ -473,7 +527,11 @@ export default function MetricasPage() {
         variant="gradient"
         actions={
           <div className="flex items-center gap-2">
-            <TourRunner steps={METRICS_TOUR_STEPS} />
+            <TourRunner steps={
+              activeTab === 'maquinas' ? MAQUINAS_TOUR_STEPS
+              : activeTab === 'productos' ? PRODUCTOS_TOUR_STEPS
+              : RESUMEN_TOUR_STEPS
+            } />
             <div data-tour="period-selector" className="flex items-center gap-1 bg-white/15 rounded-lg p-1">
               {(['day', 'month', 'year'] as Period[]).map(p => (
                 <button
@@ -685,7 +743,7 @@ export default function MetricasPage() {
           return (
             <div className="space-y-4">
               {/* Lista compacta */}
-              <div className="card overflow-hidden">
+              <div data-tour="machine-list" className="card overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Monitor className="h-4 w-4 text-primary" />
@@ -738,7 +796,7 @@ export default function MetricasPage() {
               </div>
 
               {/* Mayor / Menor rendimiento */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div data-tour="machine-ranking" className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {([
                   { label: 'Mayor rendimiento', icon: <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />, items: machineRankingTop.slice(0, 3), badge: 'bg-emerald-500', row: 'hover:bg-emerald-50/60' },
                   { label: 'Menor rendimiento', icon: <TrendingDown className="h-3.5 w-3.5 text-red-400" />,   items: machineRankingLow.slice(0, 3), badge: 'bg-red-400',     row: 'hover:bg-red-50/60'     },
@@ -791,7 +849,7 @@ export default function MetricasPage() {
           return (
             <div className="space-y-4">
               {/* Lista compacta con sparklines */}
-              <div className="card overflow-hidden">
+              <div data-tour="product-list" className="card overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ShoppingCart className="h-4 w-4 text-primary" />
@@ -842,7 +900,7 @@ export default function MetricasPage() {
               </div>
 
               {/* Más / Menos vendidos */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div data-tour="product-ranking" className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {([
                   { label: 'Más vendidos',   icon: <Star className="h-3.5 w-3.5 text-emerald-500" />,   items: rankingTop, badge: 'bg-emerald-500', row: 'hover:bg-emerald-50/60' },
                   { label: 'Menos vendidos', icon: <Package className="h-3.5 w-3.5 text-orange-400" />, items: rankingLow, badge: 'bg-orange-400',   row: 'hover:bg-orange-50/60' },
