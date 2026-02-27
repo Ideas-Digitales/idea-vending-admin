@@ -31,7 +31,7 @@ export default function CrearUsuarioPage() {
         const successMsg = `Usuario "${userName}" creado exitosamente como ${userStatus}`;
 
         setSuccessMessage(successMsg);
-        notify.success(`✅ ${successMsg}`);
+        notify.success(successMsg);
 
         await refreshUsers();
 
@@ -41,13 +41,13 @@ export default function CrearUsuarioPage() {
       } else {
         const errorMsg = result.error || 'Error desconocido al crear usuario';
         setErrorMessage(errorMsg);
-        notify.error(`❌ Error al crear usuario: ${errorMsg}`);
+        notify.error(`Error al crear usuario: ${errorMsg}`);
       }
     } catch (error) {
       console.error('Error inesperado al crear usuario:', error);
       const errorMsg = "Error inesperado al crear usuario. Por favor, verifica los datos e intenta nuevamente.";
       setErrorMessage(errorMsg);
-      notify.error(`❌ ${errorMsg}`);
+      notify.error(errorMsg);
     } finally {
       setIsLoading(false);
     }

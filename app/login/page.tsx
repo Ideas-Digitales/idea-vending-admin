@@ -397,7 +397,7 @@ function ForgotPasswordModal({ onClose }: { onClose: () => void }) {
 
       await response.json().catch(() => ({}));
       notify.success(
-        '📧 Revisa tu correo — si la cuenta existe recibirás un enlace para restablecer tu contraseña. No olvides revisar la carpeta de spam.',
+        'Revisa tu correo — si la cuenta existe recibirás un enlace para restablecer tu contraseña. No olvides revisar la carpeta de spam.',
         { autoClose: 8000 }
       );
       onClose();

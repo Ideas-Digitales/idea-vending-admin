@@ -66,6 +66,13 @@ export default function Sidebar({ onClose }: SidebarProps) {
       requiredPermissions: ['users.read.all']
     },
     {
+      name: 'Empresas',
+      href: '/empresas',
+      icon: Building2,
+      current: pathname === '/empresas',
+      requiredPermissions: ['enterprises.read.all', 'enterprises.read.own']
+    },
+    {
       name: 'Máquinas',
       href: '/maquinas',
       icon: Monitor,
@@ -85,13 +92,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
       icon: CreditCard,
       current: pathname === '/pagos',
       requiredPermissions: ['payments.read.all', 'payments.read.enterprise_owned']
-    },
-    {
-      name: 'Empresas',
-      href: '/empresas',
-      icon: Building2,
-      current: pathname === '/empresas',
-      requiredPermissions: ['enterprises.read.all', 'enterprises.read.own']
     },
     {
       name: 'Métricas',
