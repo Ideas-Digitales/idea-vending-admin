@@ -4,76 +4,189 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { getMachineAction } from '@/lib/actions/machines';
+import { aggregatePaymentsAction } from '@/lib/actions/payments';
 import { Machine } from '@/lib/interfaces/machine.interface';
-import { Monitor, Wifi, WifiOff, MapPin, Calendar, Activity, Edit, Package, Shield, RotateCcw, QrCode } from 'lucide-react';
+import {
+  Monitor, Wifi, WifiOff, MapPin, Calendar, Activity, Edit, Package,
+  Shield, RotateCcw, QrCode, TrendingUp, TrendingDown, BarChart2,
+} from 'lucide-react';
+import {
+  AreaChart, Area, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
 import { useMqttReboot } from '@/lib/hooks/useMqttReboot';
 import { AppShell, PageHeader } from '@/components/ui-custom';
 import Link from 'next/link';
 
 const MachineQRLabel = dynamic(() => import('@/components/MachineQRLabel'), { ssr: false });
 
+// ── Tipos ────────────────────────────────────────────────────────────────────
+type Period = 'day' | 'month' | 'year';
+
+// ── Date helpers ─────────────────────────────────────────────────────────────
+function toIso(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}+00:00`;
+}
+
+function getPeriodRange(period: Period) {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const d = now.getUTCDate();
+
+  if (period === 'day') {
+    return {
+      start:     toIso(new Date(Date.UTC(y, m, d,     0,  0,  0))),
+      end:       toIso(new Date(Date.UTC(y, m, d,    23, 59, 59))),
+      prevStart: toIso(new Date(Date.UTC(y, m, d - 1, 0,  0,  0))),
+      prevEnd:   toIso(new Date(Date.UTC(y, m, d - 1,23, 59, 59))),
+    };
+  }
+  if (period === 'month') {
+    return {
+      start:     toIso(new Date(Date.UTC(y, m,     1,  0,  0,  0))),
+      end:       toIso(new Date(Date.UTC(y, m,     d, 23, 59, 59))),
+      prevStart: toIso(new Date(Date.UTC(y, m - 1, 1,  0,  0,  0))),
+      prevEnd:   toIso(new Date(Date.UTC(y, m,     0, 23, 59, 59))),
+    };
+  }
+  return {
+    start:     toIso(new Date(Date.UTC(y,     0,  1,  0,  0,  0))),
+    end:       toIso(new Date(Date.UTC(y,     m,  d, 23, 59, 59))),
+    prevStart: toIso(new Date(Date.UTC(y - 1, 0,  1,  0,  0,  0))),
+    prevEnd:   toIso(new Date(Date.UTC(y - 1, 11, 31, 23, 59, 59))),
+  };
+}
+
+function generateIntervals(period: Period): { label: string; start: string; end: string }[] {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+
+  if (period === 'day') {
+    return Array.from({ length: 13 }, (_, i) => {
+      const hour = i + 8;
+      return {
+        label: `${hour}h`,
+        start: toIso(new Date(Date.UTC(y, m, now.getUTCDate(), hour,  0,  0))),
+        end:   toIso(new Date(Date.UTC(y, m, now.getUTCDate(), hour, 59, 59))),
+      };
+    });
+  }
+  if (period === 'month') {
+    const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    return [
+      { label: 'Sem 1', from: 1,  to: 7       },
+      { label: 'Sem 2', from: 8,  to: 14      },
+      { label: 'Sem 3', from: 15, to: 21      },
+      { label: 'Sem 4', from: 22, to: lastDay },
+    ].map(w => ({
+      label: w.label,
+      start: toIso(new Date(Date.UTC(y, m, w.from,  0,  0,  0))),
+      end:   toIso(new Date(Date.UTC(y, m, w.to,   23, 59, 59))),
+    }));
+  }
+  const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return Array.from({ length: 12 }, (_, i) => ({
+    label: MONTHS[i],
+    start: toIso(new Date(Date.UTC(y, i,     1,  0,  0,  0))),
+    end:   toIso(new Date(Date.UTC(y, i + 1, 0, 23, 59, 59))),
+  }));
+}
+
+// ── Helpers visuales ─────────────────────────────────────────────────────────
+function clp(n: number) { return `$${n.toLocaleString('es-CL')}`; }
+function clpShort(n: number) {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000)     return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n}`;
+}
+
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-3 py-2 text-xs">
+      <p className="text-muted font-medium mb-0.5">{label}</p>
+      <p className="font-bold text-dark text-sm">{clp(payload[0].value)}</p>
+    </div>
+  );
+}
+
+// ── Componente principal ─────────────────────────────────────────────────────
 export default function MaquinaDetallePage() {
   const params = useParams();
-  const [machine, setMachine] = useState<Machine | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const machineId = params.id as string;
+
+  const [machine, setMachine]   = useState<Machine | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState<string | null>(null);
   const [isQROpen, setIsQROpen] = useState(false);
   const { rebootMachine, isLoading: rebootLoading, hasCredentials } = useMqttReboot();
 
-  const machineId = params.id as string;
+  // Métricas
+  const [period, setPeriod]         = useState<Period>('month');
+  const [aggCurrent, setAggCurrent] = useState<{ total_amount: number; total_count: number } | null>(null);
+  const [aggPrev, setAggPrev]       = useState<{ total_amount: number; total_count: number } | null>(null);
+  const [chartData, setChartData]   = useState<{ label: string; value: number }[]>([]);
+  const [loadingMetrics, setLoadingMetrics] = useState(true);
 
   const handleReboot = async () => {
     if (!machine) return;
     const confirmed = window.confirm(`¿Reiniciar la máquina "${machine.name}"?`);
     if (!confirmed) return;
-
-    try {
-      await rebootMachine(machine.id);
-    } catch (rebootError) {
-      console.error('Error al reiniciar la máquina:', rebootError);
-    }
+    try { await rebootMachine(machine.id); } catch { /* ignorar */ }
   };
 
+  // Carga datos de la máquina
   useEffect(() => {
-    async function loadMachine() {
-      try {
-        setLoading(true);
-        const result = await getMachineAction(machineId, { include: 'mqttUser,enterprise' });
-
-        if (result.success && result.machine) {
-          setMachine(result.machine);
-        } else {
-          setError(result.error || 'Máquina no encontrada');
-        }
-      } catch (error) {
-        console.error('Error al cargar máquina:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    if (machineId) {
-      loadMachine();
-    }
+    if (!machineId) return;
+    setLoading(true);
+    getMachineAction(machineId, { include: 'mqttUser,enterprise' })
+      .then(result => {
+        if (result.success && result.machine) setMachine(result.machine);
+        else setError(result.error || 'Máquina no encontrada');
+      })
+      .catch(() => setError('Error al cargar la máquina'))
+      .finally(() => setLoading(false));
   }, [machineId]);
 
-  const getStatusColor = (status: string) => {
-    return status?.toLowerCase() === 'online'
-      ? 'bg-green-100 text-green-800 border-green-200'
-      : 'bg-red-100 text-red-800 border-red-200';
-  };
+  // Carga métricas cuando cambia el período o se carga la máquina
+  useEffect(() => {
+    if (!machineId) return;
+    setLoadingMetrics(true);
+    setAggCurrent(null);
+    setAggPrev(null);
+    setChartData([]);
 
-  const getStatusLabel = (status: string) => {
-    return status?.toLowerCase() === 'online' ? 'En línea' : 'Fuera de línea';
-  };
+    const id = Number(machineId);
+    const { start, end, prevStart, prevEnd } = getPeriodRange(period);
+    const intervals = generateIntervals(period);
 
+    Promise.all([
+      aggregatePaymentsAction({ machine_id: id, start_date: start,     end_date: end     }),
+      aggregatePaymentsAction({ machine_id: id, start_date: prevStart, end_date: prevEnd }),
+      ...intervals.map(iv => aggregatePaymentsAction({ machine_id: id, start_date: iv.start, end_date: iv.end })),
+    ]).then(([curr, prev, ...ivResults]) => {
+      if (curr.success)  setAggCurrent({ total_amount: curr.total_amount ?? 0, total_count: curr.total_count ?? 0 });
+      if (prev.success)  setAggPrev({ total_amount: prev.total_amount ?? 0, total_count: prev.total_count ?? 0 });
+      setChartData(intervals.map((iv, i) => ({
+        label: iv.label,
+        value: ivResults[i]?.success ? (ivResults[i].total_amount ?? 0) : 0,
+      })));
+    })
+    .catch(() => {})
+    .finally(() => setLoadingMetrics(false));
+  }, [machineId, period]);
+
+  // ── Estado de carga ────────────────────────────────────────────────────────
   if (loading) {
     return (
       <AppShell>
         <PageHeader icon={Monitor} title="Detalles de la Máquina" backHref="/maquinas" variant="white" />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
             <p className="text-muted">Cargando detalles de la máquina...</p>
           </div>
         </div>
@@ -87,26 +200,36 @@ export default function MaquinaDetallePage() {
         <PageHeader icon={Monitor} title="Detalles de la Máquina" backHref="/maquinas" variant="white" />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <div className="text-red-500 mb-4">
-              <Monitor className="h-12 w-12 mx-auto" />
-            </div>
+            <Monitor className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-dark mb-2">Error al cargar máquina</h3>
             <p className="text-muted mb-4">{error}</p>
-            <Link href="/maquinas" className="btn-primary">
-              Volver a la lista
-            </Link>
+            <Link href="/maquinas" className="btn-primary">Volver a la lista</Link>
           </div>
         </div>
       </AppShell>
     );
   }
 
+  // ── KPIs calculados ────────────────────────────────────────────────────────
+  const totalAmount    = aggCurrent?.total_amount ?? 0;
+  const totalCount     = aggCurrent?.total_count  ?? 0;
+  const avgTicket      = totalCount > 0 ? Math.round(totalAmount / totalCount) : 0;
+  const growthPct      = aggCurrent && aggPrev && (aggPrev.total_amount > 0)
+    ? Math.round(((aggCurrent.total_amount - aggPrev.total_amount) / aggPrev.total_amount) * 100)
+    : null;
+  const periodLabel: Record<Period, string> = { day: 'Hoy', month: 'Este mes', year: 'Este año' };
+
+  const getStatusColor = (s: string) =>
+    s?.toLowerCase() === 'online' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200';
+  const getStatusLabel = (s: string) =>
+    s?.toLowerCase() === 'online' ? 'En línea' : 'Fuera de línea';
+
   return (
     <AppShell>
       <PageHeader
         icon={Monitor}
-        title="Detalles de la Máquina"
-        subtitle="Información completa y gestión de la máquina"
+        title={machine.name}
+        subtitle="Información y métricas de la máquina"
         backHref="/maquinas"
         variant="white"
       />
@@ -147,25 +270,113 @@ export default function MaquinaDetallePage() {
             </button>
           </div>
 
-          {/* Profile Card */}
-          <div className="card p-6">
-            <div className="flex items-start justify-between mb-6">
-              <div className="flex items-center space-x-4">
-                <div className="h-16 w-16 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center">
-                  <Monitor className="h-8 w-8 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-dark">{machine.name}</h2>
-                  <p className="text-muted">ID: {machine.id}</p>
-                </div>
+          {/* ── MÉTRICAS DE VENTAS ── */}
+          <div className="card overflow-hidden">
+            {/* Header con selector de período */}
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <BarChart2 className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-dark">Métricas de ventas</h3>
               </div>
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                {(['day', 'month', 'year'] as Period[]).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setPeriod(p)}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                      period === p ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {periodLabel[p]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* KPI row */}
+            <div className="grid grid-cols-3 divide-x divide-gray-100">
+              {/* Ingresos */}
+              <div className="px-5 py-4">
+                <p className="text-xs text-muted mb-1">Ingresos</p>
+                {loadingMetrics
+                  ? <div className="h-7 w-28 bg-gray-100 rounded animate-pulse" />
+                  : <p className="text-xl font-bold text-dark">{clp(totalAmount)}</p>
+                }
+                {!loadingMetrics && growthPct !== null && (
+                  <p className={`text-xs font-semibold mt-0.5 flex items-center gap-0.5 ${growthPct >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {growthPct >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                    {growthPct >= 0 ? '+' : ''}{growthPct}% vs período anterior
+                  </p>
+                )}
+              </div>
+              {/* Ventas */}
+              <div className="px-5 py-4">
+                <p className="text-xs text-muted mb-1">Ventas</p>
+                {loadingMetrics
+                  ? <div className="h-7 w-16 bg-gray-100 rounded animate-pulse" />
+                  : <p className="text-xl font-bold text-dark">{totalCount.toLocaleString('es-CL')}</p>
+                }
+                <p className="text-xs text-muted mt-0.5">transacciones</p>
+              </div>
+              {/* Ticket promedio */}
+              <div className="px-5 py-4">
+                <p className="text-xs text-muted mb-1">Ticket promedio</p>
+                {loadingMetrics
+                  ? <div className="h-7 w-20 bg-gray-100 rounded animate-pulse" />
+                  : <p className="text-xl font-bold text-dark">{clp(avgTicket)}</p>
+                }
+                <p className="text-xs text-muted mt-0.5">por venta</p>
+              </div>
+            </div>
+
+            {/* Gráfico */}
+            <div className="px-4 pb-4">
+              {loadingMetrics ? (
+                <div className="h-44 bg-gray-50 rounded-xl animate-pulse" />
+              ) : chartData.every(d => d.value === 0) ? (
+                <div className="h-44 flex items-center justify-center text-sm text-muted bg-gray-50 rounded-xl">
+                  Sin ventas en este período
+                </div>
+              ) : period === 'day' ? (
+                <ResponsiveContainer width="100%" height={176}>
+                  <BarChart data={chartData} margin={{ top: 10, right: 8, left: 8, bottom: 4 }} barCategoryGap="30%">
+                    <defs>
+                      <linearGradient id="barGradM" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#4c6fd0" />
+                        <stop offset="100%" stopColor="#3157b2" />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} tickFormatter={clpShort} width={48} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(49,87,178,0.06)', radius: 6 }} />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="url(#barGradM)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <ResponsiveContainer width="100%" height={176}>
+                  <AreaChart data={chartData} margin={{ top: 10, right: 8, left: 8, bottom: 4 }}>
+                    <defs>
+                      <linearGradient id="areaGradM" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3157b2" stopOpacity={0.25} />
+                        <stop offset="90%" stopColor="#3157b2" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} tickFormatter={clpShort} width={48} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#3157b2', strokeWidth: 1.5, strokeDasharray: '4 4' }} />
+                    <Area type="monotone" dataKey="value" stroke="#3157b2" strokeWidth={2.5}
+                      fill="url(#areaGradM)" dot={false}
+                      activeDot={{ r: 5, fill: '#3157b2', stroke: 'white', strokeWidth: 2 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
 
-          {/* Information Grid */}
+          {/* ── INFORMACIÓN DE LA MÁQUINA ── */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            {/* Machine Information */}
             <div className="card p-6">
               <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
                 <Monitor className="h-5 w-5 mr-2 text-primary" />
@@ -194,13 +405,12 @@ export default function MaquinaDetallePage() {
               </div>
             </div>
 
-            {/* Status Information */}
             <div className="card p-6">
               <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
                 <Activity className="h-5 w-5 mr-2 text-primary" />
                 Estado y Conexión
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(machine.status)}`}>
                     <Activity className="h-3 w-3 mr-1" />
@@ -221,19 +431,21 @@ export default function MaquinaDetallePage() {
                   )}
                 </div>
               </div>
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-black mb-1">Fecha de Creación</label>
-                <p className="text-dark flex items-center">
-                  <Calendar className="h-4 w-4 mr-2 text-gray-600" />
-                  {new Date(machine.created_at).toLocaleDateString('es-ES')}
-                </p>
-              </div>
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-black mb-1">Última Actualización</label>
-                <p className="text-dark flex items-center">
-                  <Calendar className="h-4 w-4 mr-2 text-gray-600" />
-                  {new Date(machine.updated_at).toLocaleDateString('es-ES')}
-                </p>
+              <div className="mt-4 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-black mb-1">Fecha de Creación</label>
+                  <p className="text-dark flex items-center">
+                    <Calendar className="h-4 w-4 mr-2 text-gray-600" />
+                    {new Date(machine.created_at).toLocaleDateString('es-ES')}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-black mb-1">Última Actualización</label>
+                  <p className="text-dark flex items-center">
+                    <Calendar className="h-4 w-4 mr-2 text-gray-600" />
+                    {new Date(machine.updated_at).toLocaleDateString('es-ES')}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

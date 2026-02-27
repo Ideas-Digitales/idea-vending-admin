@@ -10,12 +10,20 @@ export interface AggregateFilters {
   machine_id?: number;
   enterprise_id?: number;
   product_id?: number;
+  group_by?: 'day' | 'month' | 'year';
+}
+
+export interface AggregateDataPoint {
+  date: string;
+  total_amount: number;
+  total_count: number;
 }
 
 export interface AggregateResult {
   success: boolean;
   total_amount?: number;
   total_count?: number;
+  data?: AggregateDataPoint[];
   filters_applied?: object;
   error?: string;
 }
@@ -237,7 +245,6 @@ export const productRankingAction = async (filters?: ProductRankingFilters): Pro
 };
 
 export interface MachineRankingFilters {
-  enterprise_id: number;
   start_date?: string;
   end_date?: string;
   limit?: number;
@@ -246,13 +253,14 @@ export interface MachineRankingFilters {
 export interface RankedMachine {
   id: number;
   name: string;
+  location?: string;
   payments_quantity: number;
   payments_amount: number;
 }
 
 export interface MachineRankingResult {
   success: boolean;
-  metadata?: { start_date: string; end_date: string; total_products_analyzed: number };
+  metadata?: { start_date: string; end_date: string; total_machines_analyzed: number };
   top_performers?: RankedMachine[];
   low_performers?: RankedMachine[];
   error?: string;
@@ -260,7 +268,7 @@ export interface MachineRankingResult {
 
 export const machineRankingAction = async (filters: MachineRankingFilters): Promise<MachineRankingResult> => {
   try {
-    const { response } = await authenticatedFetch('/payments/reports/machine-ranking', {
+    const { response } = await authenticatedFetch('/machines/reports/machine-ranking', {
       method: 'POST',
       body: JSON.stringify(filters),
     });
@@ -299,6 +307,7 @@ export const aggregatePaymentsAction = async (filters?: AggregateFilters): Promi
       success: true,
       total_amount: data.total_amount,
       total_count: data.total_count,
+      data: data.data,
       filters_applied: data.filters_applied,
     };
   } catch (error) {

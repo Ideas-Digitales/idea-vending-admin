@@ -2,23 +2,25 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useIsAuthenticated, useAuthLoading } from '@/lib/stores/authStore';
+import { useIsAuthenticated } from '@/lib/stores/authStore';
+import { useHydration } from '@/lib/hooks/useHydration';
 
 export default function Home() {
   const router = useRouter();
   const isAuthenticated = useIsAuthenticated();
-  const isLoading = useAuthLoading();
+  const isHydrated = useHydration();
 
   useEffect(() => {
-    // Si no está cargando, redirigir según el estado de autenticación
-    if (!isLoading) {
-      if (isAuthenticated) {
-        router.replace('/dashboard');
-      } else {
-        router.replace('/login');
-      }
+    // Esperar solo la hidratación de Zustand desde localStorage.
+    // No esperar isLoading (validación API), para no quedarse atascado
+    // si la API tarda. Cada página protegida valida el token por su cuenta.
+    if (!isHydrated) return;
+    if (isAuthenticated) {
+      router.replace('/dashboard');
+    } else {
+      router.replace('/login');
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isHydrated, router]);
 
   // Mostrar spinner mientras se verifica la autenticación
   return (

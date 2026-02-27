@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   TrendingUp, TrendingDown, Package, Monitor, Building2,
   ShoppingCart, AlertTriangle, BarChart2, Activity,
@@ -14,7 +15,7 @@ import {
 import { AppShell, PageHeader } from '@/components/ui-custom';
 import { useUser } from '@/lib/stores/authStore';
 import { aggregatePaymentsAction, productRankingAction, machineRankingAction } from '@/lib/actions/payments';
-import type { RankedProduct, RankedMachine } from '@/lib/actions/payments';
+import type { RankedProduct, RankedMachine, AggregateDataPoint } from '@/lib/actions/payments';
 import { getMachinesAction } from '@/lib/actions/machines';
 import type { Machine } from '@/lib/interfaces/machine.interface';
 
@@ -29,78 +30,78 @@ type Tab    = 'resumen' | 'maquinas' | 'productos' | 'stock';
 // ──────────────────────────────────────────────────────────────
 function toIso(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
-  const off = -d.getTimezoneOffset();
-  const sign = off >= 0 ? '+' : '-';
-  const hh = Math.floor(Math.abs(off) / 60);
-  const mm = Math.abs(off) % 60;
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${sign}${pad(hh)}:${pad(mm)}`;
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}+00:00`;
 }
 
 function getPeriodRange(period: Period) {
   const now = new Date();
-  const sod = (d: Date) => { const r = new Date(d); r.setHours(0, 0, 0, 0); return r; };
-  const eod = (d: Date) => { const r = new Date(d); r.setHours(23, 59, 59, 0); return r; };
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const d = now.getUTCDate();
 
   if (period === 'day') {
-    const start = sod(now);
-    const end   = eod(now);
-    const ps = new Date(start); ps.setDate(ps.getDate() - 1);
-    const pe = new Date(end);   pe.setDate(pe.getDate() - 1);
-    return { start: toIso(start), end: toIso(end), prevStart: toIso(ps), prevEnd: toIso(pe) };
-  }
-
-  if (period === 'month') {
-    const start    = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-    const end      = eod(now);
-    const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
-    const prevEnd   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+    // últimos 7 días (hoy inclusive) vs 7 días anteriores
+    const start     = new Date(Date.UTC(y, m, d - 6, 0, 0, 0));
+    const end       = new Date(Date.UTC(y, m, d, 23, 59, 59));
+    const prevStart = new Date(Date.UTC(y, m, d - 13, 0, 0, 0));
+    const prevEnd   = new Date(Date.UTC(y, m, d - 7, 23, 59, 59));
     return { start: toIso(start), end: toIso(end), prevStart: toIso(prevStart), prevEnd: toIso(prevEnd) };
   }
 
-  // year
-  const start    = new Date(now.getFullYear(), 0, 1, 0, 0, 0);
-  const end      = eod(now);
-  const prevStart = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0);
-  const prevEnd   = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59);
+  if (period === 'month') {
+    const start     = new Date(Date.UTC(y, m, 1, 0, 0, 0));
+    const end       = new Date(Date.UTC(y, m, d, 23, 59, 59));
+    const prevStart = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0));
+    const prevEnd   = new Date(Date.UTC(y, m, 0, 23, 59, 59));
+    return { start: toIso(start), end: toIso(end), prevStart: toIso(prevStart), prevEnd: toIso(prevEnd) };
+  }
+
+  // year — año calendario actual: 1 ene → hoy
+  const start     = new Date(Date.UTC(y, 0, 1, 0, 0, 0));
+  const end       = new Date(Date.UTC(y, m, d, 23, 59, 59));
+  const prevStart = new Date(Date.UTC(y - 1, 0, 1, 0, 0, 0));
+  const prevEnd   = new Date(Date.UTC(y - 1, 11, 31, 23, 59, 59));
   return { start: toIso(start), end: toIso(end), prevStart: toIso(prevStart), prevEnd: toIso(prevEnd) };
 }
 
-// ──────────────────────────────────────────────────────────────
-// INTERVALOS DEL GRÁFICO
-// ──────────────────────────────────────────────────────────────
-function generateIntervals(period: Period): { label: string; start: string; end: string }[] {
-  const now = new Date();
+// group_by a usar según el período seleccionado
+function getGroupBy(period: Period): 'day' | 'month' {
+  return period === 'year' ? 'month' : 'day';
+}
 
-  if (period === 'day') {
-    return Array.from({ length: 13 }, (_, i) => {
-      const hour  = i + 8;
-      const start = new Date(now); start.setHours(hour, 0, 0, 0);
-      const end   = new Date(now); end.setHours(hour, 59, 59, 0);
-      return { label: `${hour}h`, start: toIso(start), end: toIso(end) };
-    });
+// ──────────────────────────────────────────────────────────────
+// FORMATEO DE FECHAS DEL API → LABELS DEL GRÁFICO
+// ──────────────────────────────────────────────────────────────
+const MONTH_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const DAY_SHORT   = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+function formatGroupDate(dateStr: string, groupBy: 'day' | 'month', period: Period): string {
+  if (groupBy === 'month') {
+    // "2026-02" → "Feb"
+    const parts = dateStr.split('-');
+    return MONTH_SHORT[parseInt(parts[1]) - 1] ?? dateStr;
   }
-
+  // groupBy === 'day': "2026-02-27"
+  const parts = dateStr.split('-');
+  const dayNum = parseInt(parts[2]);
   if (period === 'month') {
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    return [
-      { label: 'Sem 1', from: 1,  to: 7        },
-      { label: 'Sem 2', from: 8,  to: 14       },
-      { label: 'Sem 3', from: 15, to: 21       },
-      { label: 'Sem 4', from: 22, to: lastDay  },
-    ].map(w => {
-      const start = new Date(now.getFullYear(), now.getMonth(), w.from, 0,  0,  0);
-      const end   = new Date(now.getFullYear(), now.getMonth(), w.to,  23, 59, 59);
-      return { label: w.label, start: toIso(start), end: toIso(end) };
-    });
+    // solo el número de día: "1", "15", etc.
+    return String(dayNum);
   }
+  // period === 'day' (últimos 7 días): "Jue 27"
+  const dt = new Date(`${dateStr}T12:00:00Z`);
+  return `${DAY_SHORT[dt.getUTCDay()]} ${dayNum}`;
+}
 
-  // year — una petición por mes
-  const labels = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-  return Array.from({ length: 12 }, (_, i) => {
-    const start = new Date(now.getFullYear(), i, 1,  0,  0,  0);
-    const end   = new Date(now.getFullYear(), i + 1, 0, 23, 59, 59);
-    return { label: labels[i], start: toIso(start), end: toIso(end) };
-  });
+function mapGroupedData(
+  points: AggregateDataPoint[] | undefined,
+  groupBy: 'day' | 'month',
+  period: Period,
+): { label: string; value: number }[] {
+  return (points ?? []).map(pt => ({
+    label: formatGroupDate(pt.date, groupBy, period),
+    value: pt.total_amount,
+  }));
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -143,9 +144,9 @@ function clpShort(n: number) {
 }
 
 const INSIGHT_LABELS: Record<Period, [string, string, string]> = {
-  day:   ['Hora punta',    'Hora más baja',  'Promedio/hora'],
-  month: ['Mejor semana',  'Semana más baja', 'Promedio/sem' ],
-  year:  ['Mejor mes',     'Mes más bajo',    'Promedio/mes' ],
+  day:   ['Mejor día',   'Día más bajo',   'Promedio/día'],
+  month: ['Mejor día',   'Día más bajo',   'Promedio/día'],
+  year:  ['Mejor mes',   'Mes más bajo',   'Promedio/mes'],
 };
 
 function computeInsights(period: Period, data: { label: string; value: number }[]) {
@@ -158,20 +159,11 @@ function computeInsights(period: Period, data: { label: string; value: number }[
   const max = data.reduce((a, b) => b.value > a.value ? b : a);
   const min = data.reduce((a, b) => b.value < a.value ? b : a);
   const avg = Math.round(data.reduce((s, d) => s + d.value, 0) / data.length);
-  if (period === 'day') return [
-    { label: l0, value: max.label, sub: clp(max.value)          },
-    { label: l1, value: min.label, sub: clp(min.value)          },
-    { label: l2, value: clp(avg),  sub: `${data.length} tramos` },
-  ];
-  if (period === 'month') return [
-    { label: l0, value: max.label, sub: clp(max.value) },
-    { label: l1, value: min.label, sub: clp(min.value) },
-    { label: l2, value: clp(avg),  sub: '4 semanas'    },
-  ];
+  const subLabel = period === 'year' ? `${data.length} meses` : `${data.length} días`;
   return [
     { label: l0, value: max.label, sub: clp(max.value) },
     { label: l1, value: min.label, sub: clp(min.value) },
-    { label: l2, value: clp(avg),  sub: '12 meses'     },
+    { label: l2, value: clp(avg),  sub: subLabel        },
   ];
 }
 
@@ -312,30 +304,25 @@ export default function MetricasPage() {
     setChartData([]);
 
     const { start, end, prevStart, prevEnd } = getPeriodRange(period);
-    const intervals    = generateIntervals(period);
+    const groupBy      = getGroupBy(period);
     const enterpriseId = user.enterprises?.[0]?.id;
-    const base         = enterpriseId ? { enterprise_id: enterpriseId } : {};
+    const base         = enterpriseId != null ? { enterprise_id: enterpriseId } : {};
 
-    const kpiCalls   = [
+    Promise.all([
       aggregatePaymentsAction({ ...base, start_date: start,     end_date: end     }),
       aggregatePaymentsAction({ ...base, start_date: prevStart, end_date: prevEnd }),
-    ];
-    const chartCalls = intervals.map(iv =>
-      aggregatePaymentsAction({ ...base, start_date: iv.start, end_date: iv.end })
-    );
-
-    Promise.all([...kpiCalls, ...chartCalls])
-      .then(([curr, prev, ...chartResults]) => {
+      aggregatePaymentsAction({ ...base, start_date: start,     end_date: end,    group_by: groupBy }),
+    ])
+      .then(([curr, prev, chart]) => {
         if (curr?.success && curr.total_amount !== undefined) {
           setAggCurrent({ total_amount: curr.total_amount, total_count: curr.total_count ?? 0 });
         }
         if (prev?.success && prev.total_amount !== undefined) {
           setAggPrev({ total_amount: prev.total_amount, total_count: prev.total_count ?? 0 });
         }
-        setChartData(intervals.map((iv, i) => ({
-          label: iv.label,
-          value: chartResults[i]?.success ? (chartResults[i].total_amount ?? 0) : 0,
-        })));
+        if (chart?.success) {
+          setChartData(mapGroupedData(chart.data, groupBy, period));
+        }
       })
       .catch(() => {
         // En error de red/transporte: dejar chartData vacío, los KPIs mostrarán $0
@@ -359,33 +346,24 @@ export default function MetricasPage() {
     setLoadingMachines(true);
     setMachineStats([]);
 
-    const intervals    = generateIntervals(period);
     const { start, end } = getPeriodRange(period);
+    const groupBy      = getGroupBy(period);
     const enterpriseId = user?.enterprises?.[0]?.id;
-    const base         = enterpriseId ? { enterprise_id: enterpriseId } : {};
+    const base         = enterpriseId != null ? { enterprise_id: enterpriseId } : {};
 
-    const perMachine = machines.map(m => {
-      const totalCall  = aggregatePaymentsAction({ ...base, machine_id: m.id, start_date: start, end_date: end });
-      const ivCalls    = intervals.map(iv =>
-        aggregatePaymentsAction({ ...base, machine_id: m.id, start_date: iv.start, end_date: iv.end })
-      );
-      return Promise.all([totalCall, ...ivCalls]);
-    });
-
-    Promise.all(perMachine)
+    // Una sola llamada agrupada por máquina — incluye total + puntos del sparkline
+    Promise.all(
+      machines.map(m =>
+        aggregatePaymentsAction({ ...base, machine_id: m.id, start_date: start, end_date: end, group_by: groupBy })
+      )
+    )
       .then(results => {
-        setMachineStats(machines.map((m, i) => {
-          const [tot, ...ivResults] = results[i];
-          return {
-            ...m,
-            total_amount: tot?.success ? (tot.total_amount ?? 0) : 0,
-            total_count:  tot?.success ? (tot.total_count  ?? 0) : 0,
-            sparkline: intervals.map((iv, j) => ({
-              label: iv.label,
-              value: ivResults[j]?.success ? (ivResults[j].total_amount ?? 0) : 0,
-            })),
-          };
-        }));
+        setMachineStats(machines.map((m, i) => ({
+          ...m,
+          total_amount: results[i]?.success ? (results[i].total_amount ?? 0) : 0,
+          total_count:  results[i]?.success ? (results[i].total_count  ?? 0) : 0,
+          sparkline: mapGroupedData(results[i]?.data, groupBy, period),
+        })));
       })
       .catch(() => {})
       .finally(() => setLoadingMachines(false));
@@ -410,11 +388,9 @@ export default function MetricasPage() {
   // Carga machine ranking cuando cambia el período
   useEffect(() => {
     if (user?.role !== 'customer') return;
-    const enterpriseId = user.enterprises?.[0]?.id;
-    if (!enterpriseId) return;
     setLoadingMachineRanking(true);
     const { start, end } = getPeriodRange(period);
-    machineRankingAction({ enterprise_id: enterpriseId, start_date: start, end_date: end, limit: 5 })
+    machineRankingAction({ start_date: start, end_date: end, limit: 5 })
       .then(res => {
         if (res.success) {
           setMachineRankingTop(res.top_performers ?? []);
@@ -452,13 +428,13 @@ export default function MetricasPage() {
   const growthPositive = growthPct >= 0;
   const insights       = computeInsights(period, chartData);
 
-  const periodLabel: Record<Period, string> = { day: 'Hoy', month: 'Este mes', year: 'Este año' };
+  const periodLabel: Record<Period, string> = { day: '7 días', month: 'Este mes', year: 'Este año' };
   const enterpriseName = user.enterprises?.[0]?.name ?? 'Tu empresa';
 
   const chartTitle: Record<Period, { title: string; subtitle: string }> = {
-    day:   { title: 'Ventas por hora · Hoy',        subtitle: 'Distribución de ingresos a lo largo del día'              },
-    month: { title: 'Ventas por semana · Este mes', subtitle: 'Comparativa semanal de ingresos del mes actual'           },
-    year:  { title: 'Ventas por mes · Este año',    subtitle: 'Tendencia mensual de ingresos en los últimos 12 meses'   },
+    day:   { title: 'Ventas por día · Últimos 7 días', subtitle: 'Distribución diaria de ingresos de los últimos 7 días' },
+    month: { title: 'Ventas por día · Este mes',       subtitle: 'Distribución diaria de ingresos del mes actual'        },
+    year:  { title: 'Ventas por mes · Este año',       subtitle: 'Tendencia mensual de ingresos del año en curso'        },
   };
 
   const tabs: { id: Tab; label: string; icon: typeof Monitor }[] = [
@@ -673,85 +649,78 @@ export default function MetricasPage() {
             TAB: MÁQUINAS
         ══════════════════════════════════════ */}
         {activeTab === 'maquinas' && (() => {
-          const sorted      = [...machineStats].sort((a, b) => b.total_amount - a.total_amount);
-          const grandTotal  = sorted.reduce((s, m) => s + m.total_amount, 0);
-
-          // Skeletons mientras carga
-          if (loadingMachines) return (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="card p-4 animate-pulse">
-                  <div className="flex items-center gap-4">
-                    <div className="h-4 w-4 bg-gray-100 rounded" />
-                    <div className="flex-1 space-y-1.5">
-                      <div className="h-4 w-40 bg-gray-100 rounded" />
-                      <div className="h-3 w-28 bg-gray-100 rounded" />
-                    </div>
-                    <div className="h-4 w-20 bg-gray-100 rounded" />
-                  </div>
-                  <div className="mt-3 h-14 bg-gray-50 rounded" />
-                </div>
-              ))}
-            </div>
-          );
-
-          if (!sorted.length) return (
-            <div className="card p-10 text-center">
-              <Monitor className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-muted">No hay máquinas registradas</p>
-            </div>
-          );
-
+          const sorted     = [...machineStats].sort((a, b) => b.total_amount - a.total_amount);
+          const grandTotal = sorted.reduce((s, m) => s + m.total_amount, 0);
           return (
             <>
               {/* Lista de máquinas con sparkline */}
-              <div className="card overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-                  <Monitor className="h-4 w-4 text-primary" />
-                  <h2 className="text-sm font-semibold text-dark">Ventas por máquina · {periodLabel[period]}</h2>
-                </div>
-                <div className="divide-y divide-gray-50">
-                  {sorted.map((m, i) => {
-                    const pct = grandTotal > 0 ? Math.round((m.total_amount / grandTotal) * 100) : 0;
-                    return (
-                      <div key={m.id} className="px-5 py-4">
-                        {/* Fila superior */}
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="text-xs font-bold text-muted w-5 flex-shrink-0">{i + 1}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold text-dark text-sm truncate">{m.name}</p>
-                              <span className={`inline-flex items-center px-1.5 py-0.5 text-xs font-semibold rounded-full border flex-shrink-0 ${
-                                m.status === 'online'
-                                  ? 'bg-green-50 text-green-700 border-green-200'
-                                  : 'bg-red-50 text-red-700 border-red-200'
-                              }`}>
-                                {m.status === 'online' ? 'En línea' : 'Offline'}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted truncate">{m.location}</p>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="font-bold text-dark text-sm">{clp(m.total_amount)}</p>
-                            <p className="text-xs text-muted">{m.total_count.toLocaleString('es-CL')} ventas · {pct}%</p>
-                          </div>
+              {loadingMachines ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="card p-4 animate-pulse">
+                      <div className="flex items-center gap-4">
+                        <div className="h-4 w-4 bg-gray-100 rounded" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="h-4 w-40 bg-gray-100 rounded" />
+                          <div className="h-3 w-28 bg-gray-100 rounded" />
                         </div>
-                        {/* Mini sparkline */}
-                        <div className="ml-8">
-                          <MiniChart data={m.sparkline} id={String(m.id)} />
-                        </div>
-                        {/* Barra de participación */}
-                        <div className="ml-8 mt-1 flex items-center gap-2">
-                          <div className="flex-1 bg-gray-100 rounded-full h-1">
-                            <div className="bg-primary h-1 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="text-xs text-muted w-8 text-right">{pct}%</span>
-                        </div>
+                        <div className="h-4 w-20 bg-gray-100 rounded" />
                       </div>
-                    );
-                  })}
+                      <div className="mt-3 h-14 bg-gray-50 rounded" />
+                    </div>
+                  ))}
                 </div>
-              </div>
+              ) : sorted.length === 0 ? (
+                <div className="card p-10 text-center">
+                  <Monitor className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm text-muted">No hay máquinas registradas</p>
+                </div>
+              ) : (
+                <div className="card overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+                    <Monitor className="h-4 w-4 text-primary" />
+                    <h2 className="text-sm font-semibold text-dark">Ventas por máquina · {periodLabel[period]}</h2>
+                  </div>
+                  <div className="divide-y divide-gray-50">
+                    {sorted.map((m, i) => {
+                      const pct = grandTotal > 0 ? Math.round((m.total_amount / grandTotal) * 100) : 0;
+                      return (
+                        <div key={m.id} className="px-5 py-4">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span className="text-xs font-bold text-muted w-5 flex-shrink-0">{i + 1}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <Link href={`/maquinas/${m.id}`} className="font-semibold text-dark text-sm truncate hover:text-primary hover:underline">{m.name}</Link>
+                                <span className={`inline-flex items-center px-1.5 py-0.5 text-xs font-semibold rounded-full border flex-shrink-0 ${
+                                  m.status === 'online'
+                                    ? 'bg-green-50 text-green-700 border-green-200'
+                                    : 'bg-red-50 text-red-700 border-red-200'
+                                }`}>
+                                  {m.status === 'online' ? 'En línea' : 'Offline'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted truncate">{m.location}</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="font-bold text-dark text-sm">{clp(m.total_amount)}</p>
+                              <p className="text-xs text-muted">{m.total_count.toLocaleString('es-CL')} ventas · {pct}%</p>
+                            </div>
+                          </div>
+                          <div className="ml-8">
+                            <MiniChart data={m.sparkline} id={String(m.id)} />
+                          </div>
+                          <div className="ml-8 mt-1 flex items-center gap-2">
+                            <div className="flex-1 bg-gray-100 rounded-full h-1">
+                              <div className="bg-primary h-1 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="text-xs text-muted w-8 text-right">{pct}%</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Mayor / Menor rendimiento — desde machine ranking endpoint */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -775,14 +744,15 @@ export default function MetricasPage() {
                       ? <p className="text-sm text-muted text-center py-4">Sin datos para este período</p>
                       : <div className="space-y-3">
                           {machineRankingTop.map((m, i) => (
-                            <div key={m.id} className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                            <Link key={m.id} href={`/maquinas/${m.id}`} className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100 hover:bg-emerald-100 transition-colors">
                               <span className="w-6 h-6 rounded-full bg-emerald-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-dark text-sm truncate">{m.name}</p>
+                                {m.location && <p className="text-xs text-muted truncate">{m.location}</p>}
                                 <p className="text-xs text-muted">{m.payments_quantity.toLocaleString('es-CL')} ventas</p>
                               </div>
                               <p className="font-bold text-dark text-sm flex-shrink-0">{clpShort(m.payments_amount)}</p>
-                            </div>
+                            </Link>
                           ))}
                         </div>
                   }
@@ -807,14 +777,15 @@ export default function MetricasPage() {
                       ? <p className="text-sm text-muted text-center py-4">Sin datos para este período</p>
                       : <div className="space-y-3">
                           {machineRankingLow.map((m, i) => (
-                            <div key={m.id} className="flex items-center gap-3 p-3 bg-red-50 rounded-xl border border-red-100">
+                            <Link key={m.id} href={`/maquinas/${m.id}`} className="flex items-center gap-3 p-3 bg-red-50 rounded-xl border border-red-100 hover:bg-red-100 transition-colors">
                               <span className="w-6 h-6 rounded-full bg-red-400 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-dark text-sm truncate">{m.name}</p>
+                                {m.location && <p className="text-xs text-muted truncate">{m.location}</p>}
                                 <p className="text-xs text-muted">{m.payments_quantity.toLocaleString('es-CL')} ventas</p>
                               </div>
                               <p className="font-bold text-dark text-sm flex-shrink-0">{clpShort(m.payments_amount)}</p>
-                            </div>
+                            </Link>
                           ))}
                         </div>
                   }
@@ -868,7 +839,7 @@ export default function MetricasPage() {
                   {rankingTop.map((p, i) => {
                     const pct = Math.round((p.payments_amount / maxTop) * 100);
                     return (
-                      <div key={p.id} className="px-5 py-3.5">
+                      <Link key={p.id} href={`/productos/${p.id}`} className="block px-5 py-3.5 hover:bg-gray-50 transition-colors">
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-xs font-bold text-muted w-5 flex-shrink-0">{i + 1}</span>
                           <div className="flex-1 min-w-0">
@@ -883,7 +854,7 @@ export default function MetricasPage() {
                           </div>
                           <span className="text-xs text-muted w-8 text-right">{pct}%</span>
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>
@@ -897,7 +868,7 @@ export default function MetricasPage() {
                 </div>
                 <div className="divide-y divide-gray-50">
                   {rankingLow.map((p, i) => (
-                    <div key={p.id} className="px-5 py-3.5">
+                    <Link key={p.id} href={`/productos/${p.id}`} className="block px-5 py-3.5 hover:bg-gray-50 transition-colors">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-muted w-5 flex-shrink-0">{i + 1}</span>
                         <div className="flex-1 min-w-0">
@@ -911,7 +882,7 @@ export default function MetricasPage() {
                           )}
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>
