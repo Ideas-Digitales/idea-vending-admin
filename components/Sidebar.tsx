@@ -59,6 +59,13 @@ export default function Sidebar({ onClose }: SidebarProps) {
       current: pathname === '/dashboard'
     },
     {
+      name: 'Métricas',
+      href: '/metricas',
+      icon: LineChart,
+      current: pathname === '/metricas',
+      onlyRoles: ['customer'],
+    },
+    {
       name: 'Usuarios',
       href: '/usuarios',
       icon: Users,
@@ -92,13 +99,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
       icon: CreditCard,
       current: pathname === '/pagos',
       requiredPermissions: ['payments.read.all', 'payments.read.enterprise_owned']
-    },
-    {
-      name: 'Métricas',
-      href: '/metricas',
-      icon: LineChart,
-      current: pathname === '/metricas',
-      onlyRoles: ['customer'],
     },
   ];
 

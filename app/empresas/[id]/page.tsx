@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Building2, MapPin, Phone, Edit, Trash2 } from 'lucide-react';
+import { Building2, MapPin, Phone, Edit, Trash2, Users, Mail, User } from 'lucide-react';
 import { ConfirmActionDialog, AppShell, PageHeader } from '@/components/ui-custom';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
 import { deleteEnterpriseAction } from '@/lib/actions/enterprise';
@@ -147,7 +147,7 @@ export default function EnterpriseDetailPage() {
       />
 
       <main className="flex-1 p-4 sm:p-6 overflow-auto">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto space-y-6">
           <div className="card p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
               <div>
@@ -176,6 +176,60 @@ export default function EnterpriseDetailPage() {
                 </p>
               </div>
             </div>
+          </div>
+
+          <div className="card p-6">
+            <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
+              <User className="h-5 w-5 mr-2 text-primary" />
+              Owner
+            </h3>
+            {enterprise.owner ? (
+              <div className="flex items-start justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-dark truncate">{enterprise.owner.name}</p>
+                  {enterprise.owner.email && (
+                    <p className="text-xs text-muted flex items-center gap-1 mt-0.5">
+                      <Mail className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{enterprise.owner.email}</span>
+                    </p>
+                  )}
+                </div>
+                <span className="text-[11px] font-mono text-muted bg-white border border-gray-200 px-1.5 py-0.5 rounded shrink-0">
+                  ID: {enterprise.owner.id}
+                </span>
+              </div>
+            ) : (
+              <p className="text-sm text-muted">Esta empresa no tiene owner asignado.</p>
+            )}
+          </div>
+
+          <div className="card p-6">
+            <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
+              <Users className="h-5 w-5 mr-2 text-primary" />
+              Usuarios Asociados
+            </h3>
+            {enterprise.users && enterprise.users.length > 0 ? (
+              <div className="space-y-3">
+                {enterprise.users.map((user) => (
+                  <div key={user.id} className="flex items-start justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-dark truncate">{user.name}</p>
+                      {user.email && (
+                        <p className="text-xs text-muted flex items-center gap-1 mt-0.5">
+                          <Mail className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{user.email}</span>
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-[11px] font-mono text-muted bg-white border border-gray-200 px-1.5 py-0.5 rounded shrink-0">
+                      ID: {user.id}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted">No hay usuarios asociados a esta empresa.</p>
+            )}
           </div>
         </div>
       </main>

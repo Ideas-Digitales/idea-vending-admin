@@ -1,3 +1,15 @@
+export interface EnterpriseUser {
+  id: number;
+  name: string;
+  email?: string;
+}
+
+export interface EnterpriseOwner {
+  id: number;
+  name: string;
+  email?: string;
+}
+
 // Interface para Empresa
 export interface Enterprise {
   id: number;
@@ -8,6 +20,8 @@ export interface Enterprise {
   user_id?: number;
   created_at?: string;
   updated_at?: string;
+  owner?: EnterpriseOwner;
+  users?: EnterpriseUser[];
 }
 
 // Interface para datos de la API (estructura real del API)
@@ -20,6 +34,16 @@ export interface EnterpriseApiData {
   user_id?: number;
   created_at?: string;
   updated_at?: string;
+  owner?: {
+    id?: number | string;
+    name?: string;
+    email?: string | null;
+  } | null;
+  users?: Array<{
+    id?: number | string;
+    name?: string;
+    email?: string | null;
+  }>;
 }
 
 // Interface para crear una nueva empresa

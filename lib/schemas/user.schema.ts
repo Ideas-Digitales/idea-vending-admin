@@ -24,9 +24,8 @@ export const createUserSchema = z.object({
   
   password: z
     .string()
-    .min(8, 'La contraseña debe tener al menos 8 caracteres')
-    .max(255, 'La contraseña no puede exceder 255 caracteres')
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'La contraseña debe contener al menos una minúscula, una mayúscula y un número'),
+    .min(6, 'La contraseña debe tener al menos 6 caracteres')
+    .max(255, 'La contraseña no puede exceder 255 caracteres'),
   
   confirmPassword: z
     .string()
@@ -67,20 +66,11 @@ export const editUserSchema = z.object({
 }).refine((data) => {
   // Solo validar contraseñas si se proporciona una
   if (data.password && data.password.trim().length > 0) {
-    return data.password.length >= 8;
+    return data.password.length >= 6;
   }
   return true;
 }, {
-  message: 'La contraseña debe tener al menos 8 caracteres',
-  path: ['password']
-}).refine((data) => {
-  // Validar complejidad solo si hay contraseña
-  if (data.password && data.password.trim().length > 0) {
-    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(data.password);
-  }
-  return true;
-}, {
-  message: 'La contraseña debe contener al menos una minúscula, una mayúscula y un número',
+  message: 'La contraseña debe tener al menos 6 caracteres',
   path: ['password']
 }).refine((data) => {
   // Validar coincidencia solo si hay contraseña

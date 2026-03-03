@@ -3,9 +3,10 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createUserSchema, editUserSchema, CreateUserFormData, EditUserFormData } from '@/lib/schemas/user.schema';
-import { User, Mail, Lock, Eye, EyeOff, Save } from 'lucide-react';
+import { User, Mail, Lock, Eye, EyeOff, Save, Sparkles, CheckCircle2, Circle, Copy, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { User as UserType } from '@/lib/interfaces';
+import { formatRutInput } from '@/lib/utils/rut';
 
 interface CreateUserFormProps {
   onSubmit: (data: CreateUserFormData | EditUserFormData) => void;
@@ -26,6 +27,7 @@ export default function CreateUserForm({
 }: CreateUserFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [copiedPassword, setCopiedPassword] = useState(false);
 
   const roleLabelMap: Record<'admin' | 'customer' | 'technician', string> = {
     admin: 'Administrador',
@@ -80,13 +82,14 @@ export default function CreateUserForm({
     reset,
     trigger,
     watch,
+    setValue,
   } = useForm({
     resolver: zodResolver(mode === 'edit' ? editUserSchema : createUserSchema),
     mode: mode === 'edit' ? 'onBlur' : 'onChange',
     defaultValues: {
       name: initialData?.name || '',
       email: initialData?.email || '',
-      rut: initialData?.rut || '',
+      rut: formatRutInput(initialData?.rut || ''),
       role: initialData ? resolveInitialRole(initialData) : 'admin',
       status: (initialData?.status === 'active' || initialData?.status === 'inactive') ? initialData.status : 'inactive', // Cambiar default a 'inactive' para modo crear
       password: '',
@@ -100,7 +103,7 @@ export default function CreateUserForm({
       reset({
         name: initialData.name,
         email: initialData.email,
-        rut: initialData.rut,
+        rut: formatRutInput(initialData.rut),
         role: resolveInitialRole(initialData),
         status: (initialData.status === 'active' || initialData.status === 'inactive') ? initialData.status : 'inactive',
         password: '',
@@ -118,10 +121,58 @@ export default function CreateUserForm({
     onSubmit(data);
   };
 
+  const generateSecurePassword = () => {
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnopqrstuvwxyz';
+    const numbers = '23456789';
+    const symbols = '!@#$%*?';
+    const allChars = upper + lower + numbers + symbols;
+
+    const randomChar = (chars: string) => chars[Math.floor(Math.random() * chars.length)];
+
+    const baseChars = [
+      randomChar(upper),
+      randomChar(lower),
+      randomChar(numbers),
+      randomChar(symbols),
+    ];
+
+    while (baseChars.length < 12) {
+      baseChars.push(randomChar(allChars));
+    }
+
+    // Fisher-Yates shuffle
+    for (let i = baseChars.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [baseChars[i], baseChars[j]] = [baseChars[j], baseChars[i]];
+    }
+
+    const generatedPassword = baseChars.join('');
+    setValue('password', generatedPassword, { shouldValidate: true, shouldDirty: true });
+    setValue('confirmPassword', generatedPassword, { shouldValidate: true, shouldDirty: true });
+  };
+
+  const copyPassword = async () => {
+    if (!passwordValue) return;
+    try {
+      await navigator.clipboard.writeText(passwordValue);
+      setCopiedPassword(true);
+      setTimeout(() => setCopiedPassword(false), 1500);
+    } catch {
+      // no-op
+    }
+  };
+
   const isLimitedEdit = mode === 'edit' && !canEditAllFields;
   const roleValue = watch('role') as 'admin' | 'customer' | 'technician' | undefined;
   const statusValue = watch('status') as 'active' | 'inactive' | undefined;
+  const passwordValue = (watch('password') as string | undefined) || '';
+  const confirmPasswordValue = (watch('confirmPassword') as string | undefined) || '';
   const lockedInputClasses = isLimitedEdit ? 'bg-gray-50 text-gray-500 cursor-not-allowed focus:ring-gray-200 focus:border-gray-200' : '';
+  const passwordRules = [
+    { label: 'Mínimo 6 caracteres', ok: passwordValue.length >= 6 },
+    { label: 'Confirmación coincide', ok: passwordValue.length > 0 && passwordValue === confirmPasswordValue },
+  ];
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
@@ -186,9 +237,14 @@ export default function CreateUserForm({
                   RUT *
                 </label>
                 <input
-                  {...register('rut')}
+                  {...register('rut', {
+                    onChange: (event) => {
+                      event.target.value = formatRutInput(event.target.value);
+                    },
+                  })}
                   type="text"
                   id="rut"
+                  maxLength={10}
                   className={`w-full px-3 py-2 border rounded-md shadow-sm text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     errors.rut ? 'border-red-300' : 'border-gray-300'
                   } ${lockedInputClasses}`}
@@ -215,7 +271,7 @@ export default function CreateUserForm({
                 >
                   <option value="admin">Administrador</option>
                   <option value="customer">Cliente</option>
-                  <option value="technician">Técnico</option>
+                  {mode === 'edit' && <option value="technician">Técnico</option>}
                 </select>
                 {errors.role && (
                   <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
@@ -248,9 +304,33 @@ export default function CreateUserForm({
 
         {/* Contraseñas */}
         <div className="border-t pt-6">
-          <h3 className="text-lg font-medium text-black mb-4">
-            {mode === 'edit' ? 'Cambiar Contraseña (Opcional)' : 'Credenciales de Acceso'}
-          </h3>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h3 className="text-lg font-medium text-black">
+              {mode === 'edit' ? 'Cambiar Contraseña (Opcional)' : 'Credenciales de Acceso'}
+            </h3>
+            {mode === 'create' && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={generateSecurePassword}
+                  disabled={isLoading}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Generar contraseña
+                </button>
+                <button
+                  type="button"
+                  onClick={copyPassword}
+                  disabled={isLoading || !passwordValue}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {copiedPassword ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copiedPassword ? 'Copiada' : 'Copiar'}
+                </button>
+              </div>
+            )}
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Contraseña */}
@@ -315,6 +395,24 @@ export default function CreateUserForm({
               )}
             </div>
           </div>
+
+          {mode === 'create' && (
+            <div className="mt-5 p-4 bg-blue-50 rounded-md border border-blue-100">
+              <h4 className="text-sm font-medium text-blue-900 mb-2">Checklist de contraseña</h4>
+              <ul className="space-y-1.5">
+                {passwordRules.map((rule) => (
+                  <li key={rule.label} className={`text-sm flex items-center gap-2 ${rule.ok ? 'text-emerald-700' : 'text-blue-700'}`}>
+                    {rule.ok ? (
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    ) : (
+                      <Circle className="h-4 w-4 shrink-0" />
+                    )}
+                    <span>{rule.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Botones de Acción */}
@@ -341,20 +439,15 @@ export default function CreateUserForm({
       </form>
 
       {/* Información de ayuda */}
-      <div className="mt-6 p-4 bg-blue-50 rounded-md">
-        <h4 className="text-sm font-medium text-blue-900 mb-2">
-          {mode === 'edit' ? 'Cambio de contraseña (opcional):' : 'Requisitos de contraseña:'}
-        </h4>
-        <ul className="text-sm text-blue-700 space-y-1">
-          {mode === 'edit' && (
+      {mode === 'edit' && (
+        <div className="mt-6 p-4 bg-blue-50 rounded-md">
+          <h4 className="text-sm font-medium text-blue-900 mb-2">Cambio de contraseña (opcional):</h4>
+          <ul className="text-sm text-blue-700 space-y-1">
             <li>• Deja los campos de contraseña vacíos si no deseas cambiarla</li>
-          )}
-          <li>• Mínimo 8 caracteres</li>
-          <li>• Al menos una letra minúscula</li>
-          <li>• Al menos una letra mayúscula</li>
-          <li>• Al menos un número</li>
-        </ul>
-      </div>
+            <li>• Mínimo 6 caracteres</li>
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

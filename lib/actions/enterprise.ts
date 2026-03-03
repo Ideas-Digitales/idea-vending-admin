@@ -131,7 +131,7 @@ export async function searchEnterprisesAction(filters: EnterprisesFilters): Prom
  */
 export async function getEnterpriseAction(enterpriseId: string | number): Promise<EnterpriseResponse> {
   try {
-    const { response } = await authenticatedFetch(`/enterprises/${enterpriseId}`);
+    const { response } = await authenticatedFetch(`/enterprises/${enterpriseId}?include=owner,users`);
 
     if (!response.ok) {
       console.error('Error en respuesta del API:', response.status, response.statusText);

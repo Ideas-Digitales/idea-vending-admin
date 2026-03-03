@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { User, Mail, Calendar, Shield, Edit } from 'lucide-react';
+import { User, Mail, Calendar, Shield, Edit, Building2 } from 'lucide-react';
 import { useUserStore } from '@/lib/stores/userStore';
 import { AppShell, PageHeader } from '@/components/ui-custom';
 import Link from 'next/link';
@@ -91,6 +91,9 @@ export default function UserDetailPage() {
     );
   }
 
+  const isCustomerUser = user.role === 'customer' || user.roles?.some((role) => role.name?.toLowerCase().includes('customer'));
+  const userEnterprises = user.enterprises ?? [];
+
   return (
     <AppShell>
       <PageHeader
@@ -174,16 +177,25 @@ export default function UserDetailPage() {
                   </div>
                 )}
 
-                {user.enterprises && user.enterprises.length > 0 && (
+                {(isCustomerUser || userEnterprises.length > 0) && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Empresas Asociadas</label>
-                    <div className="flex flex-wrap gap-2">
-                      {user.enterprises.map((enterprise, index) => (
-                        <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-50 text-purple-800 border border-purple-200">
-                          {enterprise.name} <span className="text-xs text-gray-500 ml-1">(ID: {enterprise.id})</span>
-                        </span>
-                      ))}
-                    </div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {isCustomerUser ? 'Empresas del Cliente' : 'Empresas Asociadas'}
+                    </label>
+                    {userEnterprises.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {userEnterprises.map((enterprise, index) => (
+                          <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-50 text-purple-800 border border-purple-200">
+                            <Building2 className="h-3.5 w-3.5 mr-1" />
+                            {enterprise.name} <span className="text-xs text-gray-500 ml-1">(ID: {enterprise.id})</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                        Este cliente no tiene empresas asociadas.
+                      </p>
+                    )}
                   </div>
                 )}
 

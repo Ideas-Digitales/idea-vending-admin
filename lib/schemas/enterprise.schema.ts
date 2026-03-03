@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatRutInput, isValidRut } from "@/lib/utils/rut";
 
 // Schema para crear una nueva empresa
 export const createEnterpriseSchema = z.object({
@@ -12,8 +13,10 @@ export const createEnterpriseSchema = z.object({
   rut: z
     .string()
     .min(1, "El RUT es requerido")
-    .regex(/^[0-9]+-[0-9kK]$/, "El RUT debe tener el formato correcto (ej: 12345678-9)")
-    .trim(),
+    .transform((value) => formatRutInput(value.trim()))
+    .refine((rut) => rut.length <= 10, "El RUT no puede exceder 10 caracteres")
+    .refine((rut) => /^\d{1,8}-[0-9kK]$/.test(rut), "El RUT debe tener el formato correcto (ej: 12345678-9)")
+    .refine((rut) => isValidRut(rut), "El RUT ingresado no es válido"),
   
   address: z
     .string()

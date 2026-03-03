@@ -230,6 +230,22 @@ function computeInsights(period: Period, data: { label: string; value: number }[
   ];
 }
 
+type RankItem = {
+  id: number;
+  payments_quantity: number;
+  payments_amount: number;
+};
+
+function sanitizeRanking<T extends RankItem>(top: T[] = [], low: T[] = []) {
+  // "Mejor rendimiento": no mostrar elementos sin ventas.
+  const sanitizedTop = top.filter((item) => item.payments_quantity > 0 && item.payments_amount > 0);
+  // "Menor rendimiento": excluir cualquier elemento que ya exista en el top.
+  const topIds = new Set(sanitizedTop.map((item) => item.id));
+  const sanitizedLow = low.filter((item) => !topIds.has(item.id));
+
+  return { top: sanitizedTop, low: sanitizedLow };
+}
+
 // ──────────────────────────────────────────────────────────────
 // UI HELPERS
 // ──────────────────────────────────────────────────────────────
@@ -421,8 +437,9 @@ export default function MetricasPage() {
     productRankingAction({ start_date: start, end_date: end, limit: 5 })
       .then(res => {
         if (res.success) {
-          setRankingTop(res.top_performers ?? []);
-          setRankingLow(res.low_performers ?? []);
+          const { top, low } = sanitizeRanking(res.top_performers ?? [], res.low_performers ?? []);
+          setRankingTop(top);
+          setRankingLow(low);
         }
       })
       .catch(() => {})
@@ -460,8 +477,9 @@ export default function MetricasPage() {
     machineRankingAction({ start_date: start, end_date: end, limit: 5 })
       .then(res => {
         if (res.success) {
-          setMachineRankingTop(res.top_performers ?? []);
-          setMachineRankingLow(res.low_performers ?? []);
+          const { top, low } = sanitizeRanking(res.top_performers ?? [], res.low_performers ?? []);
+          setMachineRankingTop(top);
+          setMachineRankingLow(low);
         }
       })
       .catch(() => {})

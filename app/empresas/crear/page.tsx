@@ -9,6 +9,7 @@ import UserSearchInput from '@/components/UserSearchInput';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
 import { createEnterpriseSchema, type CreateEnterpriseFormData } from '@/lib/schemas/enterprise.schema';
 import type { User } from '@/lib/interfaces/user.interface';
+import { formatRutInput } from '@/lib/utils/rut';
 
 export default function CreateEnterprisePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -124,7 +125,12 @@ export default function CreateEnterprisePage() {
                   <input
                     type="text"
                     id="rut"
-                    {...register('rut')}
+                    {...register('rut', {
+                      onChange: (event) => {
+                        event.target.value = formatRutInput(event.target.value);
+                      },
+                    })}
+                    maxLength={10}
                     className={`input-field ${errors.rut ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                     placeholder="Ej: 76123456-7"
                     disabled={isSubmitting}
@@ -181,6 +187,7 @@ export default function CreateEnterprisePage() {
                     error={errors.user_id?.message}
                     disabled={isSubmitting}
                     placeholder="Buscar usuario por nombre o email..."
+                    allowedRoles={['customer']}
                   />
                 </div>
               </div>

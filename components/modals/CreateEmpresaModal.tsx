@@ -12,6 +12,7 @@ import { createEnterpriseSchema, type CreateEnterpriseFormData } from '@/lib/sch
 import { notify } from '@/lib/adapters/notification.adapter';
 import { useState } from 'react';
 import type { User } from '@/lib/interfaces/user.interface';
+import { formatRutInput } from '@/lib/utils/rut';
 
 interface Props {
   open: boolean;
@@ -95,7 +96,12 @@ export function CreateEmpresaModal({ open, onOpenChange, onCreated }: Props) {
               </label>
               <input
                 type="text"
-                {...register('rut')}
+                {...register('rut', {
+                  onChange: (event) => {
+                    event.target.value = formatRutInput(event.target.value);
+                  },
+                })}
+                maxLength={10}
                 className={`input-field ${errors.rut ? 'border-red-500' : ''}`}
                 placeholder="76123456-7"
                 disabled={saving}
@@ -141,6 +147,7 @@ export function CreateEmpresaModal({ open, onOpenChange, onCreated }: Props) {
               error={errors.user_id?.message}
               disabled={saving}
               placeholder="Buscar usuario por nombre o email..."
+              allowedRoles={['customer']}
             />
           </div>
 

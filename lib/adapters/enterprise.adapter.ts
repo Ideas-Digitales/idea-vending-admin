@@ -1,6 +1,8 @@
 import type {
   Enterprise,
   EnterpriseApiData,
+  EnterpriseOwner,
+  EnterpriseUser,
 } from "../interfaces/enterprise.interface";
 
 export class EnterpriseAdapter {
@@ -25,6 +27,8 @@ export class EnterpriseAdapter {
       user_id: apiEnterprise.user_id,
       created_at: apiEnterprise.created_at,
       updated_at: apiEnterprise.updated_at,
+      owner: this.mapEnterpriseOwner(apiEnterprise.owner),
+      users: this.mapEnterpriseUsers(apiEnterprise.users),
     };
   }
 
@@ -49,6 +53,52 @@ export class EnterpriseAdapter {
       address: formData.address,
       phone: formData.phone,
       user_id: formData.user_id,
+    };
+  }
+
+  private static mapEnterpriseUsers(
+    apiUsers?: EnterpriseApiData['users']
+  ): EnterpriseUser[] | undefined {
+    if (!Array.isArray(apiUsers) || apiUsers.length === 0) {
+      return undefined;
+    }
+
+    const mappedUsers: Array<EnterpriseUser | null> = apiUsers.map((user) => {
+        const parsedId = typeof user.id === 'string' ? Number(user.id) : user.id;
+        if (!parsedId || !user.name) {
+          return null;
+        }
+
+        return {
+          id: parsedId,
+          name: user.name,
+          ...(user.email ? { email: user.email } : {}),
+        };
+      });
+
+    const normalizedUsers = mappedUsers.filter(
+      (user): user is EnterpriseUser => user !== null
+    );
+
+    return normalizedUsers.length > 0 ? normalizedUsers : undefined;
+  }
+
+  private static mapEnterpriseOwner(
+    apiOwner?: EnterpriseApiData['owner']
+  ): EnterpriseOwner | undefined {
+    if (!apiOwner) {
+      return undefined;
+    }
+
+    const parsedId = typeof apiOwner.id === 'string' ? Number(apiOwner.id) : apiOwner.id;
+    if (!parsedId || !apiOwner.name) {
+      return undefined;
+    }
+
+    return {
+      id: parsedId,
+      name: apiOwner.name,
+      ...(apiOwner.email ? { email: apiOwner.email } : {}),
     };
   }
 }

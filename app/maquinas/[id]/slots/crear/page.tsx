@@ -116,8 +116,8 @@ export default function CreateSlotPage() {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.mdb_code || formData.mdb_code <= 0) {
-      newErrors.mdb_code = 'El código MDB es requerido y debe ser positivo';
+    if (formData.mdb_code === null || formData.mdb_code === undefined || formData.mdb_code < 0) {
+      newErrors.mdb_code = 'El código MDB es requerido y debe ser mayor o igual a 0';
     }
 
     if (formData.capacity !== null && formData.capacity !== undefined && formData.capacity < 0) {
@@ -233,11 +233,11 @@ export default function CreateSlotPage() {
                   type="number"
                   id="mdb_code"
                   name="mdb_code"
-                  value={formData.mdb_code || ''}
+                  value={formData.mdb_code ?? ''}
                   onChange={handleInputChange}
                   className={`input-field ${errors.mdb_code ? 'border-red-500' : ''}`}
                   required
-                  min="1"
+                  min="0"
                   disabled={isCreating}
                   suppressHydrationWarning
                 />

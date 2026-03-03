@@ -254,21 +254,6 @@ export default function MaquinasInfiniteClient() {
       ),
     },
     {
-      key: 'estado',
-      header: (
-        <div className="flex items-center gap-1">
-          Estado
-          <HelpTooltip text="En línea: la máquina está activa y comunicada con el servidor. Fuera de línea: sin comunicación, puede estar apagada o sin red." side="top" />
-        </div>
-      ),
-      cell: (m) => (
-        <StatusBadge
-          label={MachineAdapter.getStatusText(m.status)}
-          variant={machineStatusToVariant(m.status)}
-        />
-      ),
-    },
-    {
       key: 'ubicacion',
       header: 'Ubicación',
       cell: (m) => (

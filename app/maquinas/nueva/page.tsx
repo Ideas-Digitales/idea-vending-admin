@@ -4,16 +4,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Monitor, Loader2 } from "lucide-react";
 import { createMachineAction } from "@/lib/actions/machines";
-import { getEnterprisesAction } from '@/lib/actions/enterprise';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { type CreateMachineFormData } from "@/lib/schemas/machine.schema";
-import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 import { AppShell, PageHeader } from '@/components/ui-custom';
+import EnterpriseSearchInput from '@/components/EnterpriseSearchInput';
 
 export default function NuevaMaquinaPage() {
   const router = useRouter();
-  const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
-  const [isLoadingEnterprises, setIsLoadingEnterprises] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -21,22 +18,6 @@ export default function NuevaMaquinaPage() {
     type: 'MDB' as CreateMachineFormData['type'],
     enterprise_id: 0,
   });
-
-  useEffect(() => {
-    async function loadEnterprises() {
-      try {
-        const response = await getEnterprisesAction();
-        if (response.success && response.enterprises) {
-          setEnterprises(response.enterprises);
-        }
-      } catch (err) {
-        console.error('Error al cargar empresas:', err);
-      } finally {
-        setIsLoadingEnterprises(false);
-      }
-    }
-    loadEnterprises();
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,27 +118,14 @@ export default function NuevaMaquinaPage() {
 
             <div>
               <label className="block text-sm font-medium text-black mb-2">Empresa</label>
-              {isLoadingEnterprises ? (
-                <div className="flex items-center text-gray-500">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Cargando empresas...
-                </div>
-              ) : (
-                <select
-                  name="enterprise_id"
-                  value={formData.enterprise_id}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black select-custom"
-                  required
-                >
-                  <option value="0">Selecciona una empresa</option>
-                  {enterprises.map((enterprise) => (
-                    <option key={enterprise.id} value={enterprise.id}>
-                      {enterprise.name}
-                    </option>
-                  ))}
-                </select>
-              )}
+              <EnterpriseSearchInput
+                selectedEnterpriseId={formData.enterprise_id || null}
+                onEnterpriseSelect={(enterprise) =>
+                  setFormData((prev) => ({ ...prev, enterprise_id: enterprise?.id ?? 0 }))
+                }
+                disabled={isSubmitting}
+                placeholder="Buscar empresa por nombre o RUT..."
+              />
             </div>
 
             <div className="flex items-center justify-end gap-3">

@@ -13,6 +13,7 @@ interface UserSearchInputProps {
   error?: string;
   disabled?: boolean;
   placeholder?: string;
+  allowedRoles?: UserRole[];
 }
 
 export default function UserSearchInput({
@@ -20,7 +21,8 @@ export default function UserSearchInput({
   onUserSelect,
   error,
   disabled = false,
-  placeholder = "Buscar usuario por nombre o email..."
+  placeholder = "Buscar usuario por nombre o email...",
+  allowedRoles,
 }: UserSearchInputProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,14 +42,20 @@ export default function UserSearchInput({
           value: searchTerm.trim(),
           case_sensitive: false
         },
-        filters: []
+        filters: [],
+        scopes: allowedRoles && allowedRoles.length > 0
+          ? [{
+              name: 'whereRole',
+              parameters: allowedRoles
+            }]
+          : undefined,
       };
       
       fetchUsers(filters);
     }, 300); // 300ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, fetchUsers]);
+  }, [searchTerm, fetchUsers, allowedRoles]);
 
   // Find selected user when selectedUserId changes
   useEffect(() => {
@@ -106,10 +114,18 @@ export default function UserSearchInput({
     inputRef.current?.focus();
   };
 
-  const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users.filter(user => {
+    const matchesSearch =
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesRole =
+      !allowedRoles || allowedRoles.length === 0
+        ? true
+        : allowedRoles.includes(user.role as UserRole);
+
+    return matchesSearch && matchesRole;
+  });
 
   return (
     <div className="relative" ref={dropdownRef}>
