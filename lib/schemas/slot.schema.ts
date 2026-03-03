@@ -6,7 +6,7 @@ import { z } from 'zod';
 export const createSlotSchema = z.object({
   mdb_code: z.number()
     .int('El código MDB debe ser un número entero')
-    .positive('El código MDB debe ser positivo'),
+    .nonnegative('El código MDB no puede ser negativo'),
   
   label: z.string()
     .min(1, 'La etiqueta debe tener al menos 1 carácter')
@@ -39,7 +39,7 @@ export const createSlotSchema = z.object({
 export const updateSlotSchema = z.object({
   mdb_code: z.number()
     .int('El código MDB debe ser un número entero')
-    .positive('El código MDB debe ser positivo')
+    .nonnegative('El código MDB no puede ser negativo')
     .optional(),
   
   label: z.string()

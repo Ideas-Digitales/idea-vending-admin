@@ -5,10 +5,9 @@ import { Loader2, Monitor } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { createMachineAction } from '@/lib/actions/machines';
-import { getEnterprisesAction } from '@/lib/actions/enterprise';
 import { notify } from '@/lib/adapters/notification.adapter';
-import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 import type { CreateMachineFormData } from '@/lib/schemas/machine.schema';
+import EnterpriseSearchInput from '@/components/EnterpriseSearchInput';
 
 interface Props {
   open: boolean;
@@ -23,8 +22,6 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
   const [location, setLocation] = useState('');
   const [type, setType] = useState<CreateMachineFormData['type']>('MDB');
   const [enterpriseId, setEnterpriseId] = useState(0);
-  const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
-  const [loadingEnterprises, setLoadingEnterprises] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -33,12 +30,7 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
       setLocation('');
       setType('MDB');
       setEnterpriseId(0);
-      return;
     }
-    setLoadingEnterprises(true);
-    getEnterprisesAction({ limit: 100 })
-      .then(res => { if (res.success) setEnterprises(res.enterprises ?? []); })
-      .finally(() => setLoadingEnterprises(false));
   }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -110,7 +102,7 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Tipo *
               </label>
@@ -127,29 +119,16 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
               </select>
             </div>
 
-            <div>
+            <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Empresa *
               </label>
-              {loadingEnterprises ? (
-                <div className="input-field flex items-center gap-2 text-gray-400">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Cargando...
-                </div>
-              ) : (
-                <select
-                  value={enterpriseId}
-                  onChange={e => setEnterpriseId(Number(e.target.value))}
-                  className="input-field"
-                  required
-                  disabled={saving}
-                >
-                  <option value={0}>Seleccionar</option>
-                  {enterprises.map(e => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
-                  ))}
-                </select>
-              )}
+              <EnterpriseSearchInput
+                selectedEnterpriseId={enterpriseId || null}
+                onEnterpriseSelect={(enterprise) => setEnterpriseId(enterprise?.id ?? 0)}
+                disabled={saving}
+                placeholder="Buscar empresa por nombre o RUT..."
+              />
             </div>
           </div>
 
