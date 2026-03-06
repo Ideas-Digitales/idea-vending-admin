@@ -203,6 +203,7 @@ export interface ProductRankingFilters {
   start_date?: string;
   end_date?: string;
   limit?: number;
+  enterprise_id?: number;
 }
 
 export interface RankedProduct {
@@ -248,6 +249,7 @@ export interface MachineRankingFilters {
   start_date?: string;
   end_date?: string;
   limit?: number;
+  enterprise_id?: number;
 }
 
 export interface RankedMachine {

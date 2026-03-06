@@ -35,7 +35,7 @@ const MACHINE_DETAIL_TOUR: Step[] = [
     element: '[data-tour="machine-metrics"]',
     popover: {
       title: 'Métricas de ventas',
-      description: 'Ingresos, número de transacciones y ticket promedio de esta máquina. Cambia el período con los botones Hoy / Este mes / Este año para ver distintos rangos. El gráfico muestra la evolución temporal.',
+      description: 'Ingresos, número de transacciones y ticket promedio de esta máquina. Cambia el período con los botones Últimos 7 días / Este mes / Este año para ver distintos rangos. El gráfico muestra la evolución temporal.',
       side: 'top',
     },
   },
@@ -76,10 +76,10 @@ function getPeriodRange(period: Period) {
 
   if (period === 'day') {
     return {
-      start:     toIso(new Date(Date.UTC(y, m, d,     0,  0,  0))),
-      end:       toIso(new Date(Date.UTC(y, m, d,    23, 59, 59))),
-      prevStart: toIso(new Date(Date.UTC(y, m, d - 1, 0,  0,  0))),
-      prevEnd:   toIso(new Date(Date.UTC(y, m, d - 1,23, 59, 59))),
+      start:     toIso(new Date(Date.UTC(y, m, d - 6,  0,  0,  0))),
+      end:       toIso(new Date(Date.UTC(y, m, d,     23, 59, 59))),
+      prevStart: toIso(new Date(Date.UTC(y, m, d - 13, 0,  0,  0))),
+      prevEnd:   toIso(new Date(Date.UTC(y, m, d - 7, 23, 59, 59))),
     };
   }
   if (period === 'month') {
@@ -103,13 +103,15 @@ function generateIntervals(period: Period): { label: string; start: string; end:
   const y = now.getUTCFullYear();
   const m = now.getUTCMonth();
 
+  const DAY_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   if (period === 'day') {
-    return Array.from({ length: 13 }, (_, i) => {
-      const hour = i + 8;
+    const d = now.getUTCDate();
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(Date.UTC(y, m, d - 6 + i));
       return {
-        label: `${hour}h`,
-        start: toIso(new Date(Date.UTC(y, m, now.getUTCDate(), hour,  0,  0))),
-        end:   toIso(new Date(Date.UTC(y, m, now.getUTCDate(), hour, 59, 59))),
+        label: `${DAY_SHORT[date.getUTCDay()]} ${date.getUTCDate()}`,
+        start: toIso(new Date(Date.UTC(y, m, d - 6 + i,  0,  0,  0))),
+        end:   toIso(new Date(Date.UTC(y, m, d - 6 + i, 23, 59, 59))),
       };
     });
   }
@@ -266,7 +268,7 @@ export default function MaquinaDetallePage() {
   const growthPct      = aggCurrent && aggPrev && (aggPrev.total_amount > 0)
     ? Math.round(((aggCurrent.total_amount - aggPrev.total_amount) / aggPrev.total_amount) * 100)
     : null;
-  const periodLabel: Record<Period, string> = { day: 'Hoy', month: 'Este mes', year: 'Este año' };
+  const periodLabel: Record<Period, string> = { day: '7 días', month: 'Este mes', year: 'Este año' };
 
   const getStatusColor = (s: string) =>
     s?.toLowerCase() === 'online' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200';
@@ -406,22 +408,6 @@ export default function MaquinaDetallePage() {
                 <div className="h-44 flex items-center justify-center text-sm text-muted bg-gray-50 rounded-xl">
                   Sin ventas en este período
                 </div>
-              ) : period === 'day' ? (
-                <ResponsiveContainer width="100%" height={176}>
-                  <BarChart data={chartData} margin={{ top: 10, right: 8, left: 8, bottom: 4 }} barCategoryGap="30%">
-                    <defs>
-                      <linearGradient id="barGradM" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4c6fd0" />
-                        <stop offset="100%" stopColor="#3157b2" />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} tickFormatter={clpShort} width={48} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(49,87,178,0.06)', radius: 6 }} />
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="url(#barGradM)" />
-                  </BarChart>
-                </ResponsiveContainer>
               ) : (
                 <ResponsiveContainer width="100%" height={176}>
                   <AreaChart data={chartData} margin={{ top: 10, right: 8, left: 8, bottom: 4 }}>

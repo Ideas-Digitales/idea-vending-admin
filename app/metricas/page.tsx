@@ -341,8 +341,11 @@ function MiniChart({ data, id, compact = false }: { data: { label: string; value
 // ──────────────────────────────────────────────────────────────
 export default function MetricasPage() {
   const user = useUser();
-  const [period, setPeriod]     = useState<Period>('month');
-  const [activeTab, setActiveTab] = useState<Tab>('resumen');
+  const enterprises = user?.enterprises ?? [];
+  const [period, setPeriod]               = useState<Period>('month');
+  const [activeTab, setActiveTab]         = useState<Tab>('resumen');
+  const [selectedEnterpriseId, setSelectedEnterpriseId] = useState<number | null>(null);
+  const activeEnterpriseId = selectedEnterpriseId ?? enterprises[0]?.id ?? null;
 
   // Datos reales del endpoint aggregate
   const [aggCurrent, setAggCurrent] = useState<{ total_amount: number; total_count: number } | null>(null);
@@ -380,9 +383,8 @@ export default function MetricasPage() {
     setChartData([]);
 
     const { start, end, prevStart, prevEnd } = getPeriodRange(period);
-    const groupBy      = getGroupBy(period);
-    const enterpriseId = user.enterprises?.[0]?.id;
-    const base         = enterpriseId != null ? { enterprise_id: enterpriseId } : {};
+    const groupBy = getGroupBy(period);
+    const base    = activeEnterpriseId != null ? { enterprise_id: activeEnterpriseId } : {};
 
     Promise.all([
       aggregatePaymentsAction({ ...base, start_date: start,     end_date: end     }),
@@ -404,16 +406,15 @@ export default function MetricasPage() {
         // En error de red/transporte: dejar chartData vacío, los KPIs mostrarán $0
       })
       .finally(() => setLoading(false));
-  }, [period, user]);
+  }, [period, user, activeEnterpriseId]);
 
   // Sparklines por máquina — solo para el top del ranking (máx 8 calls)
   useEffect(() => {
     if (!machineRankingTop.length) { setMachineTopStats([]); return; }
     setLoadingMachineSparklines(true);
     const { start, end } = getPeriodRange(period);
-    const groupBy      = getGroupBy(period);
-    const enterpriseId = user?.enterprises?.[0]?.id;
-    const base         = enterpriseId != null ? { enterprise_id: enterpriseId } : {};
+    const groupBy = getGroupBy(period);
+    const base    = activeEnterpriseId != null ? { enterprise_id: activeEnterpriseId } : {};
     Promise.all(
       machineRankingTop.map(m =>
         aggregatePaymentsAction({ ...base, machine_id: m.id, start_date: start, end_date: end, group_by: groupBy })
@@ -427,14 +428,15 @@ export default function MetricasPage() {
       })
       .catch(() => {})
       .finally(() => setLoadingMachineSparklines(false));
-  }, [machineRankingTop, period, user]);
+  }, [machineRankingTop, period, user, activeEnterpriseId]);
 
   // Carga product ranking cuando cambia el período
   useEffect(() => {
     if (user?.role !== 'customer') return;
     setLoadingRanking(true);
     const { start, end } = getPeriodRange(period);
-    productRankingAction({ start_date: start, end_date: end, limit: 5 })
+    const enterpriseFilter = activeEnterpriseId != null ? { enterprise_id: activeEnterpriseId } : {};
+    productRankingAction({ ...enterpriseFilter, start_date: start, end_date: end, limit: 5 })
       .then(res => {
         if (res.success) {
           const { top, low } = sanitizeRanking(res.top_performers ?? [], res.low_performers ?? []);
@@ -444,16 +446,15 @@ export default function MetricasPage() {
       })
       .catch(() => {})
       .finally(() => setLoadingRanking(false));
-  }, [period, user]);
+  }, [period, user, activeEnterpriseId]);
 
   // Sparklines por producto — se dispara cuando cambia rankingTop o período
   useEffect(() => {
     if (!rankingTop.length) { setProductStats([]); return; }
     setLoadingProductStats(true);
     const { start, end } = getPeriodRange(period);
-    const groupBy      = getGroupBy(period);
-    const enterpriseId = user?.enterprises?.[0]?.id;
-    const base         = enterpriseId != null ? { enterprise_id: enterpriseId } : {};
+    const groupBy = getGroupBy(period);
+    const base    = activeEnterpriseId != null ? { enterprise_id: activeEnterpriseId } : {};
     Promise.all(
       rankingTop.map(p =>
         aggregatePaymentsAction({ ...base, product_id: p.id, start_date: start, end_date: end, group_by: groupBy })
@@ -467,14 +468,15 @@ export default function MetricasPage() {
       })
       .catch(() => {})
       .finally(() => setLoadingProductStats(false));
-  }, [rankingTop, period, user]);
+  }, [rankingTop, period, user, activeEnterpriseId]);
 
   // Carga machine ranking cuando cambia el período
   useEffect(() => {
     if (user?.role !== 'customer') return;
     setLoadingMachineRanking(true);
     const { start, end } = getPeriodRange(period);
-    machineRankingAction({ start_date: start, end_date: end, limit: 5 })
+    const enterpriseFilter = activeEnterpriseId != null ? { enterprise_id: activeEnterpriseId } : {};
+    machineRankingAction({ ...enterpriseFilter, start_date: start, end_date: end, limit: 5 })
       .then(res => {
         if (res.success) {
           const { top, low } = sanitizeRanking(res.top_performers ?? [], res.low_performers ?? []);
@@ -484,7 +486,7 @@ export default function MetricasPage() {
       })
       .catch(() => {})
       .finally(() => setLoadingMachineRanking(false));
-  }, [period, user]);
+  }, [period, user, activeEnterpriseId]);
 
 
   if (user?.role !== 'customer') {
@@ -515,7 +517,7 @@ export default function MetricasPage() {
   const insights       = computeInsights(period, chartData);
 
   const periodLabel: Record<Period, string> = { day: '7 días', month: 'Este mes', year: 'Este año' };
-  const enterpriseName = user.enterprises?.[0]?.name ?? 'Tu empresa';
+  const enterpriseName = enterprises.find(e => e.id === activeEnterpriseId)?.name ?? enterprises[0]?.name ?? 'Tu empresa';
 
   const chartTitle: Record<Period, { title: string; subtitle: string }> = {
     day:   { title: 'Ventas por día · Últimos 7 días', subtitle: 'Distribución diaria de ingresos de los últimos 7 días' },
@@ -537,10 +539,24 @@ export default function MetricasPage() {
         icon={LineChartIcon}
         title="Métricas"
         subtitle={
-          <span className="flex items-center gap-2">
-            <Building2 className="h-3.5 w-3.5" />
-            {enterpriseName}
-          </span> as unknown as string
+          enterprises.length > 1
+            ? (
+              <select
+                value={activeEnterpriseId ?? ''}
+                onChange={e => setSelectedEnterpriseId(Number(e.target.value))}
+                className="text-sm font-semibold bg-white/15 text-white border border-white/25 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-white/30 cursor-pointer"
+              >
+                {enterprises.map(e => (
+                  <option key={e.id} value={e.id} className="text-dark bg-white">{e.name}</option>
+                ))}
+              </select>
+            ) as unknown as string
+            : (
+              <span className="flex items-center gap-2">
+                <Building2 className="h-3.5 w-3.5" />
+                {enterpriseName}
+              </span>
+            ) as unknown as string
         }
         variant="gradient"
         actions={
@@ -726,9 +742,7 @@ export default function MetricasPage() {
                         <p className="text-xs text-muted">Cargando datos...</p>
                       </div>
                     </div>
-                  : period === 'day'
-                    ? <SalesBarChart  data={chartData} />
-                    : <SalesAreaChart data={chartData} />
+                  : <SalesAreaChart data={chartData} />
                 }
               </div>
 
