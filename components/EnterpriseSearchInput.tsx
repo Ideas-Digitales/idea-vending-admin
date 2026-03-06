@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Building2, X, ChevronDown } from 'lucide-react';
 import { getEnterprisesAction } from '@/lib/actions/enterprise';
 import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
@@ -27,45 +27,55 @@ export default function EnterpriseSearchInput({
   const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Inicialización controlada desde selectedEnterpriseId
+  const initializedRef = useRef(false);
+  const prevSelectedIdRef = useRef<number | null | undefined>(undefined);
 
+  const fetchEnterprises = useCallback(async (search: string) => {
+    setIsLoading(true);
+    try {
+      const response = await getEnterprisesAction({
+        page: 1,
+        limit: 50,
+        search: search.trim() || undefined,
+      });
+      setEnterprises(response.success ? (response.enterprises ?? []) : []);
+    } catch {
+      setEnterprises([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Búsqueda con debounce al escribir
   useEffect(() => {
-    const timeoutId = setTimeout(async () => {
-      setIsLoading(true);
-      try {
-        const response = await getEnterprisesAction({
-          page: 1,
-          limit: 50,
-          search: searchTerm.trim() || undefined,
-        });
-        if (response.success) {
-          setEnterprises(response.enterprises ?? []);
-        } else {
-          setEnterprises([]);
-        }
-      } catch {
-        setEnterprises([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }, 300);
-
+    const timeoutId = setTimeout(() => fetchEnterprises(searchTerm), 300);
     return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  }, [searchTerm, fetchEnterprises]);
 
+  // Inicialización desde selectedEnterpriseId; se re-inicializa si el prop cambia externamente
   useEffect(() => {
+    if (prevSelectedIdRef.current !== selectedEnterpriseId) {
+      initializedRef.current = false;
+      prevSelectedIdRef.current = selectedEnterpriseId;
+    }
+
+    if (initializedRef.current || enterprises.length === 0) return;
+
     if (!selectedEnterpriseId) {
+      initializedRef.current = true;
       setSelectedEnterprise(null);
+      setSearchTerm('');
       return;
     }
 
-    const foundEnterprise = enterprises.find((enterprise) => enterprise.id === selectedEnterpriseId);
-    if (foundEnterprise) {
-      setSelectedEnterprise(foundEnterprise);
-      if (!searchTerm) {
-        setSearchTerm(foundEnterprise.name);
-      }
+    const found = enterprises.find((e) => e.id === selectedEnterpriseId);
+    if (found) {
+      initializedRef.current = true;
+      setSelectedEnterprise(found);
+      setSearchTerm(found.name);
     }
-  }, [selectedEnterpriseId, enterprises, searchTerm]);
+  }, [selectedEnterpriseId, enterprises]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

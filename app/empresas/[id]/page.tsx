@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Building2, MapPin, Phone, Edit, Trash2, Users, Mail, User } from 'lucide-react';
+import { Building2, MapPin, Phone, Edit, Trash2, Users, Mail, User, UserPlus, X, Loader2 } from 'lucide-react';
 import { ConfirmActionDialog, AppShell, PageHeader } from '@/components/ui-custom';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
-import { deleteEnterpriseAction } from '@/lib/actions/enterprise';
+import { deleteEnterpriseAction, attachUsersToEnterpriseAction, detachUsersFromEnterpriseAction } from '@/lib/actions/enterprise';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { useUser } from '@/lib/stores/authStore';
 import Link from 'next/link';
+import UserSearchInput from '@/components/UserSearchInput';
+import type { User as UserType } from '@/lib/interfaces/user.interface';
 
 export default function EnterpriseDetailPage() {
   const router = useRouter();
@@ -17,6 +19,12 @@ export default function EnterpriseDetailPage() {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [userToAdd, setUserToAdd] = useState<UserType | null>(null);
+  const [addingUser, setAddingUser] = useState(false);
+  const [userToRemove, setUserToRemove] = useState<{ id: number; name: string } | null>(null);
+  const [removingUser, setRemovingUser] = useState(false);
+
   const authUser = useUser();
   const canManageEnterprises = authUser?.role === 'admin';
 
@@ -43,6 +51,45 @@ export default function EnterpriseDetailPage() {
       clearEnterpriseError();
     };
   }, [clearSelectedEnterprise, clearEnterpriseError]);
+
+  const handleAddUser = async () => {
+    if (!userToAdd) return;
+    setAddingUser(true);
+    try {
+      const result = await attachUsersToEnterpriseAction(enterpriseId, [userToAdd.id]);
+      if (result.success) {
+        notify.success(`${userToAdd.name} agregado a la empresa`);
+        setUserToAdd(null);
+        setShowAddUser(false);
+        fetchEnterprise(enterpriseId);
+      } else {
+        notify.error(result.error || 'Error al agregar usuario');
+      }
+    } catch {
+      notify.error('Error inesperado al agregar usuario');
+    } finally {
+      setAddingUser(false);
+    }
+  };
+
+  const handleRemoveUser = async () => {
+    if (!userToRemove) return;
+    setRemovingUser(true);
+    try {
+      const result = await detachUsersFromEnterpriseAction(enterpriseId, [userToRemove.id]);
+      if (result.success) {
+        notify.success(`${userToRemove.name} desasociado de la empresa`);
+        setUserToRemove(null);
+        fetchEnterprise(enterpriseId);
+      } else {
+        notify.error(result.error || 'Error al desasociar usuario');
+      }
+    } catch {
+      notify.error('Error inesperado al desasociar usuario');
+    } finally {
+      setRemovingUser(false);
+    }
+  };
 
   const confirmDelete = async () => {
     if (!enterprise) return;
@@ -204,14 +251,65 @@ export default function EnterpriseDetailPage() {
           </div>
 
           <div className="card p-6">
-            <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
-              <Users className="h-5 w-5 mr-2 text-primary" />
-              Usuarios Asociados
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-dark flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Usuarios Asociados
+                {enterprise.users && enterprise.users.length > 0 && (
+                  <span className="text-sm font-normal text-muted">
+                    ({enterprise.users.length})
+                  </span>
+                )}
+              </h3>
+              {canManageEnterprises && (
+                <button
+                  onClick={() => { setShowAddUser((v) => !v); setUserToAdd(null); }}
+                  className="btn-secondary flex items-center gap-1.5 text-sm py-1.5"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span>Agregar</span>
+                </button>
+              )}
+            </div>
+
+            {/* Panel de búsqueda para agregar usuario */}
+            {showAddUser && canManageEnterprises && (
+              <div className="mb-4 p-3 rounded-lg border border-blue-200 bg-blue-50 space-y-3">
+                <p className="text-sm font-medium text-blue-900">Buscar usuario para agregar</p>
+                <UserSearchInput
+                  onUserSelect={setUserToAdd}
+                  placeholder="Buscar por nombre o email..."
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddUser(false); setUserToAdd(null); }}
+                    className="btn-secondary text-sm py-1.5"
+                    disabled={addingUser}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddUser}
+                    disabled={!userToAdd || addingUser}
+                    className="btn-primary flex items-center gap-1.5 text-sm py-1.5"
+                  >
+                    {addingUser ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <UserPlus className="h-4 w-4" />
+                    )}
+                    Agregar
+                  </button>
+                </div>
+              </div>
+            )}
+
             {enterprise.users && enterprise.users.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {enterprise.users.map((user) => (
-                  <div key={user.id} className="flex items-start justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                  <div key={user.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-dark truncate">{user.name}</p>
                       {user.email && (
@@ -221,9 +319,20 @@ export default function EnterpriseDetailPage() {
                         </p>
                       )}
                     </div>
-                    <span className="text-[11px] font-mono text-muted bg-white border border-gray-200 px-1.5 py-0.5 rounded shrink-0">
-                      ID: {user.id}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[11px] font-mono text-muted bg-white border border-gray-200 px-1.5 py-0.5 rounded">
+                        ID: {user.id}
+                      </span>
+                      {canManageEnterprises && (
+                        <button
+                          onClick={() => setUserToRemove({ id: user.id, name: user.name })}
+                          className="p-1 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                          title="Desasociar usuario"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -242,6 +351,17 @@ export default function EnterpriseDetailPage() {
         confirmText="Eliminar"
         onConfirm={confirmDelete}
         isLoading={isDeleting}
+        variant="danger"
+      />
+
+      <ConfirmActionDialog
+        isOpen={!!userToRemove}
+        onOpenChange={(open) => { if (!open) setUserToRemove(null); }}
+        title="Desasociar usuario"
+        description={`¿Deseas quitar a "${userToRemove?.name}" de los miembros de ${enterprise.name}?`}
+        confirmText="Desasociar"
+        onConfirm={handleRemoveUser}
+        isLoading={removingUser}
         variant="danger"
       />
     </AppShell>

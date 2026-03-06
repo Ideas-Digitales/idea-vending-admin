@@ -175,7 +175,9 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
       password: userData.password,
       password_confirmation: userData.confirmPassword,
       role: userData.role,
-      status: userData.status
+      status: userData.status,
+      // Opción C: best-effort, si no hay permisos el usuario se crea igual
+      ...(userData.enterprise_id !== undefined && { enterprise_id: userData.enterprise_id }),
     };
 
     const { response } = await authenticatedFetch('/users', {
@@ -268,6 +270,11 @@ export async function updateUserAction(userId: string | number, userData: Record
     if (typeof userData.password === 'string' && userData.password.trim() !== '') {
       updateData.password = userData.password;
       updateData.password_confirmation = userData.confirmPassword;
+    }
+
+    // Opción C: best-effort, si no hay permisos el usuario se actualiza igual sin asignación
+    if (typeof userData.enterprise_id === 'number') {
+      updateData.enterprise_id = userData.enterprise_id;
     }
 
     const { response } = await authenticatedFetch(`/users/${userId}`, {

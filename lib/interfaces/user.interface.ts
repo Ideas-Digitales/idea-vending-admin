@@ -169,4 +169,5 @@ export interface CreateUser {
   role: string;
   status: string;
   roles?: string[];
+  enterprise_id?: number;
 }

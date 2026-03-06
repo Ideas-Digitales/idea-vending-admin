@@ -7,6 +7,7 @@ import { User, Mail, Lock, Eye, EyeOff, Save, Sparkles, CheckCircle2, Circle, Co
 import { useState, useEffect } from 'react';
 import { User as UserType } from '@/lib/interfaces';
 import { formatRutInput } from '@/lib/utils/rut';
+import EnterpriseSearchInput from '@/components/EnterpriseSearchInput';
 
 interface CreateUserFormProps {
   onSubmit: (data: CreateUserFormData | EditUserFormData) => void;
@@ -93,7 +94,8 @@ export default function CreateUserForm({
       role: initialData ? resolveInitialRole(initialData) : 'admin',
       status: (initialData?.status === 'active' || initialData?.status === 'inactive') ? initialData.status : 'inactive', // Cambiar default a 'inactive' para modo crear
       password: '',
-      confirmPassword: ''
+      confirmPassword: '',
+      enterprise_id: undefined,
     }
   });
 
@@ -107,9 +109,9 @@ export default function CreateUserForm({
         role: resolveInitialRole(initialData),
         status: (initialData.status === 'active' || initialData.status === 'inactive') ? initialData.status : 'inactive',
         password: '',
-        confirmPassword: ''
+        confirmPassword: '',
       });
-      
+
       // Trigger validation after reset in edit mode
       if (mode === 'edit') {
         setTimeout(() => trigger(), 100);
@@ -298,6 +300,26 @@ export default function CreateUserForm({
                   <p className="mt-1 text-sm text-red-600">{errors.status.message}</p>
                 )}
               </div>
+
+              {/* Empresa — solo al crear un cliente (en edición se gestiona desde la ficha) */}
+              {roleValue === 'customer' && mode === 'create' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-black mb-2">
+                    Empresa{' '}
+                    <span className="font-normal text-gray-400">(opcional)</span>
+                  </label>
+                  <EnterpriseSearchInput
+                    onEnterpriseSelect={(enterprise) =>
+                      setValue('enterprise_id', enterprise?.id ?? undefined)
+                    }
+                    disabled={isLoading}
+                    placeholder="Buscar empresa para asociar al cliente..."
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Asocia este cliente a una empresa al momento de crearlo.
+                  </p>
+                </div>
+              )}
             </>
           )}
         </div>

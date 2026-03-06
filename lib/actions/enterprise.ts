@@ -248,6 +248,80 @@ export async function updateEnterpriseAction(
 }
 
 /**
+ * Asociar usuarios a una empresa
+ * POST /enterprises/{id}/users/attach  →  { "resources": [1, 2, 3] }
+ */
+export async function attachUsersToEnterpriseAction(
+  enterpriseId: string | number,
+  userIds: number[]
+): Promise<{ success: boolean; attached?: number[]; error?: string }> {
+  try {
+    const { response } = await authenticatedFetch(`/enterprises/${enterpriseId}/users/attach`, {
+      method: 'POST',
+      body: JSON.stringify({ resources: userIds }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+
+      if (response.status === 403) {
+        return { success: false, error: 'Sin permisos para gestionar miembros de esta empresa' };
+      }
+      if (response.status === 404) {
+        return { success: false, error: 'Empresa no encontrada' };
+      }
+
+      return {
+        success: false,
+        error: errorData?.message || `Error del servidor: ${response.status}`,
+      };
+    }
+
+    const data = await response.json().catch(() => ({}));
+    return { success: true, attached: data.attached };
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+/**
+ * Desasociar usuarios de una empresa
+ * DELETE /enterprises/{id}/users/detach  →  { "resources": [1, 2] }
+ */
+export async function detachUsersFromEnterpriseAction(
+  enterpriseId: string | number,
+  userIds: number[]
+): Promise<{ success: boolean; detached?: number[]; error?: string }> {
+  try {
+    const { response } = await authenticatedFetch(`/enterprises/${enterpriseId}/users/detach`, {
+      method: 'DELETE',
+      body: JSON.stringify({ resources: userIds }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+
+      if (response.status === 403) {
+        return { success: false, error: 'Sin permisos para gestionar miembros de esta empresa' };
+      }
+      if (response.status === 404) {
+        return { success: false, error: 'Empresa o usuario no encontrado' };
+      }
+
+      return {
+        success: false,
+        error: errorData?.message || `Error del servidor: ${response.status}`,
+      };
+    }
+
+    const data = await response.json().catch(() => ({}));
+    return { success: true, detached: data.detached };
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+/**
  * Eliminar una empresa
  */
 export async function deleteEnterpriseAction(enterpriseId: string | number): Promise<{ success: boolean; error?: string }> {

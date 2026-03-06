@@ -29,7 +29,9 @@ export const createUserSchema = z.object({
   
   confirmPassword: z
     .string()
-    .min(1, 'Confirme la contraseña')
+    .min(1, 'Confirme la contraseña'),
+
+  enterprise_id: z.number().int().positive().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Las contraseñas no coinciden',
   path: ['confirmPassword']
@@ -62,7 +64,9 @@ export const editUserSchema = z.object({
 
   // Contraseñas completamente opcionales para edición
   password: z.string().default(''),
-  confirmPassword: z.string().default('')
+  confirmPassword: z.string().default(''),
+
+  enterprise_id: z.number().int().positive().optional(),
 }).refine((data) => {
   // Solo validar contraseñas si se proporciona una
   if (data.password && data.password.trim().length > 0) {
