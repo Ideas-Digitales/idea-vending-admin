@@ -7,3 +7,4 @@ export { default as FilterBar } from './FilterBar';
 export { default as StatusBadge } from './StatusBadge';
 export { default as UnifiedPagination } from './UnifiedPagination';
 export { default as ConfirmActionDialog } from './ConfirmActionDialog';
+export { default as SortableHeader } from './SortableHeader';

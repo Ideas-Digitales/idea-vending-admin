@@ -166,6 +166,10 @@ export const getPaymentsAction = async (filters?: PaymentFilters): Promise<Payme
       ];
     }
 
+    if (filters?.sort && filters.sort.length > 0) {
+      (searchPayload as Record<string, unknown>).sort = filters.sort;
+    }
+
     const path = `/payments/search${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
 
     const { response } = await authenticatedFetch(path, {

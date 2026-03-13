@@ -35,6 +35,11 @@ export interface Payment {
   } | null;
 }
 
+export interface SortParam {
+  field: string;
+  direction: 'asc' | 'desc';
+}
+
 export interface PaymentFilters {
   search?: string;
   successful?: boolean | null;
@@ -47,6 +52,7 @@ export interface PaymentFilters {
   page?: number;
   limit?: number;
   include?: 'machine';
+  sort?: SortParam[];
 }
 
 export interface PaymentResponse {

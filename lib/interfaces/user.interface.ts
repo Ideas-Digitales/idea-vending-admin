@@ -145,6 +145,11 @@ export interface UserScope {
   parameters: string[];
 }
 
+export interface SortParam {
+  field: string;
+  direction: 'asc' | 'desc';
+}
+
 export interface UsersFilters {
   search?: string;
   page?: number;
@@ -157,6 +162,7 @@ export interface UsersFilters {
   scopes?: UserScope[];
   status?: 'active' | 'inactive';
   role?: 'admin' | 'customer' | 'technician';
+  sort?: SortParam[];
 }
 
 // Interface para crear usuario (datos que se envían a la API)

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Save, Monitor } from 'lucide-react';
+import { Loader2, Save, Monitor, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { getMachineAction, updateMachineAction } from '@/lib/actions/machines';
@@ -12,6 +12,15 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   machineId: number | string | null;
   onSaved: () => void;
+}
+
+function FieldHint({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-1.5 flex items-start gap-1.5 text-xs text-blue-600/80">
+      <Info className="h-3.5 w-3.5 mt-px shrink-0" />
+      <span>{children}</span>
+    </p>
+  );
 }
 
 export function EditMaquinaModal({ open, onOpenChange, machineId, onSaved }: Props) {
@@ -75,34 +84,36 @@ export function EditMaquinaModal({ open, onOpenChange, machineId, onSaved }: Pro
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 pt-1">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nombre de la Máquina *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Máquina *</label>
               <input
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 className="input-field"
-                placeholder="Ej: Mall Central"
+                placeholder="Ej: VM-Edificio Central Piso 2"
                 required
                 autoFocus
                 disabled={saving}
               />
+              <FieldHint>
+                Nombre único e identificable. Incluye referencia al lugar y número si hay varias. Ej: <strong>«Snacks Casino Norte»</strong> o <strong>«VM-Torre B P3»</strong>.
+              </FieldHint>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Ubicación *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación *</label>
               <textarea
                 value={location}
                 onChange={e => setLocation(e.target.value)}
                 className="input-field"
-                placeholder="Ej: Mall Central, Local 23"
+                placeholder="Ej: Edificio Central, Piso 2, frente a los ascensores"
                 rows={3}
                 required
                 disabled={saving}
               />
+              <FieldHint>
+                Sé específico: edificio, piso, sala o punto de referencia. Aparece en reposición y etiquetas QR. Ej: <strong>«Av. Providencia 1234, Casino Piso 1, junto a cajas»</strong>.
+              </FieldHint>
             </div>
 
             <div className="flex justify-end gap-3 pt-2">

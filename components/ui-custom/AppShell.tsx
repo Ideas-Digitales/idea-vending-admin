@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { AppShellContext } from '@/lib/contexts/AppShellContext';
 
@@ -8,11 +8,29 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
+const COLLAPSED_KEY = 'sidebar_collapsed';
+
 export default function AppShell({ children }: AppShellProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen]           = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Restore persisted state after mount (avoid SSR mismatch)
+  useEffect(() => {
+    try {
+      setSidebarCollapsed(localStorage.getItem(COLLAPSED_KEY) === 'true');
+    } catch { /* ignore */ }
+  }, []);
+
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem(COLLAPSED_KEY, String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   return (
-    <AppShellContext.Provider value={{ openSidebar: () => setSidebarOpen(true) }}>
+    <AppShellContext.Provider value={{ openSidebar: () => setSidebarOpen(true), sidebarCollapsed, toggleSidebarCollapsed }}>
       <div className="min-h-screen bg-gray-50 flex">
         {/* Backdrop (mobile only) */}
         <div
@@ -28,7 +46,11 @@ export default function AppShell({ children }: AppShellProps) {
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <Sidebar onClose={() => setSidebarOpen(false)} />
+          <Sidebar
+            onClose={() => setSidebarOpen(false)}
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={toggleSidebarCollapsed}
+          />
         </div>
 
         {/* Main content */}

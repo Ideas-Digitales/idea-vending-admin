@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Monitor } from 'lucide-react';
+import { Loader2, Monitor, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { createMachineAction } from '@/lib/actions/machines';
@@ -16,6 +16,15 @@ interface Props {
 }
 
 const MACHINE_TYPES: CreateMachineFormData['type'][] = ['MDB', 'MDB-DEX', 'PULSES'];
+
+function FieldHint({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-1.5 flex items-start gap-1.5 text-xs text-blue-600/80">
+      <Info className="h-3.5 w-3.5 mt-px shrink-0" />
+      <span>{children}</span>
+    </p>
+  );
+}
 
 export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
   const [name, setName] = useState('');
@@ -71,41 +80,41 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-1">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
             <input
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
               className="input-field"
-              placeholder="Ej: Mall Central"
+              placeholder="Ej: VM-Edificio Central Piso 2"
               required
               autoFocus
               disabled={saving}
             />
+            <FieldHint>
+              Nombre único e identificable. Incluye referencia al lugar y número si hay varias. Ej: <strong>«Snacks Casino Norte»</strong> o <strong>«VM-Torre B P3»</strong>. Evita nombres genéricos como «Máquina 1».
+            </FieldHint>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ubicación *
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación *</label>
             <textarea
               value={location}
               onChange={e => setLocation(e.target.value)}
               className="input-field"
-              placeholder="Ej: Mall Central, Local 23"
+              placeholder="Ej: Edificio Central, Piso 2, frente a los ascensores"
               rows={2}
               required
               disabled={saving}
             />
+            <FieldHint>
+              Sé específico: edificio, piso, sala o punto de referencia. Aparece en reposición y etiquetas QR. Ej: <strong>«Av. Providencia 1234, Casino Piso 1, junto a cajas»</strong>.
+            </FieldHint>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tipo *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
               <select
                 value={type}
                 onChange={e => setType(e.target.value as CreateMachineFormData['type'])}
@@ -117,18 +126,22 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
+              <FieldHint>
+                <strong>MDB</strong>: estándar para máquinas modernas. <strong>MDB-DEX</strong>: MDB con auditoría detallada de ventas. <strong>PULSES</strong>: máquinas antiguas con señales de pulso. Consulta el manual de tu equipo si no estás seguro.
+              </FieldHint>
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Empresa *
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Empresa *</label>
               <EnterpriseSearchInput
                 selectedEnterpriseId={enterpriseId || null}
                 onEnterpriseSelect={(enterprise) => setEnterpriseId(enterprise?.id ?? 0)}
                 disabled={saving}
                 placeholder="Buscar empresa por nombre o RUT..."
               />
+              <FieldHint>
+                Define qué productos y usuarios tendrán acceso a gestionar esta máquina.
+              </FieldHint>
             </div>
           </div>
 

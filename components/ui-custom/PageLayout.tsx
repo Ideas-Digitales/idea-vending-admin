@@ -1,7 +1,6 @@
 'use client';
 
 import { type LucideIcon } from 'lucide-react';
-import AppShell from './AppShell';
 import PageHeader from './PageHeader';
 import { useAuthProtection } from '@/lib/hooks/useAuthProtection';
 import { TourRunner, type Step } from '@/components/help/TourRunner';
@@ -90,7 +89,7 @@ export default function PageLayout({
   );
 
   return (
-    <AppShell>
+    <>
       <PageHeader
         icon={icon}
         title={title}
@@ -102,6 +101,6 @@ export default function PageLayout({
       <main className="flex-1 p-4 sm:p-6 overflow-auto">
         {children}
       </main>
-    </AppShell>
+    </>
   );
 }

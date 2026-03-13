@@ -11,6 +11,7 @@ interface EnterpriseSearchInputProps {
   error?: string;
   disabled?: boolean;
   placeholder?: string;
+  compact?: boolean;
 }
 
 export default function EnterpriseSearchInput({
@@ -19,6 +20,7 @@ export default function EnterpriseSearchInput({
   error,
   disabled = false,
   placeholder = 'Buscar empresa por nombre o RUT...',
+  compact = false,
 }: EnterpriseSearchInputProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -132,6 +134,7 @@ export default function EnterpriseSearchInput({
           disabled={disabled}
           className={`
             input-field w-full pl-10 pr-10
+            ${compact ? '!py-2 !text-sm !rounded-lg' : ''}
             ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}
             ${disabled ? 'bg-gray-50 cursor-not-allowed' : ''}
           `}
@@ -152,7 +155,7 @@ export default function EnterpriseSearchInput({
         </div>
       </div>
 
-      {selectedEnterprise && (
+      {selectedEnterprise && !compact && (
         <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-center space-x-2">
             <div className="h-6 w-6 bg-blue-500 rounded-full flex items-center justify-center">
