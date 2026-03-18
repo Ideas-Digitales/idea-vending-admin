@@ -89,7 +89,7 @@ export default function EditarMaquinaPage() {
       form.append('status', formData.status);
       form.append('location', formData.location);
       form.append('type', formData.type);
-      form.append('enterprise_id', formData.enterprise_id);
+      form.append('enterprise_id', String(formData.enterprise_id));
 
       const response = await fetch(`/maquinas/${machineId}/update`, {
         method: 'POST',

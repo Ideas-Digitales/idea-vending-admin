@@ -51,6 +51,11 @@ export const updateMachineSchema = z.object({
     .positive('El ID de cliente debe ser positivo')
     .optional()
     .nullable(),
+
+  enterprise_id: z.number()
+    .int('El ID de empresa debe ser un número entero')
+    .positive('El ID de empresa debe ser positivo')
+    .optional(),
 });
 
 // Types derivados de los schemas
