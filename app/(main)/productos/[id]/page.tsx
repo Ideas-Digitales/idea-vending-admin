@@ -33,10 +33,10 @@ function getPeriodRange(period: Period) {
 
   if (period === 'day') {
     return {
-      start:     toIso(new Date(Date.UTC(y, m, d,      0,  0,  0))),
+      start:     toIso(new Date(Date.UTC(y, m, d - 6,  0,  0,  0))),
       end:       toIso(new Date(Date.UTC(y, m, d,     23, 59, 59))),
-      prevStart: toIso(new Date(Date.UTC(y, m, d - 1,  0,  0,  0))),
-      prevEnd:   toIso(new Date(Date.UTC(y, m, d - 1, 23, 59, 59))),
+      prevStart: toIso(new Date(Date.UTC(y, m, d - 13, 0,  0,  0))),
+      prevEnd:   toIso(new Date(Date.UTC(y, m, d - 7, 23, 59, 59))),
     };
   }
   if (period === 'month') {
@@ -61,12 +61,13 @@ function generateIntervals(period: Period): { label: string; start: string; end:
   const m = now.getUTCMonth();
 
   if (period === 'day') {
-    return Array.from({ length: 13 }, (_, i) => {
-      const hour = i + 8;
+    const DAY_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(Date.UTC(y, m, now.getUTCDate() - 6 + i));
       return {
-        label: `${hour}h`,
-        start: toIso(new Date(Date.UTC(y, m, now.getUTCDate(), hour,  0,  0))),
-        end:   toIso(new Date(Date.UTC(y, m, now.getUTCDate(), hour, 59, 59))),
+        label: DAY_SHORT[date.getUTCDay()],
+        start: toIso(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(),  0,  0,  0))),
+        end:   toIso(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59))),
       };
     });
   }
@@ -188,7 +189,7 @@ export default function ProductDetailPage() {
     ? Math.round(((aggCurrent.total_amount - aggPrev.total_amount) / aggPrev.total_amount) * 100)
     : null;
 
-  const periodLabel: Record<Period, string> = { day: 'Hoy', month: 'Este mes', year: 'Este año' };
+  const periodLabel: Record<Period, string> = { day: '7 días', month: 'Este mes', year: 'Este año' };
 
   // ── Estados de carga/error ────────────────────────────────────────────────
   if (isLoading || (!product && !error)) {
