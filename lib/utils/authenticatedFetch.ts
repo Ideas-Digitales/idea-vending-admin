@@ -35,6 +35,7 @@ export async function authenticatedFetch(
 
   const response = await fetch(url, {
     ...options,
+    cache: 'no-store',
     headers: {
       'Accept': 'application/json',
       'Content-Type': 'application/json',

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import {
   Monitor, Plus, Edit, Trash2, Eye, Loader2, AlertCircle, MapPin,
   LayoutGrid, LayoutList, AlertTriangle, ChevronDown, BarChart2, CreditCard,
+  Building2, X,
 } from 'lucide-react';
 import { EditMaquinaModal } from '@/components/modals/EditMaquinaModal';
 import { CreateMaquinaModal } from '@/components/modals/CreateMaquinaModal';
@@ -28,6 +29,8 @@ import { useMetricsFilterStore } from '@/lib/stores/metricsFilterStore';
 import {
   PeriodSelector, EnterpriseMetricsSelector, MaquinasMetricsPanel,
 } from '@/components/metrics';
+import EnterpriseSearchInput from '@/components/EnterpriseSearchInput';
+import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 
 const MACHINES_TOUR_STEPS: Step[] = [
   {
@@ -118,9 +121,12 @@ export default function MaquinasInfiniteClient() {
   const [searchTerm, setSearchTerm]           = useState('');
   const [statusFilter, setStatusFilter]       = useState<MachineStatusFilter>(statusParamValue);
   const [typeFilter, setTypeFilter]           = useState('');
+  const [enterpriseFilter, setEnterpriseFilter] = useState<{ id: number | null; name: string | null }>({ id: null, name: null });
+  const [enterpriseDropdownOpen, setEnterpriseDropdownOpen] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [viewMode, setViewMode]               = useState<'card' | 'table'>('table');
   const [metricsOpen, setMetricsOpen]         = useState(false);
+  const enterpriseDropdownRef                 = useRef<HTMLDivElement>(null);
 
   const [deleteDialog, setDeleteDialog] = useState<{
     isOpen: boolean; machineId: number | string | null; machineName: string;
@@ -155,12 +161,23 @@ export default function MaquinasInfiniteClient() {
       search: debouncedSearch || undefined,
       status: statusFilter || undefined,
       type: typeFilter || undefined,
+      enterprise_id: enterpriseFilter.id ?? undefined,
       page: 1,
       limit: 20,
     };
     setFilters(filters);
     fetchMachines(filters);
-  }, [debouncedSearch, statusFilter, typeFilter, fetchMachines, setFilters]);
+  }, [debouncedSearch, statusFilter, typeFilter, enterpriseFilter.id, fetchMachines, setFilters]);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (enterpriseDropdownRef.current && !enterpriseDropdownRef.current.contains(e.target as Node)) {
+        setEnterpriseDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   useEffect(() => {
     clearError();
@@ -243,14 +260,60 @@ export default function MaquinasInfiniteClient() {
     setSearchTerm('');
     setStatusFilter('');
     setTypeFilter('');
+    setEnterpriseFilter({ id: null, name: null });
     setDebouncedSearch('');
     router.replace('/maquinas', { scroll: false });
   };
 
-  const hasFilters = !!(searchTerm || statusFilter || typeFilter);
+  const hasFilters = !!(searchTerm || statusFilter || typeFilter || enterpriseFilter.id);
 
   const filterControls = (
     <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+      {/* Filtro de empresa */}
+      <div className="relative" ref={enterpriseDropdownRef}>
+        <button
+          type="button"
+          onClick={() => setEnterpriseDropdownOpen(p => !p)}
+          className={`flex items-center gap-2 h-11 px-3 rounded-xl text-sm font-semibold border-2 transition-all ${
+            enterpriseFilter.id
+              ? 'bg-primary text-white border-primary shadow-sm'
+              : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40 hover:bg-primary/5'
+          }`}
+        >
+          <Building2 className="h-4 w-4 flex-shrink-0" />
+          <span className="max-w-[140px] truncate">
+            {enterpriseFilter.name ?? 'Empresa'}
+          </span>
+          {enterpriseFilter.id ? (
+            <span
+              role="button"
+              tabIndex={0}
+              aria-label="Limpiar filtro de empresa"
+              onClick={(e) => { e.stopPropagation(); setEnterpriseFilter({ id: null, name: null }); setEnterpriseDropdownOpen(false); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setEnterpriseFilter({ id: null, name: null }); } }}
+              className="ml-0.5 rounded-full p-0.5 hover:bg-white/25 transition-colors"
+            >
+              <X className="h-3 w-3" />
+            </span>
+          ) : (
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${enterpriseDropdownOpen ? 'rotate-180' : ''}`} />
+          )}
+        </button>
+        {enterpriseDropdownOpen && (
+          <div className="absolute left-0 top-full mt-1.5 w-72 bg-white border border-gray-200 rounded-xl shadow-xl z-50 p-2">
+            <EnterpriseSearchInput
+              selectedEnterpriseId={enterpriseFilter.id}
+              onEnterpriseSelect={(e: Enterprise | null) => {
+                setEnterpriseFilter({ id: e?.id ?? null, name: e?.name ?? null });
+                if (e) setEnterpriseDropdownOpen(false);
+              }}
+              placeholder="Buscar empresa..."
+              compact
+            />
+          </div>
+        )}
+      </div>
+
       <Select value={statusFilter || 'all'} onValueChange={(v) => setStatusFilter(v === 'all' ? '' : v as MachineStatusFilter)}>
         <SelectTrigger className="w-full sm:w-[180px] h-11 bg-white border-2 border-gray-200 rounded-xl shadow-sm text-sm">
           <SelectValue placeholder="Todos los estados" />

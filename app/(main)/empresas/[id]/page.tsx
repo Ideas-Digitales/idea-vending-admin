@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Building2, MapPin, Phone, Edit, Trash2, Users, Mail, User, UserPlus, X, Loader2 } from 'lucide-react';
+import { Building2, MapPin, Phone, Edit, Trash2, Users, Mail, User, UserPlus, X, Loader2, Monitor, Activity, AlertTriangle } from 'lucide-react';
 import { ConfirmActionDialog, PageHeader } from '@/components/ui-custom';
 import { useEnterpriseStore } from '@/lib/stores/enterpriseStore';
 import { deleteEnterpriseAction, attachUsersToEnterpriseAction, detachUsersFromEnterpriseAction } from '@/lib/actions/enterprise';
+import { getMachinesAction } from '@/lib/actions/machines';
+import type { Machine } from '@/lib/interfaces/machine.interface';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { useUser } from '@/lib/stores/authStore';
 import Link from 'next/link';
@@ -17,6 +19,8 @@ export default function EnterpriseDetailPage() {
   const params = useParams();
   const enterpriseId = params.id as string;
 
+  const [machines, setMachines]               = useState<Machine[]>([]);
+  const [loadingMachines, setLoadingMachines] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
@@ -51,6 +55,15 @@ export default function EnterpriseDetailPage() {
       clearEnterpriseError();
     };
   }, [clearSelectedEnterprise, clearEnterpriseError]);
+
+  useEffect(() => {
+    if (!enterprise?.id) return;
+    setLoadingMachines(true);
+    getMachinesAction({ enterprise_id: Number(enterprise.id), limit: 100 })
+      .then(res => { if (res.success && res.machines) setMachines(res.machines); })
+      .catch(() => {})
+      .finally(() => setLoadingMachines(false));
+  }, [enterprise?.id]);
 
   const handleAddUser = async () => {
     if (!userToAdd) return;
@@ -250,6 +263,86 @@ export default function EnterpriseDetailPage() {
             )}
           </div>
 
+          {/* ── Máquinas ── */}
+          <div className="card overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Monitor className="h-5 w-5 text-primary" />
+                <h3 className="text-base font-semibold text-dark">Máquinas</h3>
+                {!loadingMachines && machines.length > 0 && (
+                  <span className="text-sm font-normal text-muted">({machines.length})</span>
+                )}
+              </div>
+              {canManageEnterprises && (
+                <Link
+                  href={`/maquinas/nueva?enterprise_id=${enterpriseId}`}
+                  className="btn-secondary flex items-center gap-1.5 text-sm py-1.5"
+                >
+                  <Monitor className="h-4 w-4" />
+                  <span>Nueva máquina</span>
+                </Link>
+              )}
+            </div>
+
+            {loadingMachines ? (
+              <div className="divide-y divide-gray-50">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 px-6 py-3 animate-pulse">
+                    <div className="h-8 w-8 bg-gray-100 rounded-lg shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3.5 w-36 bg-gray-100 rounded" />
+                      <div className="h-2.5 w-24 bg-gray-100 rounded" />
+                    </div>
+                    <div className="h-5 w-14 bg-gray-100 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            ) : machines.length === 0 ? (
+              <div className="px-6 py-8 text-center">
+                <Monitor className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm text-muted">Esta empresa no tiene máquinas registradas.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {machines.map(machine => {
+                  const isOnline = machine.status === 'online';
+                  return (
+                    <Link
+                      key={machine.id}
+                      href={`/maquinas/${machine.id}`}
+                      className="flex items-center gap-3 px-6 py-3 hover:bg-gray-50/70 transition-colors group"
+                    >
+                      <div className="h-8 w-8 bg-primary/8 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
+                        <Monitor className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-dark truncate group-hover:text-primary transition-colors">{machine.name}</p>
+                        {machine.location && (
+                          <p className="text-xs text-muted flex items-center gap-1 mt-0.5 truncate">
+                            <MapPin className="h-3 w-3 shrink-0" />
+                            {machine.location}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border shrink-0 ${
+                        isOnline
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-red-50 text-red-600 border-red-200'
+                      }`}>
+                        {isOnline
+                          ? <Activity className="h-3 w-3" />
+                          : <AlertTriangle className="h-3 w-3" />
+                        }
+                        {isOnline ? 'En línea' : 'Fuera de línea'}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Usuarios ── */}
           <div className="card p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-dark flex items-center gap-2">
