@@ -7,7 +7,7 @@ import {
   BarChart2, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import {
-  AreaChart, Area, BarChart, Bar,
+  AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { useProductStore } from '@/lib/stores/productStore';
@@ -315,22 +315,6 @@ export default function ProductDetailPage() {
                 <div className="h-44 flex items-center justify-center text-sm text-muted bg-gray-50 rounded-xl">
                   Sin ventas en este período
                 </div>
-              ) : period === 'day' ? (
-                <ResponsiveContainer width="100%" height={176}>
-                  <BarChart data={chartData} margin={{ top: 10, right: 8, left: 8, bottom: 4 }} barCategoryGap="30%">
-                    <defs>
-                      <linearGradient id="prodBarGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4c6fd0" />
-                        <stop offset="100%" stopColor="#3157b2" />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} tickFormatter={clpShort} width={48} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(49,87,178,0.06)', radius: 6 }} />
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="url(#prodBarGrad)" />
-                  </BarChart>
-                </ResponsiveContainer>
               ) : (
                 <ResponsiveContainer width="100%" height={176}>
                   <AreaChart data={chartData} margin={{ top: 10, right: 8, left: 8, bottom: 4 }}>
