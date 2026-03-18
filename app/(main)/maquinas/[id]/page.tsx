@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { useMqttReboot } from '@/lib/hooks/useMqttReboot';
 import { PageHeader, ConfirmActionDialog } from '@/components/ui-custom';
+import EnterpriseSearchInput from '@/components/EnterpriseSearchInput';
+import { useUser } from '@/lib/stores/authStore';
 import Link from 'next/link';
 import { HelpTooltip } from '@/components/help/HelpTooltip';
 import { TourRunner, type Step } from '@/components/help/TourRunner';
@@ -32,11 +34,12 @@ import {
   PERIOD_LABELS, type Period,
 } from '@/lib/utils/metricsHelpers';
 import { SalesAreaChart, KpiSkeleton } from '@/components/metrics/MetricsCharts';
+import MachineProductsPanel from '@/components/metrics/MachineProductsPanel';
 
 const MachineQRLabel = dynamic(() => import('@/components/MachineQRLabel'), { ssr: false });
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
-type Tab = 'productos' | 'resumen' | 'reposicion' | 'configuracion';
+type Tab = 'pagos' | 'productos' | 'reposicion' | 'configuracion';
 
 // ── Helpers de estado ─────────────────────────────────────────────────────────
 const getStatusColor = (s: string) =>
@@ -92,7 +95,7 @@ const MACHINE_DETAIL_TOUR: Step[] = [
     element: '[data-tour="machine-tabs"]',
     popover: {
       title: 'Secciones de la máquina',
-      description: '<p>• <b>Productos</b> — gestión de inventario: stock por slot, herramienta de reposición con lista para imprimir o copiar.</p><p>• <b>Resumen</b> — métricas de ventas, KPIs y gráfico de tendencias.</p><p>• <b>Configuración</b> — editar nombre, ubicación y ajustes avanzados.</p><p>• <b>Información</b> — estado, fechas de registro y datos MQTT.</p>',
+      description: '<p>• <b>Pagos</b> — métricas de ventas, KPIs y gráfico de tendencias.</p><p>• <b>Productos</b> — gestión de inventario: stock por slot, herramienta de reposición con lista para imprimir o copiar.</p><p>• <b>Configuración</b> — editar nombre, ubicación y ajustes avanzados.</p>',
       side: 'bottom',
     },
   },
@@ -104,8 +107,10 @@ export default function MaquinaDetallePage() {
   const searchParams = useSearchParams();
   const router       = useRouter();
   const machineId    = params.id as string;
+  const user         = useUser();
+  const isAdmin      = user?.role === 'admin';
 
-  const activeTab = (searchParams.get('tab') as Tab | null) ?? 'productos';
+  const activeTab = (searchParams.get('tab') as Tab | null) ?? 'pagos';
   const setTab    = useCallback((tab: Tab) => {
     const sp = new URLSearchParams(searchParams.toString());
     sp.set('tab', tab);
@@ -152,9 +157,9 @@ export default function MaquinaDetallePage() {
     const { start, end, prevStart, prevEnd } = getPeriodRange(period);
     const groupBy = getGroupBy(period);
     Promise.all([
-      aggregatePaymentsAction({ machine_id: id, start_date: start,     end_date: end                    }),
-      aggregatePaymentsAction({ machine_id: id, start_date: prevStart, end_date: prevEnd                }),
-      aggregatePaymentsAction({ machine_id: id, start_date: start,     end_date: end, group_by: groupBy }),
+      aggregatePaymentsAction({ machine_id: id, start_date: start,     end_date: end,                     successful: true }),
+      aggregatePaymentsAction({ machine_id: id, start_date: prevStart, end_date: prevEnd,                  successful: true }),
+      aggregatePaymentsAction({ machine_id: id, start_date: start,     end_date: end, group_by: groupBy,  successful: true }),
     ]).then(([curr, prev, chart]) => {
       if (curr.success)  setAggCurrent({ total_amount: curr.total_amount ?? 0, total_count: curr.total_count ?? 0 });
       if (prev.success)  setAggPrev({ total_amount: prev.total_amount ?? 0, total_count: prev.total_count ?? 0 });
@@ -177,7 +182,7 @@ export default function MaquinaDetallePage() {
   const PAYMENTS_PER_PAGE = 10;
 
   useEffect(() => {
-    if (activeTab !== 'resumen' || !machineId) return;
+    if (activeTab !== 'pagos' || !machineId) return;
     setLoadingPayments(true);
     getPaymentsAction({ machine_id: Number(machineId), page: paymentsPage, limit: PAYMENTS_PER_PAGE })
       .then(res => {
@@ -358,13 +363,13 @@ export default function MaquinaDetallePage() {
   };
 
   // ── Configuración (tab Configuración) ─────────────────────────────────────
-  const [formData, setFormData]       = useState({ name: '', location: '' });
+  const [formData, setFormData]       = useState({ name: '', location: '', enterprise_id: 0 });
   const [saving, setSaving]           = useState(false);
   const [saveError, setSaveError]     = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    if (machine) setFormData({ name: machine.name, location: machine.location });
+    if (machine) setFormData({ name: machine.name, location: machine.location, enterprise_id: machine.enterprise_id });
   }, [machine]);
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -375,10 +380,17 @@ export default function MaquinaDetallePage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true); setSaveError(null); setSaveSuccess(false);
-    const result = await updateMachineAction(machineId, { name: formData.name, location: formData.location });
+    const result = await updateMachineAction(machineId, {
+      name: formData.name,
+      location: formData.location,
+      ...(isAdmin && formData.enterprise_id ? { enterprise_id: formData.enterprise_id } : {}),
+    });
     setSaving(false);
     if (result.success && result.machine) {
-      setMachine(result.machine);
+      setMachine({
+        ...result.machine,
+        enterprise_id: result.machine.enterprise_id || formData.enterprise_id,
+      });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 4000);
     } else {
@@ -431,14 +443,14 @@ export default function MaquinaDetallePage() {
 
   // ── Tabs config ───────────────────────────────────────────────────────────
   const tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
+    { id: 'pagos',         label: 'Pagos',         icon: <BarChart2 className="h-4 w-4" /> },
     {
       id: 'productos',
       label: 'Productos',
       icon: <Package className="h-4 w-4" />,
       badge: slotsFetched && (criticalCount + lowCount) > 0 ? criticalCount + lowCount : undefined,
     },
-    { id: 'reposicion', label: 'Reposición', icon: <ClipboardList className="h-4 w-4" /> },
-    { id: 'resumen',       label: 'Resumen',       icon: <BarChart2 className="h-4 w-4" /> },
+    { id: 'reposicion',    label: 'Reposición',    icon: <ClipboardList className="h-4 w-4" /> },
     { id: 'configuracion', label: 'Configuración', icon: <Settings className="h-4 w-4" /> },
   ];
 
@@ -883,7 +895,7 @@ export default function MaquinaDetallePage() {
                               const level  = stockLevel(slot);
                               const needed = (slot.capacity ?? 0) - (slot.current_stock ?? 0);
                               const pct    = SlotAdapter.getStockPercentage(slot) ?? 0;
-                              const productName = products.find(p => p.id === slot.product_id)?.name;
+                              const productName = products.find(p => Number(p.id) === slot.product_id)?.name;
                               return (
                                 <tr
                                   key={slot.id}
@@ -977,7 +989,7 @@ export default function MaquinaDetallePage() {
                             <tbody className="divide-y divide-gray-50">
                               {slots.filter(s => stockLevel(s) === 'full').map(slot => {
                                 const pct = SlotAdapter.getStockPercentage(slot) ?? 0;
-                                const productName = products.find(p => p.id === slot.product_id)?.name;
+                                const productName = products.find(p => Number(p.id) === slot.product_id)?.name;
                                 return (
                                   <tr key={slot.id} className="hover:bg-gray-50/60 transition-colors">
                                     <td className="px-4 py-2.5">
@@ -1014,7 +1026,7 @@ export default function MaquinaDetallePage() {
             {/* ════════════════════════════════════════════════════════════════
                 Tab: Resumen
             ════════════════════════════════════════════════════════════════ */}
-            {activeTab === 'resumen' && (
+            {activeTab === 'pagos' && (
               <div className="space-y-4">
                 <div className="card overflow-hidden">
                   <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
@@ -1070,6 +1082,13 @@ export default function MaquinaDetallePage() {
                     }
                   </div>
                 </div>
+
+                {/* ── Productos vendidos ── */}
+                <MachineProductsPanel
+                  machineId={Number(machineId)}
+                  enterpriseId={machine?.enterprise_id ?? undefined}
+                  period={period}
+                />
 
                 {/* ── Listado de pagos ── */}
                 <div className="card overflow-hidden">
@@ -1245,6 +1264,28 @@ export default function MaquinaDetallePage() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Empresa — solo admin */}
+                      {isAdmin && (
+                        <div>
+                          <label className="block text-sm font-medium text-dark mb-1.5 flex items-center gap-1.5">
+                            <Building2 className="h-3.5 w-3.5 text-primary" />
+                            Empresa
+                          </label>
+                          <EnterpriseSearchInput
+                            selectedEnterpriseId={formData.enterprise_id || null}
+                            onEnterpriseSelect={(enterprise) =>
+                              setFormData(prev => ({ ...prev, enterprise_id: enterprise?.id ?? 0 }))
+                            }
+                            disabled={saving}
+                            placeholder="Buscar empresa..."
+                          />
+                          <p className="mt-1.5 flex items-start gap-1.5 text-xs text-amber-600/80">
+                            <Info className="h-3.5 w-3.5 mt-px shrink-0" />
+                            <span>Los pagos registrados antes del cambio seguirán asociados a la empresa anterior.</span>
+                          </p>
+                        </div>
+                      )}
 
                       <div className="flex justify-end pt-2 border-t border-gray-100">
                         <button

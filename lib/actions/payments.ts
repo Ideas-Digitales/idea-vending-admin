@@ -11,6 +11,7 @@ export interface AggregateFilters {
   enterprise_id?: number;
   product_id?: number;
   group_by?: 'day' | 'month' | 'year';
+  successful?: boolean;
 }
 
 export interface AggregateDataPoint {
@@ -208,6 +209,7 @@ export interface ProductRankingFilters {
   end_date?: string;
   limit?: number;
   enterprise_id?: number;
+  machine_id?: number;
 }
 
 export interface RankedProduct {

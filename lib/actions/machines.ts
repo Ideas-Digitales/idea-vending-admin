@@ -221,7 +221,8 @@ export async function updateMachineAction(machineId: string | number, machineDat
       location: validatedData.location,
       type: validatedData.type,
       status: validatedData.status,
-      client_id: validatedData.client_id
+      client_id: validatedData.client_id,
+      enterprise_id: validatedData.enterprise_id,
     };
 
     // Filtrar valores undefined

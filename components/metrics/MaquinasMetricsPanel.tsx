@@ -49,7 +49,7 @@ export default function MaquinasMetricsPanel({ enterpriseId, period }: MaquinasM
     const base    = enterpriseId != null ? { enterprise_id: enterpriseId } : {};
     Promise.all(
       rankingTop.map(m =>
-        aggregatePaymentsAction({ ...base, machine_id: m.id, start_date: start, end_date: end, group_by: groupBy })
+        aggregatePaymentsAction({ ...base, machine_id: m.id, start_date: start, end_date: end, group_by: groupBy, successful: true })
       )
     )
       .then(results => {

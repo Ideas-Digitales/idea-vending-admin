@@ -163,10 +163,10 @@ export default function ProductDetailPage() {
     const intervals = generateIntervals(period);
 
     Promise.all([
-      aggregatePaymentsAction({ product_id: id, start_date: start,     end_date: end     }),
-      aggregatePaymentsAction({ product_id: id, start_date: prevStart, end_date: prevEnd }),
+      aggregatePaymentsAction({ product_id: id, start_date: start,     end_date: end,     successful: true }),
+      aggregatePaymentsAction({ product_id: id, start_date: prevStart, end_date: prevEnd, successful: true }),
       ...intervals.map(iv =>
-        aggregatePaymentsAction({ product_id: id, start_date: iv.start, end_date: iv.end })
+        aggregatePaymentsAction({ product_id: id, start_date: iv.start, end_date: iv.end, successful: true })
       ),
     ]).then(([curr, prev, ...ivResults]) => {
       if (curr.success)  setAggCurrent({ total_amount: curr.total_amount ?? 0, total_count: curr.total_count ?? 0 });

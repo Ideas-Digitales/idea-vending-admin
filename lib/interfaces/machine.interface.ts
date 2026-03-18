@@ -130,4 +130,5 @@ export interface UpdateMachine {
   type?: string;
   status?: MachineStatus;
   client_id?: number | null;
+  enterprise_id?: number;
 }

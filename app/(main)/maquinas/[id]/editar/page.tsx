@@ -6,6 +6,8 @@ import { getMachineAction } from '@/lib/actions/machines';
 import { Machine } from '@/lib/interfaces/machine.interface';
 import { Monitor, Save, X, CheckCircle, Info } from 'lucide-react';
 import { PageHeader } from '@/components/ui-custom';
+import EnterpriseSearchInput from '@/components/EnterpriseSearchInput';
+import { useUser } from '@/lib/stores/authStore';
 import Link from 'next/link';
 
 function FieldHint({ children }: { children: React.ReactNode }) {
@@ -20,6 +22,8 @@ function FieldHint({ children }: { children: React.ReactNode }) {
 export default function EditarMaquinaPage() {
   const params = useParams();
   const machineId = params.id as string;
+  const user = useUser();
+  const isAdmin = user?.role === 'admin';
 
   const [machine, setMachine] = useState<Machine | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,7 +35,7 @@ export default function EditarMaquinaPage() {
     status: 'offline',
     location: '',
     type: '',
-    enterprise_id: '',
+    enterprise_id: 0,
   });
 
   useEffect(() => {
@@ -48,7 +52,7 @@ export default function EditarMaquinaPage() {
             status: result.machine.status,
             location: result.machine.location,
             type: result.machine.type,
-            enterprise_id: result.machine.enterprise_id.toString(),
+            enterprise_id: result.machine.enterprise_id,
           });
         } else {
           setError(result.error || 'Máquina no encontrada');
@@ -248,6 +252,25 @@ export default function EditarMaquinaPage() {
                   Sé lo más específico posible: edificio, piso, sala o punto de referencia visible. Esta información aparece en la vista de reposición y en las etiquetas QR. Ej: <strong>«Av. Providencia 1234, Casino Piso 1, junto a cajas»</strong>.
                 </FieldHint>
               </div>
+
+              {isAdmin && (
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">
+                    Empresa <span className="text-red-500">*</span>
+                  </label>
+                  <EnterpriseSearchInput
+                    selectedEnterpriseId={formData.enterprise_id || null}
+                    onEnterpriseSelect={(enterprise) =>
+                      setFormData(prev => ({ ...prev, enterprise_id: enterprise?.id ?? 0 }))
+                    }
+                    disabled={saving}
+                    placeholder="Buscar empresa por nombre..."
+                  />
+                  <FieldHint>
+                    Cambiar la empresa no migra el historial de pagos previos.
+                  </FieldHint>
+                </div>
+              )}
 
               <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
                 <Link
