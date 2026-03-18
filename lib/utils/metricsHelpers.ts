@@ -62,9 +62,11 @@ export function formatGroupDate(dateStr: string, groupBy: 'day' | 'month', perio
     const parts = dateStr.split('-');
     return MONTH_SHORT[parseInt(parts[1]) - 1] ?? dateStr;
   }
-  const parts  = dateStr.split('-');
-  const dayNum = parseInt(parts[2]);
-  if (period === 'month') return String(dayNum);
+  const parts    = dateStr.split('-');
+  const dayNum   = parseInt(parts[2]);
+  const monthNum = parseInt(parts[1]);
+  const year     = parts[0];
+  if (period === 'month') return `${dayNum}/${monthNum}/${year}`;
   const dt = new Date(`${dateStr}T12:00:00Z`);
   return `${DAY_SHORT[dt.getUTCDay()]} ${dayNum}`;
 }
