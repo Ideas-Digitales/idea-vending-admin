@@ -1,6 +1,7 @@
 import type { AggregateDataPoint } from '@/lib/actions/payments';
 
 export type Period = 'day' | 'month' | 'year';
+export type ChartMetric = 'amount' | 'count';
 
 // ── Formateo de moneda ────────────────────────────────────────
 export function clp(n: number | null | undefined) {
@@ -89,11 +90,12 @@ export function mapGroupedData(
   points: AggregateDataPoint[] | undefined,
   groupBy: 'day' | 'month',
   period: Period,
+  metric: ChartMetric = 'amount',
 ): { label: string; tooltipLabel: string; value: number }[] {
   return (points ?? []).map(pt => ({
     label:        formatGroupDate(pt.date, groupBy, period),
     tooltipLabel: formatGroupDateFull(pt.date, groupBy, period),
-    value:        pt.total_amount,
+    value:        metric === 'count' ? pt.total_count : pt.total_amount,
   }));
 }
 
@@ -104,7 +106,7 @@ const INSIGHT_LABELS: Record<Period, [string, string, string]> = {
   year:  ['Mejor mes',  'Mes más bajo',  'Promedio/mes'],
 };
 
-export function computeInsights(period: Period, data: { label: string; value: number }[]) {
+export function computeInsights(period: Period, data: { label: string; value: number }[], metric: ChartMetric = 'amount') {
   const [l0, l1, l2] = INSIGHT_LABELS[period];
   if (!data.length) return [
     { label: l0, value: '—', sub: '—' },
@@ -115,10 +117,11 @@ export function computeInsights(period: Period, data: { label: string; value: nu
   const min      = data.reduce((a, b) => b.value < a.value ? b : a);
   const avg      = Math.round(data.reduce((s, d) => s + d.value, 0) / data.length);
   const subLabel = period === 'year' ? `${data.length} meses` : `${data.length} días`;
+  const fmt      = (v: number) => metric === 'count' ? v.toLocaleString('es-CL') : clp(v);
   return [
-    { label: l0, value: max.label, sub: clp(max.value) },
-    { label: l1, value: min.label, sub: clp(min.value) },
-    { label: l2, value: clp(avg),  sub: subLabel        },
+    { label: l0, value: max.label, sub: fmt(max.value) },
+    { label: l1, value: min.label, sub: fmt(min.value) },
+    { label: l2, value: fmt(avg),  sub: subLabel        },
   ];
 }
 

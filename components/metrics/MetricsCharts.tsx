@@ -5,7 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts';
-import { clp, clpShort } from '@/lib/utils/metricsHelpers';
+import { clp, clpShort, type ChartMetric } from '@/lib/utils/metricsHelpers';
 
 // ── Tooltip ───────────────────────────────────────────────────
 export function ChartTooltip({
@@ -58,9 +58,19 @@ export function SalesAreaChart({ data }: { data: { label: string; value: number 
 // ── Dual area chart (exitosos + fallidos) ─────────────────────
 export function SalesDualAreaChart({
   data,
+  metric = 'amount',
 }: {
   data: { label: string; tooltipLabel?: string; exitosos: number; fallidos: number }[];
+  metric?: ChartMetric;
 }) {
+  const yFmt  = metric === 'count'
+    ? (v: number) => v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1).replace(/\.0$/, '')}K` : String(v)
+    : clpShort;
+  const tipFmt = metric === 'count'
+    ? (v: number) => v.toLocaleString('es-CL')
+    : clp;
+  const yWidth = metric === 'count' ? 40 : 52;
+
   return (
     <ResponsiveContainer width="100%" height={240}>
       <AreaChart data={data} margin={{ top: 10, right: 8, left: 8, bottom: 4 }}>
@@ -76,7 +86,7 @@ export function SalesDualAreaChart({
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
         <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} tickFormatter={clpShort} width={52} />
+        <YAxis tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} tickFormatter={yFmt} width={yWidth} />
         <Tooltip
           cursor={{ stroke: '#6b7280', strokeWidth: 1, strokeDasharray: '4 4' }}
           content={({ active, payload, label: lbl }) => {
@@ -89,7 +99,7 @@ export function SalesDualAreaChart({
                   <div key={p.dataKey as string} className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
                     <span className="text-muted">{p.dataKey === 'exitosos' ? 'Exitosos' : 'Fallidos'}:</span>
-                    <span className="font-bold text-dark">{clp(p.value as number)}</span>
+                    <span className="font-bold text-dark">{tipFmt(p.value as number)}</span>
                   </div>
                 ))}
               </div>

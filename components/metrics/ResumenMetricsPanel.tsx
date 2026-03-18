@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, TrendingDown, ShoppingCart, BarChart2, Activity, ArrowUpRight } from 'lucide-react';
-import { aggregatePaymentsAction } from '@/lib/actions/payments';
+import { aggregatePaymentsAction, type AggregateDataPoint } from '@/lib/actions/payments';
 import {
   clp, clpShort, getPeriodRange, getGroupBy, mapGroupedData, computeInsights,
-  PERIOD_LABELS, type Period,
+  PERIOD_LABELS, type Period, type ChartMetric,
 } from '@/lib/utils/metricsHelpers';
 import { SalesDualAreaChart, KpiSkeleton } from '@/components/metrics/MetricsCharts';
 import { HelpTooltip } from '@/components/help/HelpTooltip';
@@ -24,18 +24,22 @@ const CHART_TITLE: Record<Period, { title: string; subtitle: string }> = {
 export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMetricsPanelProps) {
   const [aggCurrent, setAggCurrent] = useState<{ total_amount: number; total_count: number } | null>(null);
   const [aggPrev, setAggPrev]       = useState<{ total_amount: number; total_count: number } | null>(null);
-  const [chartData, setChartData]   = useState<{ label: string; tooltipLabel: string; exitosos: number; fallidos: number }[]>([]);
+  const [rawOk, setRawOk]           = useState<AggregateDataPoint[]>([]);
+  const [rawFail, setRawFail]       = useState<AggregateDataPoint[]>([]);
   const [loading, setLoading]       = useState(true);
+  const [metric, setMetric]         = useState<ChartMetric>('amount');
+
+  const groupBy = getGroupBy(period);
 
   useEffect(() => {
     setLoading(true);
     setAggCurrent(null);
     setAggPrev(null);
-    setChartData([]);
+    setRawOk([]);
+    setRawFail([]);
 
     const { start, end, prevStart, prevEnd } = getPeriodRange(period);
-    const groupBy = getGroupBy(period);
-    const base    = enterpriseId != null ? { enterprise_id: enterpriseId } : {};
+    const base = enterpriseId != null ? { enterprise_id: enterpriseId } : {};
 
     Promise.all([
       aggregatePaymentsAction({ ...base, start_date: start,     end_date: end,     successful: true }),
@@ -48,20 +52,23 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
           setAggCurrent({ total_amount: curr.total_amount, total_count: curr.total_count ?? 0 });
         if (prev?.success && prev.total_amount !== undefined)
           setAggPrev({ total_amount: prev.total_amount, total_count: prev.total_count ?? 0 });
-
-        const okPoints   = mapGroupedData(chartOk?.success   ? chartOk.data   : undefined, groupBy, period);
-        const failPoints = mapGroupedData(chartFail?.success ? chartFail.data : undefined, groupBy, period);
-
-        setChartData(okPoints.map((p, i) => ({
-          label:        p.label,
-          tooltipLabel: p.tooltipLabel,
-          exitosos:     p.value,
-          fallidos:     failPoints[i]?.value ?? 0,
-        })));
+        setRawOk(chartOk?.success   && chartOk.data   ? chartOk.data   : []);
+        setRawFail(chartFail?.success && chartFail.data ? chartFail.data : []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [period, enterpriseId]);
+  }, [period, enterpriseId, groupBy]);
+
+  const chartData = useMemo(() => {
+    const okPts   = mapGroupedData(rawOk,   groupBy, period, metric);
+    const failPts = mapGroupedData(rawFail, groupBy, period, metric);
+    return okPts.map((p, i) => ({
+      label:        p.label,
+      tooltipLabel: p.tooltipLabel,
+      exitosos:     p.value,
+      fallidos:     failPts[i]?.value ?? 0,
+    }));
+  }, [rawOk, rawFail, groupBy, period, metric]);
 
   const totalAmount   = aggCurrent?.total_amount ?? 0;
   const totalCount    = aggCurrent?.total_count  ?? 0;
@@ -72,7 +79,7 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
   const growthPositive  = (growthPct ?? 0) >= 0;
   const growthAvailable = growthPct !== null;
   const insightsData    = chartData.map(d => ({ label: d.label, value: d.exitosos }));
-  const insights        = computeInsights(period, insightsData);
+  const insights        = computeInsights(period, insightsData, metric);
 
   return (
     <div className="space-y-4">
@@ -159,18 +166,43 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
       {/* Gráfico */}
       <div data-tour="sales-chart" className="card overflow-hidden">
         <div className="page-header-gradient px-5 py-4 flex items-center justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Activity className="h-4 w-4" />
+              <Activity className="h-4 w-4 flex-shrink-0" />
               {CHART_TITLE[period].title}
             </h2>
             <p className="text-white/65 text-xs mt-0.5">{CHART_TITLE[period].subtitle}</p>
           </div>
+
+          {/* Toggle monto / cantidad */}
+          <div className="flex items-center gap-0.5 bg-white/15 rounded-lg p-0.5 flex-shrink-0">
+            <button
+              onClick={() => setMetric('amount')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                metric === 'amount' ? 'bg-white text-primary shadow-sm' : 'text-white/70 hover:text-white'
+              }`}
+            >
+              Monto
+            </button>
+            <button
+              onClick={() => setMetric('count')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                metric === 'count' ? 'bg-white text-primary shadow-sm' : 'text-white/70 hover:text-white'
+              }`}
+            >
+              Cantidad
+            </button>
+          </div>
+
           <div className="text-right flex-shrink-0">
-            <p className="text-white/60 text-xs">Total {PERIOD_LABELS[period]}</p>
+            <p className="text-white/60 text-xs">
+              {metric === 'amount' ? `Total ${PERIOD_LABELS[period]}` : `Ventas ${PERIOD_LABELS[period]}`}
+            </p>
             {loading
               ? <div className="h-8 w-24 bg-white/20 rounded-lg animate-pulse mt-0.5" />
-              : <p className="text-2xl font-bold text-white leading-tight">{clpShort(totalAmount)}</p>
+              : metric === 'amount'
+                ? <p className="text-2xl font-bold text-white leading-tight">{clpShort(totalAmount)}</p>
+                : <p className="text-2xl font-bold text-white leading-tight">{totalCount.toLocaleString('es-CL')}</p>
             }
           </div>
         </div>
@@ -183,7 +215,7 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
                   <p className="text-xs text-muted">Cargando datos...</p>
                 </div>
               </div>
-            : <SalesDualAreaChart data={chartData} />
+            : <SalesDualAreaChart data={chartData} metric={metric} />
           }
         </div>
         <div className="flex items-center justify-end gap-4 px-5 pb-3">
