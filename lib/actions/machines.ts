@@ -31,19 +31,26 @@ function handleError(error: unknown): { success: false; error: string } {
 // Server Action para obtener lista de máquinas
 export async function getMachinesAction(filters?: MachinesFilters): Promise<MachinesResponse> {
   try {
-    // Construir query parameters
+    // Paginación como query params
     const queryParams = new URLSearchParams();
-    if (filters?.search) queryParams.append('search', filters.search);
-    if (filters?.status) queryParams.append('status', filters.status);
-    if (filters?.type) queryParams.append('type', filters.type);
-    if (filters?.enterprise_id) queryParams.append('enterprise_id', filters.enterprise_id.toString());
     if (filters?.page) queryParams.append('page', filters.page.toString());
     if (filters?.limit) queryParams.append('limit', filters.limit.toString());
 
-    const path = `/machines${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    // Filtros en el body (formato Orion: POST /machines/search)
+    const orionFilters: { field: string; operator: string; value: string | number }[] = [];
+    if (filters?.enterprise_id) orionFilters.push({ field: 'enterprise_id', operator: '=', value: filters.enterprise_id });
+    if (filters?.status)        orionFilters.push({ field: 'status',        operator: '=', value: filters.status });
+    if (filters?.type)          orionFilters.push({ field: 'type',          operator: '=', value: filters.type });
+
+    const body: Record<string, unknown> = {};
+    if (orionFilters.length) body.filters = orionFilters;
+    if (filters?.search)     body.search  = { value: filters.search };
+
+    const path = `/machines/search${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
 
     const { response } = await authenticatedFetch(path, {
-      method: 'GET',
+      method: 'POST',
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
