@@ -14,6 +14,7 @@ import {
   Tag,
   CircleDollarSign,
   Hash,
+  ArrowUpDown,
 } from 'lucide-react';
 import { PageHeader, UnifiedPagination } from '@/components/ui-custom';
 import { TourRunner, type Step } from '@/components/help/TourRunner';
@@ -28,7 +29,6 @@ import {
 import { usePaymentStore } from '@/lib/stores/paymentStore';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { PaymentFilters, type Payment, type SortParam } from '@/lib/interfaces/payment.interface';
-import SortableHeader from '@/components/ui-custom/SortableHeader';
 import { type Machine } from '@/lib/interfaces/machine.interface';
 import { useRealtimePayments, type RealtimePaymentStatus } from '@/lib/hooks/useRealtimePayments';
 import { getEnterprisesAction } from '@/lib/actions/enterprise';
@@ -47,6 +47,15 @@ const DEFAULT_REALTIME_RETENTION_MS = 60_000;
 const REALTIME_HIGHLIGHT_MAX = 100;
 const LIVE_SCROLL_CHUNK = 20;
 const LIVE_SCROLL_THRESHOLD = 64;
+const SORT_OPTIONS: { label: string; field: string; direction: 'asc' | 'desc' }[] = [
+  { label: 'Fecha: más reciente primero', field: 'date',   direction: 'desc' },
+  { label: 'Fecha: más antiguo primero',  field: 'date',   direction: 'asc'  },
+  { label: 'Monto: mayor primero',        field: 'amount', direction: 'desc' },
+  { label: 'Monto: menor primero',        field: 'amount', direction: 'asc'  },
+  { label: 'ID: mayor primero',           field: 'id',     direction: 'desc' },
+  { label: 'ID: menor primero',           field: 'id',     direction: 'asc'  },
+];
+
 const LIVE_RETENTION_OPTIONS = [
   { label: '30 segundos', value: 30_000 },
   { label: '60 segundos', value: 60_000 },
@@ -89,13 +98,11 @@ const toDateISO = (value: string, options?: { endOfDay?: boolean }): string | un
   const [year, month, day] = value.split('-').map((part) => Number(part));
   if (!year || !month || !day) return undefined;
 
-  const date = new Date();
-  date.setFullYear(year, month - 1, day);
-  if (options?.endOfDay) {
-    date.setHours(23, 59, 59, 999);
-  } else {
-    date.setHours(0, 0, 0, 0);
-  }
+  // Use Date.UTC to avoid server timezone offset affecting the ISO string
+  const ms = options?.endOfDay
+    ? Date.UTC(year, month - 1, day, 23, 59, 59, 999)
+    : Date.UTC(year, month - 1, day, 0, 0, 0, 0);
+  const date = new Date(ms);
 
   if (Number.isNaN(date.getTime())) return undefined;
   return date.toISOString();
@@ -335,6 +342,8 @@ export default function PagosInfiniteClient() {
   }, []);
 
   const handleSortChange = useCallback((newSort: SortParam[]) => {
+    // Keep draftFilters in sync so sort isn't lost when a filter changes later
+    setDraftFilters((prev) => ({ ...prev, sort: newSort }));
     setFilters((prev) => ({
       ...prev,
       sort: newSort,
@@ -683,8 +692,6 @@ export default function PagosInfiniteClient() {
       isMounted = false;
     };
   }, [selectedPayment?.machine_id, selectedPayment]);
-
-  // No statistics needed - removed cards
 
   return (
     <>
@@ -1100,7 +1107,7 @@ export default function PagosInfiniteClient() {
 
               {/* Payments Table */}
               <div data-tour="payments-table" className="card overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap">
                   <div className="flex items-center gap-3">
                     <h3 className="text-lg font-bold text-dark">Lista de Transacciones</h3>
                     {pagination?.meta?.total !== undefined && (
@@ -1108,6 +1115,26 @@ export default function PagosInfiniteClient() {
                         {pagination.meta.total}
                       </span>
                     )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ArrowUpDown className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                    <select
+                      value={(() => {
+                        const s = filters.sort?.[0];
+                        return s ? `${s.field}:${s.direction}` : 'date:desc';
+                      })()}
+                      onChange={(e) => {
+                        const [field, direction] = e.target.value.split(':');
+                        handleSortChange([{ field, direction: direction as 'asc' | 'desc' }]);
+                      }}
+                      className="w-64 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                      {SORT_OPTIONS.map((opt) => (
+                        <option key={`${opt.field}:${opt.direction}`} value={`${opt.field}:${opt.direction}`}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -1126,17 +1153,13 @@ export default function PagosInfiniteClient() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-gray-50">
-                          <TableHead className="hidden sm:table-cell px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <SortableHeader label="ID / Operación" field="id" sort={filters.sort ?? []} onSort={handleSortChange} />
-                          </TableHead>
+                          <TableHead className="hidden sm:table-cell px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">ID / Operación</TableHead>
                           <TableHead className="px-4 sm:px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</TableHead>
                           <TableHead className="px-4 sm:px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</TableHead>
                           <TableHead className="hidden sm:table-cell px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Tarjeta</TableHead>
                           <TableHead className="px-4 sm:px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</TableHead>
                           <TableHead className="hidden sm:table-cell px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Máquina</TableHead>
-                          <TableHead className="hidden sm:table-cell px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            <SortableHeader label="Fecha" field="date" sort={filters.sort ?? []} onSort={handleSortChange} />
-                          </TableHead>
+                          <TableHead className="hidden sm:table-cell px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</TableHead>
                           <TableHead className="px-4 sm:px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
