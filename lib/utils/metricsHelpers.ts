@@ -69,14 +69,29 @@ export function formatGroupDate(dateStr: string, groupBy: 'day' | 'month', perio
   return `${DAY_SHORT[dt.getUTCDay()]} ${dayNum}`;
 }
 
+export function formatGroupDateFull(dateStr: string, groupBy: 'day' | 'month', period: Period): string {
+  if (groupBy === 'month') {
+    const parts = dateStr.split('-');
+    return MONTH_SHORT[parseInt(parts[1]) - 1] ?? dateStr;
+  }
+  const parts    = dateStr.split('-');
+  const year     = parts[0];
+  const dayNum   = parseInt(parts[2]);
+  const monthNum = parseInt(parts[1]);
+  if (period === 'month') return `${dayNum}/${monthNum}/${year}`;
+  const dt = new Date(`${dateStr}T12:00:00Z`);
+  return `${DAY_SHORT[dt.getUTCDay()]} ${dayNum}/${monthNum}/${year}`;
+}
+
 export function mapGroupedData(
   points: AggregateDataPoint[] | undefined,
   groupBy: 'day' | 'month',
   period: Period,
-): { label: string; value: number }[] {
+): { label: string; tooltipLabel: string; value: number }[] {
   return (points ?? []).map(pt => ({
-    label: formatGroupDate(pt.date, groupBy, period),
-    value: pt.total_amount,
+    label:        formatGroupDate(pt.date, groupBy, period),
+    tooltipLabel: formatGroupDateFull(pt.date, groupBy, period),
+    value:        pt.total_amount,
   }));
 }
 

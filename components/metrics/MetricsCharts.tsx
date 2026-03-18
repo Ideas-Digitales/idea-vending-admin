@@ -55,6 +55,54 @@ export function SalesAreaChart({ data }: { data: { label: string; value: number 
   );
 }
 
+// ── Dual area chart (exitosos + fallidos) ─────────────────────
+export function SalesDualAreaChart({
+  data,
+}: {
+  data: { label: string; tooltipLabel?: string; exitosos: number; fallidos: number }[];
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <AreaChart data={data} margin={{ top: 10, right: 8, left: 8, bottom: 4 }}>
+        <defs>
+          <linearGradient id="gradExitosos" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stopColor="#3157b2" stopOpacity={0.22} />
+            <stop offset="90%" stopColor="#3157b2" stopOpacity={0.02} />
+          </linearGradient>
+          <linearGradient id="gradFallidos" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stopColor="#ef4444" stopOpacity={0.18} />
+            <stop offset="90%" stopColor="#ef4444" stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+        <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} tickFormatter={clpShort} width={52} />
+        <Tooltip
+          cursor={{ stroke: '#6b7280', strokeWidth: 1, strokeDasharray: '4 4' }}
+          content={({ active, payload, label: lbl }) => {
+            if (!active || !payload?.length) return null;
+            const displayLabel = (payload[0]?.payload as { tooltipLabel?: string })?.tooltipLabel ?? lbl;
+            return (
+              <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-3 py-2 text-xs space-y-1">
+                <p className="text-muted font-medium mb-1">{displayLabel}</p>
+                {payload.map((p) => (
+                  <div key={p.dataKey as string} className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.color }} />
+                    <span className="text-muted">{p.dataKey === 'exitosos' ? 'Exitosos' : 'Fallidos'}:</span>
+                    <span className="font-bold text-dark">{clp(p.value as number)}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          }}
+        />
+        <Area type="monotone" dataKey="exitosos" stroke="#3157b2" strokeWidth={2.5} fill="url(#gradExitosos)" dot={false} activeDot={{ r: 5, fill: '#3157b2', stroke: 'white', strokeWidth: 2 }} />
+        <Area type="monotone" dataKey="fallidos" stroke="#ef4444" strokeWidth={2}   fill="url(#gradFallidos)" dot={false} activeDot={{ r: 4, fill: '#ef4444', stroke: 'white', strokeWidth: 2 }} />
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
 // ── Bar chart ─────────────────────────────────────────────────
 export function SalesBarChart({ data }: { data: { label: string; value: number }[] }) {
   const max = Math.max(...data.map(d => d.value));

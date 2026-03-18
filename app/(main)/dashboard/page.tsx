@@ -141,33 +141,25 @@ function DashboardContent() {
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [isSetupGuideOpen, setIsSetupGuideOpen] = useState(false);
   const [metricsTab, setMetricsTab] = useState<'resumen' | 'maquinas' | 'productos'>('resumen');
-  const { selectedEnterpriseId, period, setPeriod } = useMetricsFilterStore();
+  const { selectedEnterpriseId, selectedEnterpriseName, period, setPeriod } = useMetricsFilterStore();
 
   useEffect(() => {
     let isMounted = true;
-    let hasLoaded = false;
-    const loadDashboardData = async () => {
-      if (hasLoaded || !isMounted) return;
-      hasLoaded = true;
-      try {
-        setLoading(true);
-        const statsResponse = await getDashboardStatsAction();
+    setLoading(true);
+    setError(null);
+    getDashboardStatsAction(selectedEnterpriseId ?? undefined)
+      .then(res => {
         if (!isMounted) return;
-        if (statsResponse.success && statsResponse.stats) {
-          setDashboardStats(statsResponse.stats);
+        if (res.success && res.stats) {
+          setDashboardStats(res.stats);
         } else {
-          setError(statsResponse.error || 'Error al cargar estadísticas');
+          setError(res.error || 'Error al cargar estadísticas');
         }
-      } catch {
-        if (!isMounted) return;
-        setError('Error de conexión');
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    const timer = setTimeout(loadDashboardData, 100);
-    return () => { isMounted = false; clearTimeout(timer); };
-  }, []);
+      })
+      .catch(() => { if (isMounted) setError('Error de conexión'); })
+      .finally(() => { if (isMounted) setLoading(false); });
+    return () => { isMounted = false; };
+  }, [selectedEnterpriseId]);
 
   const isAdmin    = user?.role === 'admin';
   const isCustomer = user?.role === 'customer';
@@ -199,7 +191,8 @@ function DashboardContent() {
         subtitle={`Bienvenido de vuelta, ${user?.name}`}
         variant="white"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            {isAdmin && <EnterpriseMetricsSelector />}
             <TourRunner steps={tourSteps} theme="light" />
             <div className="hidden sm:block text-right">
               <p className="text-sm font-medium text-dark">{user?.email}</p>
@@ -305,13 +298,22 @@ function DashboardContent() {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <EnterpriseMetricsSelector />
               <PeriodSelector period={period} onChange={setPeriod} variant="light" />
             </div>
           </div>
 
           {/* Tabs + contenido */}
           <div className="card overflow-hidden">
+            {/* Banner de contexto — visible solo cuando hay empresa seleccionada */}
+            {selectedEnterpriseId !== null && (
+              <div className="bg-primary/5 border-b border-primary/10 px-4 py-2 flex items-center gap-2">
+                <Building2 className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                <p className="text-xs font-semibold text-primary truncate">
+                  Mostrando datos de: {selectedEnterpriseName ?? `Empresa #${selectedEnterpriseId}`}
+                </p>
+              </div>
+            )}
+
             {/* Tab bar pegada al card */}
             <div className="border-b border-gray-100 px-4 flex gap-0">
               {([

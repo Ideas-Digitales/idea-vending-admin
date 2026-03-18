@@ -7,7 +7,7 @@ import {
   clp, clpShort, getPeriodRange, getGroupBy, mapGroupedData, computeInsights,
   PERIOD_LABELS, type Period,
 } from '@/lib/utils/metricsHelpers';
-import { SalesAreaChart, KpiSkeleton } from '@/components/metrics/MetricsCharts';
+import { SalesDualAreaChart, KpiSkeleton } from '@/components/metrics/MetricsCharts';
 import { HelpTooltip } from '@/components/help/HelpTooltip';
 
 interface ResumenMetricsPanelProps {
@@ -24,7 +24,7 @@ const CHART_TITLE: Record<Period, { title: string; subtitle: string }> = {
 export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMetricsPanelProps) {
   const [aggCurrent, setAggCurrent] = useState<{ total_amount: number; total_count: number } | null>(null);
   const [aggPrev, setAggPrev]       = useState<{ total_amount: number; total_count: number } | null>(null);
-  const [chartData, setChartData]   = useState<{ label: string; value: number }[]>([]);
+  const [chartData, setChartData]   = useState<{ label: string; tooltipLabel: string; exitosos: number; fallidos: number }[]>([]);
   const [loading, setLoading]       = useState(true);
 
   useEffect(() => {
@@ -38,17 +38,26 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
     const base    = enterpriseId != null ? { enterprise_id: enterpriseId } : {};
 
     Promise.all([
-      aggregatePaymentsAction({ ...base, start_date: start,     end_date: end     }),
-      aggregatePaymentsAction({ ...base, start_date: prevStart, end_date: prevEnd }),
-      aggregatePaymentsAction({ ...base, start_date: start,     end_date: end,    group_by: groupBy }),
+      aggregatePaymentsAction({ ...base, start_date: start,     end_date: end,     successful: true }),
+      aggregatePaymentsAction({ ...base, start_date: prevStart, end_date: prevEnd, successful: true }),
+      aggregatePaymentsAction({ ...base, start_date: start,     end_date: end,     group_by: groupBy, successful: true  }),
+      aggregatePaymentsAction({ ...base, start_date: start,     end_date: end,     group_by: groupBy, successful: false }),
     ])
-      .then(([curr, prev, chart]) => {
-        if (curr?.success  && curr.total_amount  !== undefined)
-          setAggCurrent({ total_amount: curr.total_amount,  total_count: curr.total_count  ?? 0 });
-        if (prev?.success  && prev.total_amount  !== undefined)
-          setAggPrev   ({ total_amount: prev.total_amount,  total_count: prev.total_count  ?? 0 });
-        if (chart?.success)
-          setChartData(mapGroupedData(chart.data, groupBy, period));
+      .then(([curr, prev, chartOk, chartFail]) => {
+        if (curr?.success && curr.total_amount !== undefined)
+          setAggCurrent({ total_amount: curr.total_amount, total_count: curr.total_count ?? 0 });
+        if (prev?.success && prev.total_amount !== undefined)
+          setAggPrev({ total_amount: prev.total_amount, total_count: prev.total_count ?? 0 });
+
+        const okPoints   = mapGroupedData(chartOk?.success   ? chartOk.data   : undefined, groupBy, period);
+        const failPoints = mapGroupedData(chartFail?.success ? chartFail.data : undefined, groupBy, period);
+
+        setChartData(okPoints.map((p, i) => ({
+          label:        p.label,
+          tooltipLabel: p.tooltipLabel,
+          exitosos:     p.value,
+          fallidos:     failPoints[i]?.value ?? 0,
+        })));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -62,7 +71,8 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
     : null;
   const growthPositive  = (growthPct ?? 0) >= 0;
   const growthAvailable = growthPct !== null;
-  const insights        = computeInsights(period, chartData);
+  const insightsData    = chartData.map(d => ({ label: d.label, value: d.exitosos }));
+  const insights        = computeInsights(period, insightsData);
 
   return (
     <div className="space-y-4">
@@ -173,8 +183,18 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
                   <p className="text-xs text-muted">Cargando datos...</p>
                 </div>
               </div>
-            : <SalesAreaChart data={chartData} />
+            : <SalesDualAreaChart data={chartData} />
           }
+        </div>
+        <div className="flex items-center justify-end gap-4 px-5 pb-3">
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-0.5 rounded-full bg-primary inline-block" />
+            <span className="text-xs text-muted">Exitosos</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-0.5 rounded-full bg-red-400 inline-block" />
+            <span className="text-xs text-muted">Fallidos</span>
+          </div>
         </div>
 
         <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">

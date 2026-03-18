@@ -2,6 +2,7 @@
 
 import { getMachinesAction } from './machines';
 import { getUsersAction } from './users';
+import { getEnterpriseAction } from './enterprise';
 import { loopPrevention } from '@/lib/utils/loopPrevention';
 
 export interface DashboardStats {
@@ -25,62 +26,77 @@ export interface DashboardResponse {
 }
 
 // Server Action para obtener estadísticas del dashboard
-export async function getDashboardStatsAction(): Promise<DashboardResponse> {
+export async function getDashboardStatsAction(enterpriseId?: number | null): Promise<DashboardResponse> {
   try {
-    // MECANISMO DE EMERGENCIA: Prevenir loops infinitos
     if (loopPrevention.shouldPreventCall('getDashboardStatsAction')) {
+      return { success: false, error: "Loop prevention: Demasiadas llamadas a getDashboardStatsAction" };
+    }
+
+    const machineFilters = { limit: 1000, ...(enterpriseId ? { enterprise_id: enterpriseId } : {}) };
+
+    if (enterpriseId) {
+      // Filtrado por empresa: máquinas de esa empresa + usuarios desde el detalle de la empresa
+      const [machinesResponse, enterpriseResponse] = await Promise.all([
+        getMachinesAction(machineFilters),
+        getEnterpriseAction(enterpriseId),
+      ]);
+
+      if (!machinesResponse.success) {
+        return { success: false, error: `Error al obtener máquinas: ${machinesResponse.error}` };
+      }
+
+      const machines = machinesResponse.machines || [];
+      const enterpriseUsers = enterpriseResponse.success ? (enterpriseResponse.enterprise?.users ?? []) : [];
+
       return {
-        success: false,
-        error: "Loop prevention: Demasiadas llamadas a getDashboardStatsAction",
+        success: true,
+        stats: {
+          machines: {
+            total:   machines.length,
+            online:  machines.filter(m => m.status === 'online').length,
+            offline: machines.filter(m => m.status !== 'online').length,
+          },
+          users: {
+            total:       enterpriseUsers.length,
+            active:      enterpriseUsers.length,
+            admins:      0,
+            technicians: 0,
+          },
+        },
       };
     }
 
-    console.log('🔄 getDashboardStatsAction: Iniciando carga de estadísticas...');
-    
-    // Obtener datos de máquinas y usuarios en paralelo
+    // Sin filtro: comportamiento original
     const [machinesResponse, usersResponse] = await Promise.all([
-      getMachinesAction({ limit: 1000 }), // Obtener todas las máquinas para estadísticas
-      getUsersAction({ limit: 1000 }) // Obtener todos los usuarios para estadísticas
+      getMachinesAction(machineFilters),
+      getUsersAction({ limit: 1000 }),
     ]);
 
     if (!machinesResponse.success) {
-      return {
-        success: false,
-        error: `Error al obtener máquinas: ${machinesResponse.error}`
-      };
+      return { success: false, error: `Error al obtener máquinas: ${machinesResponse.error}` };
     }
-
     if (!usersResponse.success) {
-      return {
-        success: false,
-        error: `Error al obtener usuarios: ${usersResponse.error}`
-      };
+      return { success: false, error: `Error al obtener usuarios: ${usersResponse.error}` };
     }
 
     const machines = machinesResponse.machines || [];
-    const users = usersResponse.users || [];
-
-    // Calcular estadísticas de máquinas
-    const machineStats = {
-      total: machines.length,
-      online: machines.filter(m => m.status === 'online').length,
-      offline: machines.filter(m => m.status !== 'online').length,
-    };
-
-    // Calcular estadísticas de usuarios
-    const userStats = {
-      total: users.length,
-      active: users.filter(u => u.status === 'active').length,
-      admins: users.filter(u => u.role === 'admin').length,
-      technicians: users.filter(u => u.role === 'technician').length,
-    };
+    const users    = usersResponse.users    || [];
 
     return {
       success: true,
       stats: {
-        machines: machineStats,
-        users: userStats,
-      }
+        machines: {
+          total:   machines.length,
+          online:  machines.filter(m => m.status === 'online').length,
+          offline: machines.filter(m => m.status !== 'online').length,
+        },
+        users: {
+          total:       users.length,
+          active:      users.filter(u => u.status === 'active').length,
+          admins:      users.filter(u => u.role === 'admin').length,
+          technicians: users.filter(u => u.role === 'technician').length,
+        },
+      },
     };
 
   } catch (error) {
