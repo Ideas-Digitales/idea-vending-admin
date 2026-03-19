@@ -7,7 +7,7 @@ import {
   clp, clpShort, getPeriodRange, getGroupBy, mapGroupedData, computeInsights,
   PERIOD_LABELS, type Period, type ChartMetric,
 } from '@/lib/utils/metricsHelpers';
-import { SalesDualAreaChart, KpiSkeleton } from '@/components/metrics/MetricsCharts';
+import { SalesAreaChart, KpiSkeleton } from '@/components/metrics/MetricsCharts';
 import { HelpTooltip } from '@/components/help/HelpTooltip';
 
 interface ResumenMetricsPanelProps {
@@ -25,7 +25,6 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
   const [aggCurrent, setAggCurrent] = useState<{ total_amount: number; total_count: number } | null>(null);
   const [aggPrev, setAggPrev]       = useState<{ total_amount: number; total_count: number } | null>(null);
   const [rawOk, setRawOk]           = useState<AggregateDataPoint[]>([]);
-  const [rawFail, setRawFail]       = useState<AggregateDataPoint[]>([]);
   const [loading, setLoading]       = useState(true);
   const [metric, setMetric]         = useState<ChartMetric>('amount');
 
@@ -36,7 +35,6 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
     setAggCurrent(null);
     setAggPrev(null);
     setRawOk([]);
-    setRawFail([]);
 
     const { start, end, prevStart, prevEnd } = getPeriodRange(period);
     const base = enterpriseId != null ? { enterprise_id: enterpriseId } : {};
@@ -44,31 +42,24 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
     Promise.all([
       aggregatePaymentsAction({ ...base, start_date: start,     end_date: end,     successful: true }),
       aggregatePaymentsAction({ ...base, start_date: prevStart, end_date: prevEnd, successful: true }),
-      aggregatePaymentsAction({ ...base, start_date: start,     end_date: end,     group_by: groupBy, successful: true  }),
-      aggregatePaymentsAction({ ...base, start_date: start,     end_date: end,     group_by: groupBy, successful: false }),
+      aggregatePaymentsAction({ ...base, start_date: start,     end_date: end,     group_by: groupBy, successful: true }),
     ])
-      .then(([curr, prev, chartOk, chartFail]) => {
+      .then(([curr, prev, chartOk]) => {
         if (curr?.success && curr.total_amount !== undefined)
           setAggCurrent({ total_amount: curr.total_amount, total_count: curr.total_count ?? 0 });
         if (prev?.success && prev.total_amount !== undefined)
           setAggPrev({ total_amount: prev.total_amount, total_count: prev.total_count ?? 0 });
-        setRawOk(chartOk?.success   && chartOk.data   ? chartOk.data   : []);
-        setRawFail(chartFail?.success && chartFail.data ? chartFail.data : []);
+        setRawOk(chartOk?.success && chartOk.data ? chartOk.data : []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [period, enterpriseId, groupBy]);
 
-  const chartData = useMemo(() => {
-    const okPts   = mapGroupedData(rawOk,   groupBy, period, metric);
-    const failPts = mapGroupedData(rawFail, groupBy, period, metric);
-    return okPts.map((p, i) => ({
-      label:        p.label,
-      tooltipLabel: p.tooltipLabel,
-      exitosos:     p.value,
-      fallidos:     failPts[i]?.value ?? 0,
-    }));
-  }, [rawOk, rawFail, groupBy, period, metric]);
+  const chartData = useMemo(() =>
+    mapGroupedData(rawOk, groupBy, period, metric),
+  [rawOk, groupBy, period, metric]);
+
+  const insightsData = chartData.map(d => ({ label: d.label, value: d.value }));
 
   const totalAmount   = aggCurrent?.total_amount ?? 0;
   const totalCount    = aggCurrent?.total_count  ?? 0;
@@ -78,7 +69,6 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
     : null;
   const growthPositive  = (growthPct ?? 0) >= 0;
   const growthAvailable = growthPct !== null;
-  const insightsData    = chartData.map(d => ({ label: d.label, value: d.exitosos }));
   const insights        = computeInsights(period, insightsData, metric);
 
   return (
@@ -215,18 +205,8 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
                   <p className="text-xs text-muted">Cargando datos...</p>
                 </div>
               </div>
-            : <SalesDualAreaChart data={chartData} metric={metric} />
+            : <SalesAreaChart key={metric} data={chartData} metric={metric} />
           }
-        </div>
-        <div className="flex items-center justify-end gap-4 px-5 pb-3">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-0.5 rounded-full bg-primary inline-block" />
-            <span className="text-xs text-muted">Exitosos</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-0.5 rounded-full bg-red-400 inline-block" />
-            <span className="text-xs text-muted">Fallidos</span>
-          </div>
         </div>
 
         <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">

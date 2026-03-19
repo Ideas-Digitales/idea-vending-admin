@@ -40,6 +40,7 @@ const MachineQRLabel = dynamic(() => import('@/components/MachineQRLabel'), { ss
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 type Tab = 'pagos' | 'productos' | 'reposicion' | 'configuracion';
+type PaymentSortOption = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc';
 
 // ── Helpers de estado ─────────────────────────────────────────────────────────
 const getStatusColor = (s: string) =>
@@ -80,6 +81,26 @@ const STOCK_LABELS: Record<StockLevel, string> = {
   full:       'Lleno',
 };
 const STOCK_URGENCY: Record<StockLevel, number> = { critical: 0, low: 1, incomplete: 2, full: 3 };
+const PAYMENT_SORT_OPTIONS: Array<{ value: PaymentSortOption; label: string }> = [
+  { value: 'date_desc', label: 'Más recientes primero' },
+  { value: 'date_asc', label: 'Más antiguos primero' },
+  { value: 'amount_desc', label: 'Monto mayor a menor' },
+  { value: 'amount_asc', label: 'Monto menor a mayor' },
+];
+
+function getPaymentSort(sortOption: PaymentSortOption) {
+  switch (sortOption) {
+    case 'date_asc':
+      return [{ field: 'date', direction: 'asc' as const }];
+    case 'amount_desc':
+      return [{ field: 'amount', direction: 'desc' as const }];
+    case 'amount_asc':
+      return [{ field: 'amount', direction: 'asc' as const }];
+    case 'date_desc':
+    default:
+      return [{ field: 'date', direction: 'desc' as const }];
+  }
+}
 
 const MACHINE_DETAIL_TOUR: Step[] = [
   {
@@ -179,12 +200,22 @@ export default function MaquinaDetallePage() {
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [paymentsPage, setPaymentsPage]     = useState(1);
   const [paymentsTotalPages, setPaymentsTotalPages] = useState(1);
+  const [paymentsSort, setPaymentsSort]     = useState<PaymentSortOption>('date_desc');
   const PAYMENTS_PER_PAGE = 10;
+
+  useEffect(() => {
+    setPaymentsPage(1);
+  }, [paymentsSort]);
 
   useEffect(() => {
     if (activeTab !== 'pagos' || !machineId) return;
     setLoadingPayments(true);
-    getPaymentsAction({ machine_id: Number(machineId), page: paymentsPage, limit: PAYMENTS_PER_PAGE })
+    getPaymentsAction({
+      machine_id: Number(machineId),
+      page: paymentsPage,
+      limit: PAYMENTS_PER_PAGE,
+      sort: getPaymentSort(paymentsSort),
+    })
       .then(res => {
         if (res.success && res.payments) {
           setPayments(res.payments);
@@ -193,7 +224,7 @@ export default function MaquinaDetallePage() {
       })
       .catch(() => {})
       .finally(() => setLoadingPayments(false));
-  }, [activeTab, machineId, paymentsPage]);
+  }, [activeTab, machineId, paymentsPage, paymentsSort]);
 
   // ── Slots (tab Productos) ─────────────────────────────────────────────────
   const {
@@ -895,7 +926,7 @@ export default function MaquinaDetallePage() {
                               const level  = stockLevel(slot);
                               const needed = (slot.capacity ?? 0) - (slot.current_stock ?? 0);
                               const pct    = SlotAdapter.getStockPercentage(slot) ?? 0;
-                              const productName = products.find(p => Number(p.id) === slot.product_id)?.name;
+                              const productName = slot.product?.name ?? products.find(p => Number(p.id) === slot.product_id)?.name;
                               return (
                                 <tr
                                   key={slot.id}
@@ -989,7 +1020,7 @@ export default function MaquinaDetallePage() {
                             <tbody className="divide-y divide-gray-50">
                               {slots.filter(s => stockLevel(s) === 'full').map(slot => {
                                 const pct = SlotAdapter.getStockPercentage(slot) ?? 0;
-                                const productName = products.find(p => Number(p.id) === slot.product_id)?.name;
+                                const productName = slot.product?.name ?? products.find(p => Number(p.id) === slot.product_id)?.name;
                                 return (
                                   <tr key={slot.id} className="hover:bg-gray-50/60 transition-colors">
                                     <td className="px-4 py-2.5">
@@ -1097,11 +1128,27 @@ export default function MaquinaDetallePage() {
                       <CreditCard className="h-4 w-4 text-primary" />
                       <h3 className="text-sm font-semibold text-dark">Pagos recientes</h3>
                     </div>
-                    {paymentsTotalPages > 1 && (
-                      <span className="text-xs text-muted">
-                        Página {paymentsPage} de {paymentsTotalPages}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <select
+                          value={paymentsSort}
+                          onChange={(e) => setPaymentsSort(e.target.value as PaymentSortOption)}
+                          className="pl-3 pr-7 py-1.5 text-xs font-medium border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none text-dark"
+                        >
+                          {PAYMENT_SORT_OPTIONS.map(option => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+                      </div>
+                      {paymentsTotalPages > 1 && (
+                        <span className="text-xs text-muted">
+                          Página {paymentsPage} de {paymentsTotalPages}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {loadingPayments ? (

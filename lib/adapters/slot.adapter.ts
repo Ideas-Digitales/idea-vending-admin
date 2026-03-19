@@ -14,6 +14,12 @@ export class SlotAdapter {
       mdb_code: apiData.mdb_code,
       label: apiData.label,
       product_id: apiData.product_id,
+      product: apiData.product
+        ? {
+            id: apiData.product.id ?? apiData.product.product_id ?? apiData.product_id ?? 0,
+            name: apiData.product.name ?? apiData.product.product_name ?? 'Producto Sin Nombre',
+          }
+        : null,
       capacity: apiData.capacity,
       current_stock: apiData.current_stock,
       created_at: apiData.created_at,
@@ -30,6 +36,12 @@ export class SlotAdapter {
       mdb_code: slot.mdb_code,
       label: slot.label,
       product_id: slot.product_id,
+      product: slot.product
+        ? {
+            id: slot.product.id,
+            name: slot.product.name,
+          }
+        : null,
       capacity: slot.capacity,
       current_stock: slot.current_stock,
       created_at: slot.created_at,

@@ -202,7 +202,7 @@ export default function ReposicionPage() {
                 needed:      needed ?? 0,
                 neededKnown: needed !== null,
                 pct,
-                productName: slot.product_id ? (productMap.get(slot.product_id) ?? null) : null,
+                productName: slot.product?.name ?? (slot.product_id ? (productMap.get(slot.product_id) ?? null) : null),
               });
             });
           }
@@ -554,7 +554,14 @@ export default function ReposicionPage() {
                         )}
                       </div>
 
-                      <table className="w-full text-sm">
+                      <table className="w-full table-fixed text-sm">
+                        <colgroup>
+                          <col className="w-[140px]" />
+                          <col className="w-[200px]" />
+                          <col className="hidden md:table-column md:w-[240px]" />
+                          <col className="w-[120px]" />
+                          <col className="w-[180px]" />
+                        </colgroup>
                         <thead className="border-b border-gray-100">
                           <tr>
                             <th className="text-left px-4 py-2 text-xs font-medium text-muted uppercase tracking-wide">Estado</th>
@@ -585,12 +592,12 @@ export default function ReposicionPage() {
                                   </span>
                                 </td>
                                 <td className="px-4 py-3">
-                                  <p className="text-sm font-semibold text-dark">{row.slot.label}</p>
-                                  <p className="text-xs font-mono text-muted">MDB {row.slot.mdb_code}</p>
+                                  <p className="text-sm font-semibold text-dark truncate">{row.slot.label}</p>
+                                  <p className="text-xs font-mono text-muted truncate">MDB {row.slot.mdb_code}</p>
                                 </td>
                                 <td className="px-4 py-3 hidden md:table-cell">
                                   {row.productName
-                                    ? <p className="text-sm text-dark truncate max-w-[160px]">{row.productName}</p>
+                                    ? <p className="text-sm text-dark truncate">{row.productName}</p>
                                     : <span className="text-xs text-muted italic">Sin asignar</span>
                                   }
                                 </td>
@@ -612,7 +619,7 @@ export default function ReposicionPage() {
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                   {wasSaved ? (
-                                    <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                                    <span className="inline-flex w-[140px] items-center justify-end gap-1 text-xs text-emerald-600 font-medium">
                                       <CheckCircle className="h-3.5 w-3.5" /> Guardado
                                     </span>
                                   ) : isEditing ? (
@@ -620,7 +627,7 @@ export default function ReposicionPage() {
                                   ) : (
                                     <button
                                       onClick={() => setEditingSlotId(row.slot.id)}
-                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                                      className="inline-flex w-[140px] items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
                                     >
                                       <RefreshCw className="h-3 w-3" />
                                       Reponer

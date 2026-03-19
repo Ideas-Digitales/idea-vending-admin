@@ -28,7 +28,7 @@ function handleError(error: unknown): { success: false; error: string } {
  */
 export async function getSlotsAction(machineId: string | number): Promise<SlotsListResponse> {
   try {
-    const { response } = await authenticatedFetch(`/machines/${machineId}/slots`, {
+    const { response } = await authenticatedFetch(`/machines/${machineId}/slots?include=product`, {
       method: 'GET',
       cache: 'no-store',
     });

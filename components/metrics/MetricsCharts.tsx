@@ -27,7 +27,19 @@ export function ChartTooltip({
 }
 
 // ── Area chart ────────────────────────────────────────────────
-export function SalesAreaChart({ data }: { data: { label: string; value: number }[] }) {
+export function SalesAreaChart({
+  data,
+  metric = 'amount',
+}: {
+  data: { label: string; tooltipLabel?: string; value: number }[];
+  metric?: ChartMetric;
+}) {
+  const yFmt   = metric === 'count'
+    ? (v: number) => v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1).replace(/\.0$/, '')}K` : String(v)
+    : clpShort;
+  const tipFmt = metric === 'count' ? (v: number) => v.toLocaleString('es-CL') : clp;
+  const yWidth = metric === 'count' ? 40 : 52;
+
   return (
     <ResponsiveContainer width="100%" height={240}>
       <AreaChart data={data} margin={{ top: 10, right: 8, left: 8, bottom: 4 }}>
@@ -39,8 +51,20 @@ export function SalesAreaChart({ data }: { data: { label: string; value: number 
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
         <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} tickFormatter={clpShort} width={52} />
-        <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#3157b2', strokeWidth: 1.5, strokeDasharray: '4 4' }} />
+        <YAxis tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} tickFormatter={yFmt} width={yWidth} />
+        <Tooltip
+          cursor={{ stroke: '#3157b2', strokeWidth: 1.5, strokeDasharray: '4 4' }}
+          content={({ active, payload, label: lbl }) => {
+            if (!active || !payload?.length) return null;
+            const displayLabel = (payload[0]?.payload as { tooltipLabel?: string })?.tooltipLabel ?? lbl;
+            return (
+              <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-3 py-2 text-xs">
+                <p className="text-muted font-medium mb-0.5">{displayLabel}</p>
+                <p className="font-bold text-dark text-sm">{tipFmt(payload[0].value as number)}</p>
+              </div>
+            );
+          }}
+        />
         <Area
           type="monotone"
           dataKey="value"

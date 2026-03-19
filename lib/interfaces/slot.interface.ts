@@ -11,6 +11,10 @@ export interface Slot {
   mdb_code: number;
   label: string;
   product_id: number | null;
+  product?: {
+    id: number | string;
+    name: string;
+  } | null;
   capacity: number | null;
   current_stock: number | null;
   created_at?: string;
@@ -48,6 +52,12 @@ export interface SlotApiData {
   mdb_code: number;
   label: string;
   product_id: number | null;
+  product?: {
+    id?: number | string;
+    product_id?: number | string;
+    name?: string;
+    product_name?: string;
+  } | null;
   capacity: number | null;
   current_stock: number | null;
   created_at?: string;
