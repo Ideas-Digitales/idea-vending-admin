@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidRut } from '@/lib/utils/rut';
 
 // Schema para crear usuario
 export const createUserSchema = z.object({
@@ -14,9 +15,9 @@ export const createUserSchema = z.object({
   
   rut: z
     .string()
-    .min(8, 'El RUT debe tener al menos 8 caracteres')
+    .min(3, 'El RUT es demasiado corto')
     .max(15, 'El RUT no puede exceder 15 caracteres')
-    .regex(/^[0-9]{1,2}\.?[0-9]{3}\.?[0-9]{3}[-|‐]{1}[0-9kK]{1}$/, 'Formato de RUT inválido (ej: 12.345.678-9 o 12345678-9)'),
+    .refine(isValidRut, 'RUT inválido (ej: 12345678-9)'),
   
   role: z.enum(['admin', 'customer', 'technician']),
   
@@ -54,9 +55,9 @@ export const editUserSchema = z.object({
   
   rut: z
     .string()
-    .min(8, 'El RUT debe tener al menos 8 caracteres')
+    .min(3, 'El RUT es demasiado corto')
     .max(15, 'El RUT no puede exceder 15 caracteres')
-    .regex(/^[0-9]{1,2}\.?[0-9]{3}\.?[0-9]{3}[-|‐]{1}[0-9kK]{1}$/, 'Formato de RUT inválido (ej: 12.345.678-9 o 12345678-9)'),
+    .refine(isValidRut, 'RUT inválido (ej: 12345678-9)'),
   
   role: z.enum(['admin', 'customer', 'technician']),
   

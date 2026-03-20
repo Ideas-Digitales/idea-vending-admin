@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getMachinesAction } from '@/lib/actions/machines';
 import { getSlotsAction, updateSlotAction } from '@/lib/actions/slots';
 import { getProductsAction } from '@/lib/actions/products';
+import { getEnterprisesAction } from '@/lib/actions/enterprise';
+import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 import { useMqttSlot } from '@/lib/hooks/useMqttSlot';
 import { SlotAdapter } from '@/lib/adapters/slot.adapter';
 import type { Machine } from '@/lib/interfaces/machine.interface';
@@ -142,6 +144,8 @@ export default function ReposicionPage() {
   const [search, setSearch]         = useState('');
   const [filterLevel, setFilterLevel] = useState<'all' | 'critical' | 'low' | 'incomplete'>('all');
   const [filterMachine, setFilterMachine] = useState<string>('all');
+  const [filterEnterprise, setFilterEnterprise] = useState<number | 'all'>('all');
+  const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [viewMode, setViewMode]     = useState<'table' | 'card'>('table');
 
   // Edición inline
@@ -150,13 +154,16 @@ export default function ReposicionPage() {
   const [copied, setCopied]         = useState(false);
 
   // ── Carga de datos ──────────────────────────────────────────────────────────
-  const load = useCallback(async () => {
+  const load = useCallback(async (enterpriseId?: number) => {
     setLoading(true);
     setLoadError(null);
     setRows([]);
     setSavedIds(new Set());
 
-    const machRes = await getMachinesAction({ limit: 200 });
+    const machRes = await getMachinesAction({
+      limit: 200,
+      ...(enterpriseId ? { enterprise_id: enterpriseId } : {}),
+    });
     if (!machRes.success || !machRes.machines) {
       setLoadError(machRes.error ?? 'Error al cargar máquinas');
       setLoading(false);
@@ -221,7 +228,18 @@ export default function ReposicionPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // Cargar empresas una sola vez
+  useEffect(() => {
+    getEnterprisesAction({ limit: 200 }).then(res => {
+      if (res.success && res.enterprises) setEnterprises(res.enterprises);
+    }).catch(() => {});
+  }, []);
+
+  // Recargar máquinas cuando cambia la empresa seleccionada
+  useEffect(() => {
+    setFilterMachine('all');
+    load(filterEnterprise === 'all' ? undefined : filterEnterprise);
+  }, [filterEnterprise]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Filtrado ────────────────────────────────────────────────────────────────
   const machineOptions = useMemo(() =>
@@ -364,7 +382,7 @@ export default function ReposicionPage() {
         actions={
           <div className="flex items-center gap-2">
             <button
-              onClick={load}
+              onClick={() => load(filterEnterprise === 'all' ? undefined : filterEnterprise)}
               disabled={loading}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
@@ -461,6 +479,23 @@ export default function ReposicionPage() {
                   className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
                 />
               </div>
+
+              {/* Enterprise filter */}
+              {enterprises.length > 0 && (
+                <div className="relative">
+                  <select
+                    value={filterEnterprise}
+                    onChange={e => setFilterEnterprise(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                    className="pl-3 pr-7 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none"
+                  >
+                    <option value="all">Todas las empresas</option>
+                    {enterprises.map(e => (
+                      <option key={e.id} value={e.id}>{e.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+                </div>
+              )}
 
               {/* Level filter */}
               <div className="relative">

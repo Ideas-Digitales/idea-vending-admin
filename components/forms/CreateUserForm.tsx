@@ -86,7 +86,7 @@ export default function CreateUserForm({
     setValue,
   } = useForm({
     resolver: zodResolver(mode === 'edit' ? editUserSchema : createUserSchema),
-    mode: mode === 'edit' ? 'onBlur' : 'onChange',
+    mode: mode === 'edit' ? 'onBlur' : 'onTouched',
     defaultValues: {
       name: initialData?.name || '',
       email: initialData?.email || '',

@@ -414,7 +414,6 @@ export default function MaquinaDetallePage() {
     const result = await updateMachineAction(machineId, {
       name: formData.name,
       location: formData.location,
-      ...(isAdmin && formData.enterprise_id ? { enterprise_id: formData.enterprise_id } : {}),
     });
     setSaving(false);
     if (result.success && result.machine) {
@@ -1312,27 +1311,6 @@ export default function MaquinaDetallePage() {
                         </div>
                       </div>
 
-                      {/* Empresa — solo admin */}
-                      {isAdmin && (
-                        <div>
-                          <label className="block text-sm font-medium text-dark mb-1.5 flex items-center gap-1.5">
-                            <Building2 className="h-3.5 w-3.5 text-primary" />
-                            Empresa
-                          </label>
-                          <EnterpriseSearchInput
-                            selectedEnterpriseId={formData.enterprise_id || null}
-                            onEnterpriseSelect={(enterprise) =>
-                              setFormData(prev => ({ ...prev, enterprise_id: enterprise?.id ?? 0 }))
-                            }
-                            disabled={saving}
-                            placeholder="Buscar empresa..."
-                          />
-                          <p className="mt-1.5 flex items-start gap-1.5 text-xs text-amber-600/80">
-                            <Info className="h-3.5 w-3.5 mt-px shrink-0" />
-                            <span>Los pagos registrados antes del cambio seguirán asociados a la empresa anterior.</span>
-                          </p>
-                        </div>
-                      )}
 
                       <div className="flex justify-end pt-2 border-t border-gray-100">
                         <button

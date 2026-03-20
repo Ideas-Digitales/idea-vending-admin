@@ -89,7 +89,7 @@ export default function EditarMaquinaPage() {
       form.append('status', formData.status);
       form.append('location', formData.location);
       form.append('type', formData.type);
-      form.append('enterprise_id', String(formData.enterprise_id));
+      // enterprise_id excluido — el backend no permite modificarlo (regla 'missing')
 
       const response = await fetch(`/maquinas/${machineId}/update`, {
         method: 'POST',
@@ -253,24 +253,6 @@ export default function EditarMaquinaPage() {
                 </FieldHint>
               </div>
 
-              {isAdmin && (
-                <div>
-                  <label className="block text-sm font-medium text-black mb-2">
-                    Empresa <span className="text-red-500">*</span>
-                  </label>
-                  <EnterpriseSearchInput
-                    selectedEnterpriseId={formData.enterprise_id || null}
-                    onEnterpriseSelect={(enterprise) =>
-                      setFormData(prev => ({ ...prev, enterprise_id: enterprise?.id ?? 0 }))
-                    }
-                    disabled={saving}
-                    placeholder="Buscar empresa por nombre..."
-                  />
-                  <FieldHint>
-                    Cambiar la empresa no migra el historial de pagos previos.
-                  </FieldHint>
-                </div>
-              )}
 
               <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
                 <Link

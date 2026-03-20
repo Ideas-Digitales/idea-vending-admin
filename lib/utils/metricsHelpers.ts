@@ -99,6 +99,21 @@ export function mapGroupedData(
   }));
 }
 
+export function mapDualGroupedData(
+  ok:     AggregateDataPoint[] | undefined,
+  failed: AggregateDataPoint[] | undefined,
+  groupBy: 'day' | 'month',
+  period: Period,
+): { label: string; tooltipLabel: string; exitosos: number; fallidos: number }[] {
+  const failedMap = new Map((failed ?? []).map(pt => [pt.date, pt.total_count]));
+  return (ok ?? []).map(pt => ({
+    label:        formatGroupDate(pt.date, groupBy, period),
+    tooltipLabel: formatGroupDateFull(pt.date, groupBy, period),
+    exitosos:     pt.total_count,
+    fallidos:     failedMap.get(pt.date) ?? 0,
+  }));
+}
+
 // ── Insights ──────────────────────────────────────────────────
 const INSIGHT_LABELS: Record<Period, [string, string, string]> = {
   day:   ['Mejor día',  'Día más bajo',  'Promedio/día'],
@@ -131,7 +146,7 @@ type RankItem = { id: number; payments_quantity: number; payments_amount: number
 export function sanitizeRanking<T extends RankItem>(top: T[] = [], low: T[] = []) {
   const sanitizedTop = top.filter(item => item.payments_quantity > 0 && item.payments_amount > 0);
   const topIds       = new Set(sanitizedTop.map(item => item.id));
-  const sanitizedLow = low.filter(item => !topIds.has(item.id));
+  const sanitizedLow = low.filter(item => !topIds.has(item.id) && item.payments_quantity > 0);
   return { top: sanitizedTop, low: sanitizedLow };
 }
 
