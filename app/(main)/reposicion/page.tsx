@@ -443,7 +443,7 @@ export default function ReposicionPage() {
             <div>
               <p className="text-sm font-semibold text-red-800">Error al cargar</p>
               <p className="text-xs text-red-600 mt-0.5">{loadError}</p>
-              <button onClick={load} className="mt-2 text-xs text-red-700 font-medium underline">Reintentar</button>
+              <button onClick={() => load()} className="mt-2 text-xs text-red-700 font-medium underline">Reintentar</button>
             </div>
           </div>
         )}
