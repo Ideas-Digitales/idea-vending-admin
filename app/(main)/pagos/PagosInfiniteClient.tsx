@@ -772,7 +772,7 @@ export default function PagosInfiniteClient() {
                 </span>
               </div>
               <div className="flex flex-col lg:flex-row flex-1 min-h-0">
-                <aside className="lg:w-80 xl:w-96 flex-shrink-0 border-r border-blue-100 bg-white/70 p-5 flex flex-col gap-5">
+                <aside className="lg:w-80 xl:w-96 flex-shrink-0 border-r border-blue-100 bg-white/70 p-4 sm:p-5 flex flex-col gap-5">
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-medium text-blue-800">Empresa en escucha</label>
                     {isLoadingEnterprises ? (
@@ -1002,10 +1002,10 @@ export default function PagosInfiniteClient() {
                     </div>
                   );
                 })()}
-                <div className={`${filtersOpen ? 'grid' : 'hidden'} grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 p-4`}>
+                <div className={`${filtersOpen ? 'grid' : 'hidden'} grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 p-4`}>
 
                   {/* Buscar — fila completa en mobile/sm, 1 col en lg */}
-                  <div className="col-span-2 sm:col-span-3 lg:col-span-1 flex flex-col gap-1">
+                  <div className="col-span-1 sm:col-span-2 lg:col-span-1 flex flex-col gap-1">
                     <label className="text-xs font-medium text-gray-500">Buscar</label>
                     <input
                       type="text"
@@ -1127,7 +1127,7 @@ export default function PagosInfiniteClient() {
                         const [field, direction] = e.target.value.split(':');
                         handleSortChange([{ field, direction: direction as 'asc' | 'desc' }]);
                       }}
-                      className="w-64 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="w-full sm:w-48 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
                     >
                       {SORT_OPTIONS.map((opt) => (
                         <option key={`${opt.field}:${opt.direction}`} value={`${opt.field}:${opt.direction}`}>

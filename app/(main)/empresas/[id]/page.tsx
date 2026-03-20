@@ -209,7 +209,7 @@ export default function EnterpriseDetailPage() {
       <main className="flex-1 p-4 sm:p-6 overflow-auto">
         <div className="max-w-2xl mx-auto space-y-6">
           <div className="card p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-8 gap-y-5">
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Nombre</p>
                 <div className="flex items-center justify-between gap-2">
@@ -265,7 +265,7 @@ export default function EnterpriseDetailPage() {
 
           {/* ── Máquinas ── */}
           <div className="card overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div className="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Monitor className="h-5 w-5 text-primary" />
                 <h3 className="text-base font-semibold text-dark">Máquinas</h3>

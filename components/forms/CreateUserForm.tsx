@@ -189,7 +189,7 @@ export default function CreateUserForm({
 
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
         {/* Información Personal */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           {/* Nombre */}
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-black mb-2">
@@ -354,7 +354,7 @@ export default function CreateUserForm({
             )}
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             {/* Contraseña */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-black mb-2">
@@ -438,7 +438,7 @@ export default function CreateUserForm({
         </div>
 
         {/* Botones de Acción */}
-        <div className="flex justify-end gap-4 pt-6 border-t">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-6 border-t">
         
           <button
             type="submit"

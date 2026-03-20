@@ -74,7 +74,7 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
   return (
     <div className="space-y-4">
       {/* KPIs */}
-      <div data-tour="kpi-cards" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-tour="kpi-cards" className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card p-4 sm:p-5">
           <div className="flex items-start justify-between">
             <div className="min-w-0 pr-2">
@@ -155,7 +155,7 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
 
       {/* Gráfico */}
       <div data-tour="sales-chart" className="card overflow-hidden">
-        <div className="page-header-gradient px-5 py-4 flex items-center justify-between gap-4">
+        <div className="page-header-gradient px-5 py-4 flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <Activity className="h-4 w-4 flex-shrink-0" />

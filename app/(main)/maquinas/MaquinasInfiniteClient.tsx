@@ -257,7 +257,7 @@ export default function MaquinasInfiniteClient() {
   const filterControls = (
     <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
       {/* Filtro de empresa */}
-      <div className="w-56">
+      <div className="w-full sm:w-56">
         <EnterpriseSearchInput
           selectedEnterpriseId={enterpriseFilter.id}
           onEnterpriseSelect={(e: Enterprise | null) => {

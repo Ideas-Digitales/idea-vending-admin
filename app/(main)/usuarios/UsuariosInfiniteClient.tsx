@@ -253,7 +253,7 @@ export default function UsuariosInfiniteClient() {
         <button
           key={opt.value}
           onClick={() => handleRoleChange(opt.value)}
-          className={`flex-1 sm:flex-none px-4 py-2.5 text-xs font-semibold transition-colors ${
+          className={`flex-1 sm:flex-none px-2 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold transition-colors ${
             i > 0 ? 'border-l border-gray-300' : ''
           } ${
             selectedRole === opt.value

@@ -116,7 +116,7 @@ export default function MaquinasMetricsPanel({ enterpriseId, period }: MaquinasM
       </div>
 
       {/* Mayor / Menor rendimiento */}
-      <div data-tour="machine-ranking" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div data-tour="machine-ranking" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {([
           { label: 'Mayor rendimiento', icon: <TrendingUp   className="h-3.5 w-3.5 text-emerald-500" />, items: rankingTop.slice(0, 3), badge: 'bg-emerald-500', row: 'hover:bg-emerald-50/60' },
           { label: 'Menor rendimiento', icon: <TrendingDown className="h-3.5 w-3.5 text-red-400"     />, items: rankingLow.slice(0, 3), badge: 'bg-red-400',     row: 'hover:bg-red-50/60'     },

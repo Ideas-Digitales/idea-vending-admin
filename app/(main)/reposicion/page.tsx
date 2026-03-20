@@ -471,7 +471,7 @@ export default function ReposicionPage() {
             {/* Filters + view toggle */}
             <div className="flex flex-wrap items-center gap-2 print:hidden">
               {/* Search */}
-              <div className="relative flex-1 min-w-[180px] max-w-xs">
+              <div className="relative flex-1 min-w-0 sm:min-w-[180px] max-w-xs">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <input
                   value={search} onChange={e => setSearch(e.target.value)}
@@ -589,6 +589,7 @@ export default function ReposicionPage() {
                         )}
                       </div>
 
+                      <div className="overflow-x-auto">
                       <table className="w-full table-fixed text-sm">
                         <colgroup>
                           <col className="w-[140px]" />
@@ -674,6 +675,7 @@ export default function ReposicionPage() {
                           })}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                   );
                 })}

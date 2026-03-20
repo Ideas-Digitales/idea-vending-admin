@@ -245,7 +245,7 @@ export default function ProductDetailPage() {
         }
       />
 
-      <main className="flex-1 p-6 overflow-auto">
+      <main className="flex-1 p-4 sm:p-6 overflow-auto">
         <div className="max-w-4xl mx-auto space-y-6">
 
           {/* ── MÉTRICAS DE VENTAS ── */}
@@ -272,13 +272,13 @@ export default function ProductDetailPage() {
             </div>
 
             {/* KPI row */}
-            <div className="grid grid-cols-3 divide-x divide-gray-100">
+            <div className="grid grid-cols-3 divide-x divide-gray-100 min-w-0">
               {/* Ingresos */}
               <div className="px-5 py-4">
                 <p className="text-xs text-muted mb-1">Ingresos</p>
                 {loadingMetrics
                   ? <div className="h-7 w-28 bg-gray-100 rounded animate-pulse" />
-                  : <p className="text-xl font-bold text-dark">{clp(totalAmount)}</p>
+                  : <p className="text-xl font-bold text-dark truncate">{clp(totalAmount)}</p>
                 }
                 {!loadingMetrics && growthPct !== null && (
                   <p className={`text-xs font-semibold mt-0.5 flex items-center gap-0.5 ${growthPct >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
@@ -292,7 +292,7 @@ export default function ProductDetailPage() {
                 <p className="text-xs text-muted mb-1">Ventas</p>
                 {loadingMetrics
                   ? <div className="h-7 w-16 bg-gray-100 rounded animate-pulse" />
-                  : <p className="text-xl font-bold text-dark">{totalCount.toLocaleString('es-CL')}</p>
+                  : <p className="text-xl font-bold text-dark truncate">{totalCount.toLocaleString('es-CL')}</p>
                 }
                 <p className="text-xs text-muted mt-0.5">transacciones</p>
               </div>
@@ -301,7 +301,7 @@ export default function ProductDetailPage() {
                 <p className="text-xs text-muted mb-1">Precio promedio</p>
                 {loadingMetrics
                   ? <div className="h-7 w-20 bg-gray-100 rounded animate-pulse" />
-                  : <p className="text-xl font-bold text-dark">{clp(avgTicket)}</p>
+                  : <p className="text-xl font-bold text-dark truncate">{clp(avgTicket)}</p>
                 }
                 <p className="text-xs text-muted mt-0.5">por venta</p>
               </div>
@@ -338,7 +338,7 @@ export default function ProductDetailPage() {
           </div>
 
           {/* ── INFORMACIÓN DEL PRODUCTO ── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             <div className="card p-6">
               <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
                 <Package className="h-5 w-5 mr-2 text-primary" />

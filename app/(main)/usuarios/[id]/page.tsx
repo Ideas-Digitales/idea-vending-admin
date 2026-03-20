@@ -113,7 +113,7 @@ export default function UserDetailPage() {
         }
       />
 
-      <main className="flex-1 p-6 overflow-auto">
+      <main className="flex-1 p-4 sm:p-6 overflow-auto">
         <div className="max-w-4xl mx-auto space-y-6">
 
           {/* Profile Card */}
@@ -130,7 +130,7 @@ export default function UserDetailPage() {
           </div>
 
           {/* Information Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
 
             {/* Personal Information */}
             <div className="card p-6">
@@ -222,7 +222,7 @@ export default function UserDetailPage() {
               <Calendar className="h-5 w-5 mr-2 text-primary" />
               Información de Registro
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Creación</label>
                 <p className="text-dark">{new Date(user.createdAt).toLocaleString('es-ES')}</p>

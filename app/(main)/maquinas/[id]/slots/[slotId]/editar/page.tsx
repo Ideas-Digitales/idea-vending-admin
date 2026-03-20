@@ -228,7 +228,7 @@ export default function EditSlotPage() {
                 </div>
 
                 {/* Capacidad + Stock — 2 cols */}
-                <div data-tour="slot-stock" className="grid grid-cols-2 gap-3">
+                <div data-tour="slot-stock" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-dark mb-1.5">
                       Capacidad
@@ -260,7 +260,7 @@ export default function EditSlotPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2 border-t border-gray-100">
                   <button
                     type="button"
                     onClick={() => router.push(backHref)}

@@ -116,7 +116,7 @@ export default function ProductosMetricsPanel({ enterpriseId, period }: Producto
       </div>
 
       {/* Más / Menos vendidos */}
-      <div data-tour="product-ranking" className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div data-tour="product-ranking" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {([
           { label: 'Más vendidos',   icon: <Star    className="h-3.5 w-3.5 text-emerald-500" />, items: rankingTop, badge: 'bg-emerald-500', row: 'hover:bg-emerald-50/60' },
           { label: 'Menos vendidos', icon: <Package className="h-3.5 w-3.5 text-orange-400" />, items: rankingLow, badge: 'bg-orange-400',   row: 'hover:bg-orange-50/60' },

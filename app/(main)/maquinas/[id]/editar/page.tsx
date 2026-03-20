@@ -254,7 +254,7 @@ export default function EditarMaquinaPage() {
               </div>
 
 
-              <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-6 border-t border-gray-200">
                 <Link
                   href={`/maquinas/${machineId}`}
                   className="btn-secondary flex items-center space-x-2"

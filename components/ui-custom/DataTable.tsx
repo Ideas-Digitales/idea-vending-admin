@@ -59,7 +59,7 @@ export default function DataTable<T>({
               )}
             </div>
           )}
-          {titleRight && <div className="flex items-center space-x-4 text-xs">{titleRight}</div>}
+          {titleRight && <div className="flex items-center flex-wrap gap-2 text-xs">{titleRight}</div>}
         </div>
       )}
 

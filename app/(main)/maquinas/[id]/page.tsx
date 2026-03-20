@@ -535,7 +535,7 @@ export default function MaquinaDetallePage() {
 
         {/* ── Tabs ────────────────────────────────────────────────────────── */}
         <div className="border-b border-gray-200 bg-white">
-          <div data-tour="machine-tabs" className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div data-tour="machine-tabs" className="max-w-7xl mx-auto px-4 sm:px-6 overflow-x-auto">
             <nav className="flex gap-0 -mb-px">
               {tabs.map(tab => (
                 <button
@@ -611,22 +611,22 @@ export default function MaquinaDetallePage() {
                   <>
                     {/* ── Panel de estado de inventario ── */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className={`rounded-xl border p-4 ${criticalCount > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
+                      <div className={`rounded-xl border p-3 sm:p-4 ${criticalCount > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
                         <p className="text-xs font-medium text-muted mb-1">Críticos</p>
                         <p className={`text-2xl font-bold ${criticalCount > 0 ? 'text-red-600' : 'text-gray-400'}`}>{criticalCount}</p>
                         <p className="text-xs text-muted mt-0.5">vacíos o &lt;10%</p>
                       </div>
-                      <div className={`rounded-xl border p-4 ${lowCount > 0 ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-100'}`}>
+                      <div className={`rounded-xl border p-3 sm:p-4 ${lowCount > 0 ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-100'}`}>
                         <p className="text-xs font-medium text-muted mb-1">Stock bajo</p>
                         <p className={`text-2xl font-bold ${lowCount > 0 ? 'text-amber-600' : 'text-gray-400'}`}>{lowCount}</p>
                         <p className="text-xs text-muted mt-0.5">10–30% de capacidad</p>
                       </div>
-                      <div className={`rounded-xl border p-4 ${incompleteCount > 0 ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
+                      <div className={`rounded-xl border p-3 sm:p-4 ${incompleteCount > 0 ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100'}`}>
                         <p className="text-xs font-medium text-muted mb-1">Incompletos</p>
                         <p className={`text-2xl font-bold ${incompleteCount > 0 ? 'text-blue-600' : 'text-gray-400'}`}>{incompleteCount}</p>
                         <p className="text-xs text-muted mt-0.5">30–99% de capacidad</p>
                       </div>
-                      <div className="rounded-xl border bg-emerald-50 border-emerald-200 p-4">
+                      <div className="rounded-xl border bg-emerald-50 border-emerald-200 p-3 sm:p-4">
                         <p className="text-xs font-medium text-muted mb-1">Llenos</p>
                         <p className="text-2xl font-bold text-emerald-600">{slots.filter(s => stockLevel(s) === 'full').length}</p>
                         <p className="text-xs text-muted mt-0.5">al 100% de capacidad</p>
