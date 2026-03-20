@@ -1002,106 +1002,105 @@ export default function PagosInfiniteClient() {
                     </div>
                   );
                 })()}
-                <div className={`${filtersOpen ? 'grid' : 'hidden'} grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 p-4`}>
-
-                  {/* Buscar — fila completa en mobile/sm, 1 col en lg */}
-                  <div className="col-span-1 sm:col-span-2 lg:col-span-1 flex flex-col gap-1">
-                    <label className="text-xs font-medium text-gray-500">Buscar</label>
-                    <input
-                      type="text"
-                      placeholder="Producto, operación, tarjeta..."
-                      value={draftFilters.search ?? ''}
-                      onChange={(e) => updateDraftFilters('search', e.target.value || undefined)}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-
-                  {/* Estado */}
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-gray-500">Estado</label>
-                    <select
-                      value={draftFilters.successful === true ? 'success' : draftFilters.successful === false ? 'failed' : 'all'}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        updateDraftFilters('successful', v === 'success' ? true : v === 'failed' ? false : undefined);
-                      }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    >
-                      <option value="all">Todos</option>
-                      <option value="success">Exitosos</option>
-                      <option value="failed">Rechazados</option>
-                    </select>
-                  </div>
-
-                  {/* Empresa */}
-                  <div className="col-span-2 lg:col-span-6 flex flex-col gap-1">
-                    <label className="text-xs font-medium text-gray-500">Empresa</label>
-                    {isLoadingEnterprises ? (
-                      <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-400">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Cargando...
-                      </div>
-                    ) : (
-                      <select
-                        value={draftFilters.enterprise_id ?? ''}
-                        onChange={(e) => {
-                          const parsed = e.target.value ? Number(e.target.value) : undefined;
-                          updateDraftFilters('enterprise_id', Number.isNaN(parsed) ? undefined : parsed);
-                        }}
+                <div className={`${filtersOpen ? 'block' : 'hidden'} p-4`}>
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-start">
+                    <div className="flex flex-col gap-1 lg:col-span-2">
+                      <label className="text-xs font-medium text-gray-500">Buscar</label>
+                      <input
+                        type="text"
+                        placeholder="Producto, operación, tarjeta..."
+                        value={draftFilters.search ?? ''}
+                        onChange={(e) => updateDraftFilters('search', e.target.value || undefined)}
                         className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      >
-                        <option value="">Todas</option>
-                        {enterprises.map((e) => (
-                          <option key={e.id} value={e.id}>{e.name}</option>
-                        ))}
-                      </select>
-                    )}
-                    {enterpriseError && <p className="text-xs text-red-500">{enterpriseError}</p>}
-                  </div>
-
-                  {/* Máquina — fila completa en mobile, 1 col en sm+ */}
-                  <div className="col-span-2 sm:col-span-1 flex flex-col gap-1">
-                    <label className="text-xs font-medium text-gray-500">Máquina</label>
-                    <select
-                      value={draftFilters.machine_id ?? ''}
-                      onChange={(e) => updateDraftFilters('machine_id', e.target.value ? Number(e.target.value) : undefined)}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    >
-                      <option value="">Todas</option>
-                      {machineOptions.map((m) => (
-                        <option key={m.id} value={m.id}>{m.name ?? `#${m.id}`}</option>
-                      ))}
-                    </select>
-                    {isLoadingMachines && <p className="text-xs text-gray-400">Cargando...</p>}
-                    {machineError && <p className="text-xs text-red-500">{machineError}</p>}
-                  </div>
-
-                  {/* Desde + Hasta — siempre juntos, fila completa en mobile y sm */}
-                  <div className="col-span-2 sm:col-span-2 lg:col-span-2 grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1 min-w-0">
-                      <label className="text-xs font-medium text-gray-500">Desde</label>
-                      <input
-                        type="date"
-                        value={draftFilters.date_from ?? ''}
-                        onChange={(e) => updateDraftFilters('date_from', e.target.value || undefined)}
-                        onClick={openNativeDatePicker}
-                        onFocus={openNativeDatePicker}
-                        className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                       />
                     </div>
-                    <div className="flex flex-col gap-1 min-w-0">
-                      <label className="text-xs font-medium text-gray-500">Hasta</label>
-                      <input
-                        type="date"
-                        value={draftFilters.date_to ?? ''}
-                        onChange={(e) => updateDraftFilters('date_to', e.target.value || undefined)}
-                        onClick={openNativeDatePicker}
-                        onFocus={openNativeDatePicker}
-                        className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:col-span-5 lg:grid-cols-5">
+                      <div className="flex flex-col gap-1 lg:col-span-2">
+                        <label className="text-xs font-medium text-gray-500">Estado</label>
+                        <select
+                          value={draftFilters.successful === true ? 'success' : draftFilters.successful === false ? 'failed' : 'all'}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            updateDraftFilters('successful', v === 'success' ? true : v === 'failed' ? false : undefined);
+                          }}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        >
+                          <option value="all">Todos</option>
+                          <option value="success">Exitosos</option>
+                          <option value="failed">Rechazados</option>
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
+                        <label className="text-xs font-medium text-gray-500">Empresa</label>
+                        {isLoadingEnterprises ? (
+                          <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-400">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Cargando...
+                          </div>
+                        ) : (
+                          <select
+                            value={draftFilters.enterprise_id ?? ''}
+                            onChange={(e) => {
+                              const parsed = e.target.value ? Number(e.target.value) : undefined;
+                              updateDraftFilters('enterprise_id', Number.isNaN(parsed) ? undefined : parsed);
+                            }}
+                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          >
+                            <option value="">Todas</option>
+                            {enterprises.map((e) => (
+                              <option key={e.id} value={e.id}>{e.name}</option>
+                            ))}
+                          </select>
+                        )}
+                        {enterpriseError && <p className="text-xs text-red-500">{enterpriseError}</p>}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:col-span-5 lg:grid-cols-5">
+                      <div className="flex flex-col gap-1 lg:col-span-2">
+                        <label className="text-xs font-medium text-gray-500">Máquina</label>
+                        <select
+                          value={draftFilters.machine_id ?? ''}
+                          onChange={(e) => updateDraftFilters('machine_id', e.target.value ? Number(e.target.value) : undefined)}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        >
+                          <option value="">Todas</option>
+                          {machineOptions.map((m) => (
+                            <option key={m.id} value={m.id}>{m.name ?? `#${m.id}`}</option>
+                          ))}
+                        </select>
+                        {isLoadingMachines && <p className="text-xs text-gray-400">Cargando...</p>}
+                        {machineError && <p className="text-xs text-red-500">{machineError}</p>}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:col-span-2 lg:col-span-3">
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <label className="text-xs font-medium text-gray-500">Desde</label>
+                          <input
+                            type="date"
+                            value={draftFilters.date_from ?? ''}
+                            onChange={(e) => updateDraftFilters('date_from', e.target.value || undefined)}
+                            onClick={openNativeDatePicker}
+                            onFocus={openNativeDatePicker}
+                            className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <label className="text-xs font-medium text-gray-500">Hasta</label>
+                          <input
+                            type="date"
+                            value={draftFilters.date_to ?? ''}
+                            onChange={(e) => updateDraftFilters('date_to', e.target.value || undefined)}
+                            onClick={openNativeDatePicker}
+                            onFocus={openNativeDatePicker}
+                            className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
-
                 </div>
               </div>
 
