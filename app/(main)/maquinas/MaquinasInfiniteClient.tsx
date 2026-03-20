@@ -480,8 +480,8 @@ export default function MaquinasInfiniteClient() {
 
       <div data-tour="machines-list">
 
-        {/* Vista tarjetas (mobile siempre, desktop cuando viewMode=card) */}
-        <div className={viewMode === 'card' ? '' : 'sm:hidden'}>
+        {/* Vista tarjetas */}
+        <div className={viewMode === 'card' ? '' : 'hidden'}>
           {isLoading && machines.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <Loader2 className="h-8 w-8 animate-spin mb-3" />
@@ -499,7 +499,7 @@ export default function MaquinasInfiniteClient() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredMachines.map((m) => {
                 const isOnline = m.status === 'online';
                 const summary  = stockMap[m.id];
@@ -583,9 +583,9 @@ export default function MaquinasInfiniteClient() {
           )}
         </div>
 
-        {/* Vista tabla (desktop cuando viewMode=table) */}
+        {/* Vista tabla */}
         {viewMode === 'table' && (
-          <div className="hidden sm:block">
+          <div className="overflow-x-auto">
             <DataTable
               columns={columns}
               data={filteredMachines}

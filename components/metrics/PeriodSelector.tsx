@@ -15,14 +15,14 @@ export default function PeriodSelector({ period, onChange, variant = 'dark' }: P
   return (
     <div
       data-tour="period-selector"
-      className={`flex items-center gap-1 rounded-lg p-1 ${isDark ? 'bg-white/15' : 'bg-gray-100'}`}
+      className={`flex items-center gap-1 rounded-lg p-1 w-full sm:w-auto ${isDark ? 'bg-white/15' : 'bg-gray-100'}`}
     >
       {(['day', 'month', 'year'] as Period[]).map(p => (
         <button
           key={p}
           type="button"
           onClick={() => onChange(p)}
-          className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${
+          className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${
             period === p
               ? isDark
                 ? 'bg-white text-primary shadow-sm'

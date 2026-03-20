@@ -387,7 +387,7 @@ export default function ReposicionPage() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-              Actualizar
+              <span className="hidden sm:inline">Actualizar</span>
             </button>
             <button
               onClick={handleCopy}
@@ -395,8 +395,8 @@ export default function ReposicionPage() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
               {copied
-                ? <><Check className="h-3.5 w-3.5 text-emerald-600" /><span className="text-emerald-600">Copiado</span></>
-                : <><Copy className="h-3.5 w-3.5" />Copiar listado</>
+                ? <><Check className="h-3.5 w-3.5 text-emerald-600" /><span className="hidden sm:inline text-emerald-600">Copiado</span></>
+                : <><Copy className="h-3.5 w-3.5" /><span className="hidden sm:inline">Copiar</span></>
               }
             </button>
             <button
@@ -405,7 +405,7 @@ export default function ReposicionPage() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 transition-colors"
             >
               <Download className="h-3.5 w-3.5" />
-              Descargar CSV
+              <span className="hidden sm:inline">CSV</span>
             </button>
           </div>
         }
@@ -460,9 +460,9 @@ export default function ReposicionPage() {
                 { label: 'Incompletos',     value: incompleteCount, color: 'text-blue-600',  bg: 'bg-blue-50 border-blue-100',   sub: '30–99%' },
                 { label: 'Unidades faltantes', value: totalUnits,   color: 'text-primary',   bg: 'bg-white border-gray-100',     sub: 'en total' },
               ].map(({ label, value, color, bg, sub }) => (
-                <div key={label} className={`rounded-xl border p-4 ${bg}`}>
-                  <p className="text-xs text-muted font-medium mb-1">{label}</p>
-                  <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                <div key={label} className={`rounded-xl border p-3 sm:p-4 ${bg}`}>
+                  <p className="text-xs text-muted font-medium mb-0.5 leading-tight">{label}</p>
+                  <p className={`text-xl sm:text-2xl font-bold ${color}`}>{value}</p>
                   <p className="text-xs text-muted mt-0.5">{sub}</p>
                 </div>
               ))}
@@ -592,19 +592,19 @@ export default function ReposicionPage() {
                       <div className="overflow-x-auto">
                       <table className="w-full table-fixed text-sm">
                         <colgroup>
-                          <col className="w-[140px]" />
-                          <col className="w-[200px]" />
-                          <col className="hidden md:table-column md:w-[240px]" />
+                          <col className="w-[44px] sm:w-[100px]" />
+                          <col className="w-[130px]" />
+                          <col className="hidden md:table-column md:w-[200px]" />
+                          <col className="w-[90px]" />
                           <col className="w-[120px]" />
-                          <col className="w-[180px]" />
                         </colgroup>
                         <thead className="border-b border-gray-100">
                           <tr>
-                            <th className="text-left px-4 py-2 text-xs font-medium text-muted uppercase tracking-wide">Estado</th>
-                            <th className="text-left px-4 py-2 text-xs font-medium text-muted uppercase tracking-wide">Slot</th>
-                            <th className="text-left px-4 py-2 text-xs font-medium text-muted uppercase tracking-wide hidden md:table-cell">Producto</th>
-                            <th className="text-right px-4 py-2 text-xs font-medium text-muted uppercase tracking-wide">Faltante</th>
-                            <th className="px-4 py-2 text-xs font-medium text-muted uppercase tracking-wide text-right">Acción</th>
+                            <th className="text-left px-3 py-2 text-xs font-medium text-muted uppercase tracking-wide"><span className="hidden sm:inline">Estado</span></th>
+                            <th className="text-left px-3 py-2 text-xs font-medium text-muted uppercase tracking-wide">Slot</th>
+                            <th className="text-left px-3 py-2 text-xs font-medium text-muted uppercase tracking-wide hidden md:table-cell">Producto</th>
+                            <th className="text-right px-3 py-2 text-xs font-medium text-muted uppercase tracking-wide">Faltante</th>
+                            <th className="px-3 py-2 text-xs font-medium text-muted uppercase tracking-wide text-right">Acción</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
@@ -621,31 +621,28 @@ export default function ReposicionPage() {
                                   'hover:bg-gray-50/60'
                                 }`}
                               >
-                                <td className="px-4 py-3">
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${LEVEL_BADGE[row.level]}`}>
+                                <td className="px-3 py-2">
+                                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold border ${LEVEL_BADGE[row.level]}`}>
                                     {row.level === 'critical' ? <XCircle className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-                                    {LEVEL_LABEL[row.level]}
+                                    <span className="hidden sm:inline">{LEVEL_LABEL[row.level]}</span>
                                   </span>
                                 </td>
-                                <td className="px-4 py-3">
+                                <td className="px-3 py-2">
                                   <p className="text-sm font-semibold text-dark truncate">{row.slot.label}</p>
                                   <p className="text-xs font-mono text-muted truncate">MDB {row.slot.mdb_code}</p>
                                 </td>
-                                <td className="px-4 py-3 hidden md:table-cell">
+                                <td className="px-3 py-2 hidden md:table-cell">
                                   {row.productName
                                     ? <p className="text-sm text-dark truncate">{row.productName}</p>
                                     : <span className="text-xs text-muted italic">Sin asignar</span>
                                   }
                                 </td>
-                                <td className="px-4 py-3 text-right">
+                                <td className="px-3 py-2 text-right">
                                   {row.neededKnown ? (
-                                    <div className="inline-flex flex-col items-end gap-1">
+                                    <div className="inline-flex flex-col items-end gap-0.5">
                                       <div>
-                                        <span className={`text-base font-bold ${row.needed > 0 ? LEVEL_BADGE[row.level].split(' ')[1] : 'text-emerald-600'}`}>{row.needed}</span>
-                                        <span className="text-xs text-muted ml-1">uds.</span>
-                                      </div>
-                                      <div className="w-20 bg-gray-200 rounded-full h-1.5">
-                                        <div className={`h-1.5 rounded-full ${LEVEL_BAR[row.level]}`} style={{ width: `${row.pct}%` }} />
+                                        <span className={`text-sm font-bold ${row.needed > 0 ? LEVEL_BADGE[row.level].split(' ')[1] : 'text-emerald-600'}`}>{row.needed}</span>
+                                        <span className="text-xs text-muted ml-0.5">uds.</span>
                                       </div>
                                       <span className="text-[10px] text-muted">{row.slot.current_stock ?? 0}/{row.slot.capacity}</span>
                                     </div>
@@ -653,9 +650,9 @@ export default function ReposicionPage() {
                                     <span className="text-xs text-muted">—</span>
                                   )}
                                 </td>
-                                <td className="px-4 py-3 text-right">
+                                <td className="px-3 py-2 text-right">
                                   {wasSaved ? (
-                                    <span className="inline-flex w-[140px] items-center justify-end gap-1 text-xs text-emerald-600 font-medium">
+                                    <span className="inline-flex items-center justify-end gap-1 text-xs text-emerald-600 font-medium">
                                       <CheckCircle className="h-3.5 w-3.5" /> Guardado
                                     </span>
                                   ) : isEditing ? (
@@ -663,7 +660,7 @@ export default function ReposicionPage() {
                                   ) : (
                                     <button
                                       onClick={() => setEditingSlotId(row.slot.id)}
-                                      className="inline-flex w-[140px] items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                                      className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
                                     >
                                       <RefreshCw className="h-3 w-3" />
                                       Reponer

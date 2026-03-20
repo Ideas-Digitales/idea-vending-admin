@@ -1034,7 +1034,7 @@ export default function PagosInfiniteClient() {
                   </div>
 
                   {/* Empresa */}
-                  <div className="flex flex-col gap-1">
+                  <div className="col-span-2 lg:col-span-6 flex flex-col gap-1">
                     <label className="text-xs font-medium text-gray-500">Empresa</label>
                     {isLoadingEnterprises ? (
                       <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-400">

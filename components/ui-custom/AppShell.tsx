@@ -54,7 +54,7 @@ export default function AppShell({ children }: AppShellProps) {
         </div>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col min-h-screen overflow-auto min-w-0">
+        <div className="flex-1 flex flex-col h-screen overflow-y-auto min-w-0">
           {children}
         </div>
       </div>
