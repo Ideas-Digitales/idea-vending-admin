@@ -1126,7 +1126,7 @@ export default function PagosInfiniteClient() {
                         const [field, direction] = e.target.value.split(':');
                         handleSortChange([{ field, direction: direction as 'asc' | 'desc' }]);
                       }}
-                      className="w-full sm:w-48 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="w-full sm:w-64 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/30"
                     >
                       {SORT_OPTIONS.map((opt) => (
                         <option key={`${opt.field}:${opt.direction}`} value={`${opt.field}:${opt.direction}`}>
