@@ -4,10 +4,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, TrendingDown, ShoppingCart, BarChart2, Activity, ArrowUpRight } from 'lucide-react';
 import { aggregatePaymentsAction, type AggregateDataPoint } from '@/lib/actions/payments';
 import {
-  clp, clpShort, getPeriodRange, getGroupBy, mapGroupedData, computeInsights,
-  PERIOD_LABELS, type Period, type ChartMetric,
+  clp, clpShort, getPeriodRange, getGroupBy, mapDualAxisData, computeInsights,
+  PERIOD_LABELS, type Period,
 } from '@/lib/utils/metricsHelpers';
-import { SalesAreaChart, KpiSkeleton } from '@/components/metrics/MetricsCharts';
+import { SalesDualAxisChart, KpiSkeleton, type SeriesType } from '@/components/metrics/MetricsCharts';
 import { HelpTooltip } from '@/components/help/HelpTooltip';
 
 interface ResumenMetricsPanelProps {
@@ -26,7 +26,8 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
   const [aggPrev, setAggPrev]       = useState<{ total_amount: number; total_count: number } | null>(null);
   const [rawOk, setRawOk]           = useState<AggregateDataPoint[]>([]);
   const [loading, setLoading]       = useState(true);
-  const [metric, setMetric]         = useState<ChartMetric>('amount');
+  const [amountType, setAmountType] = useState<SeriesType>('bar');
+  const [countType,  setCountType]  = useState<SeriesType>('line');
 
   const groupBy = getGroupBy(period);
 
@@ -56,10 +57,10 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
   }, [period, enterpriseId, groupBy]);
 
   const chartData = useMemo(() =>
-    mapGroupedData(rawOk, groupBy, period, metric),
-  [rawOk, groupBy, period, metric]);
+    mapDualAxisData(rawOk, groupBy, period),
+  [rawOk, groupBy, period]);
 
-  const insightsData = chartData.map(d => ({ label: d.label, value: d.value }));
+  const insightsData = chartData.map(d => ({ label: d.label, value: d.amount }));
 
   const totalAmount   = aggCurrent?.total_amount ?? 0;
   const totalCount    = aggCurrent?.total_count  ?? 0;
@@ -69,7 +70,7 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
     : null;
   const growthPositive  = (growthPct ?? 0) >= 0;
   const growthAvailable = growthPct !== null;
-  const insights        = computeInsights(period, insightsData, metric);
+  const insights        = computeInsights(period, insightsData, 'amount');
 
   return (
     <div className="space-y-4">
@@ -164,36 +165,56 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
             <p className="text-white/65 text-xs mt-0.5">{CHART_TITLE[period].subtitle}</p>
           </div>
 
-          {/* Toggle monto / cantidad */}
-          <div className="flex items-center gap-0.5 bg-white/15 rounded-lg p-0.5 flex-shrink-0">
-            <button
-              onClick={() => setMetric('amount')}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-                metric === 'amount' ? 'bg-white text-primary shadow-sm' : 'text-white/70 hover:text-white'
-              }`}
-            >
-              Monto
-            </button>
-            <button
-              onClick={() => setMetric('count')}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-                metric === 'count' ? 'bg-white text-primary shadow-sm' : 'text-white/70 hover:text-white'
-              }`}
-            >
-              Cantidad
-            </button>
-          </div>
+          <div className="flex items-center gap-4 flex-shrink-0 flex-wrap justify-end">
+            {/* Selectores de tipo de serie */}
+            <div className="flex items-center gap-3">
+              {(
+                [
+                  { label: 'Monto',  type: amountType, setType: setAmountType, color: 'bg-blue-400' },
+                  { label: 'Ventas', type: countType,  setType: setCountType,  color: 'bg-emerald-400' },
+                ] as { label: string; type: SeriesType; setType: (v: SeriesType) => void; color: string }[]
+              ).map(({ label, type, setType, color }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${color} flex-shrink-0`} />
+                  <span className="text-white/70 text-xs">{label}</span>
+                  <div className="flex items-center gap-0.5 bg-white/15 rounded-md p-0.5">
+                    <button
+                      onClick={() => setType('line')}
+                      title="Línea"
+                      className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${
+                        type === 'line' ? 'bg-white text-primary shadow-sm' : 'text-white/70 hover:text-white'
+                      }`}
+                    >〜</button>
+                    <button
+                      onClick={() => setType('bar')}
+                      title="Barras"
+                      className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${
+                        type === 'bar' ? 'bg-white text-primary shadow-sm' : 'text-white/70 hover:text-white'
+                      }`}
+                    >▌</button>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-          <div className="text-right flex-shrink-0">
-            <p className="text-white/60 text-xs">
-              {metric === 'amount' ? `Total ${PERIOD_LABELS[period]}` : `Ventas ${PERIOD_LABELS[period]}`}
-            </p>
-            {loading
-              ? <div className="h-8 w-24 bg-white/20 rounded-lg animate-pulse mt-0.5" />
-              : metric === 'amount'
-                ? <p className="text-2xl font-bold text-white leading-tight">{clpShort(totalAmount)}</p>
-                : <p className="text-2xl font-bold text-white leading-tight">{totalCount.toLocaleString('es-CL')}</p>
-            }
+            <div className="w-px h-8 bg-white/20 flex-shrink-0 hidden sm:block" />
+
+            {/* Totales */}
+            <div className="text-right">
+              <p className="text-white/60 text-xs">Monto {PERIOD_LABELS[period]}</p>
+              {loading
+                ? <div className="h-7 w-20 bg-white/20 rounded-lg animate-pulse mt-0.5" />
+                : <p className="text-xl font-bold text-white leading-tight">{clpShort(totalAmount)}</p>
+              }
+            </div>
+            <div className="w-px h-8 bg-white/20 flex-shrink-0" />
+            <div className="text-right">
+              <p className="text-white/60 text-xs">Ventas {PERIOD_LABELS[period]}</p>
+              {loading
+                ? <div className="h-7 w-12 bg-white/20 rounded-lg animate-pulse mt-0.5" />
+                : <p className="text-xl font-bold text-emerald-300 leading-tight">{totalCount.toLocaleString('es-CL')}</p>
+              }
+            </div>
           </div>
         </div>
 
@@ -205,7 +226,7 @@ export default function ResumenMetricsPanel({ enterpriseId, period }: ResumenMet
                   <p className="text-xs text-muted">Cargando datos...</p>
                 </div>
               </div>
-            : <SalesAreaChart key={metric} data={chartData} metric={metric} />
+            : <SalesDualAxisChart data={chartData} amountType={amountType} countType={countType} />
           }
         </div>
 

@@ -136,9 +136,26 @@ const PaymentDetailModal = memo(function PaymentDetailModal({
               Medio de pago
             </h3>
             <div className="grid gap-4 md:grid-cols-2">
-              <InfoRow label="Tarjeta" value={payment.card_brand ?? 'Sin marca'} />
+              <InfoRow label="Tarjeta" value={(() => {
+                const BRAND_LABELS: Record<string, string> = {
+                  'VI': 'Visa', 'MC': 'Mastercard', 'AX': 'Amex',
+                  'DC': 'Diners', 'MG': 'Magna', 'DB': 'Redcompra', 'P': '—',
+                };
+                const b = payment.card_brand;
+                if (!b) return 'Sin marca';
+                return BRAND_LABELS[b.trim()] ?? b;
+              })()} />
               <InfoRow label="Últimos dígitos" value={payment.last_digits ? `**** ${payment.last_digits}` : '—'} />
-              <InfoRow label="Tipo" value={payment.card_type ?? 'No informado'} />
+              <InfoRow label="Tipo" value={(() => {
+                const CARD_TYPE_LABELS: Record<string, string> = {
+                  'CR': 'Crédito',
+                  'DB': 'Débito',
+                  'P ': 'Prepago',
+                };
+                const raw = payment.card_type;
+                if (!raw) return 'No informado';
+                return CARD_TYPE_LABELS[raw] ?? CARD_TYPE_LABELS[raw.trim()] ?? raw;
+              })()} />
               <InfoRow label="Cuotas" value={shareInfo} />
             </div>
           </section>
@@ -155,7 +172,36 @@ const PaymentDetailModal = memo(function PaymentDetailModal({
               />
               <InfoRow
                 label="Código / Mensaje"
-                value={`${payment.response_code ?? '—'} · ${payment.response_message ?? 'Sin mensaje'}`}
+                value={(() => {
+                  const RESPONSE_LABELS: Record<string, string> = {
+                    '00': 'Aprobado',
+                    '01': 'Rechazado',
+                    '02': 'Autorizador no responde',
+                    '05': 'No existe transacción para anular',
+                    '06': 'Tarjeta no soportada',
+                    '07': 'Transacción cancelada',
+                    '09': 'Error lectura tarjeta',
+                    '10': 'Monto menor al mínimo permitido',
+                    '11': 'No existe venta',
+                    '12': 'Transacción no soportada',
+                    '78': 'Modo Multicomercio no activo',
+                    '79': 'Modo Venta Normal no activo',
+                    '81': 'Solicitando ingreso de clave',
+                    '82': 'Enviando transacción al autorizador',
+                    '83': 'Selección menú crédito/Redcompra',
+                    '84': 'Opere tarjeta',
+                    '85': 'Selección de cuotas',
+                    '86': 'Ingreso de cuotas',
+                    '87': 'Confirmación de cuotas',
+                    '88': 'Aceptar consulta cuotas',
+                    '90': 'Inicialización exitosa',
+                    '91': 'Inicialización fallida',
+                    '93': 'Consultando cuota al autorizador',
+                  };
+                  const code = payment.response_code != null ? String(payment.response_code).padStart(2, '0') : null;
+                  const label = code ? (RESPONSE_LABELS[code] ?? payment.response_message ?? 'Sin mensaje') : (payment.response_message ?? 'Sin mensaje');
+                  return code ? `${code} · ${label}` : label;
+                })()}
                 icon={Info}
               />
               <InfoRow label="Comercio" value={payment.commerce_code ?? '—'} />

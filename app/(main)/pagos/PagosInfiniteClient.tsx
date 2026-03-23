@@ -152,6 +152,32 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
+const CARD_TYPE_LABELS: Record<string, string> = {
+  'CR': 'Crédito',
+  'DB': 'Débito',
+  'P ': 'Prepago',
+};
+
+const CARD_BRAND_LABELS: Record<string, string> = {
+  'VI': 'Visa',
+  'MC': 'Mastercard',
+  'AX': 'Amex',
+  'DC': 'Diners',
+  'MG': 'Magna',
+  'DB': 'Redcompra',
+  'P':  '—',
+};
+
+function formatCardType(cardType?: string | null): string {
+  if (!cardType) return '';
+  return CARD_TYPE_LABELS[cardType] ?? CARD_TYPE_LABELS[cardType.trim()] ?? cardType;
+}
+
+function formatCardBrand(brand?: string | null): string {
+  if (!brand) return '';
+  return CARD_BRAND_LABELS[brand.trim()] ?? brand;
+}
+
 function formatPaymentDate(payment: Payment) {
   const rawDate = payment.date ?? payment.created_at ?? payment.updated_at;
   if (!rawDate) {
@@ -898,7 +924,7 @@ export default function PagosInfiniteClient() {
                                     <div className="flex items-center gap-2 text-sm text-gray-600">
                                       <CreditCard className="h-4 w-4 text-gray-500" />
                                       <span>
-                                        {payment.card_brand ?? 'Sin marca'} · **** {payment.last_digits ?? '0000'}
+                                        {formatCardBrand(payment.card_brand) || 'Sin marca'} · **** {payment.last_digits ?? '0000'}
                                       </span>
                                     </div>
                                   </div>
@@ -927,7 +953,7 @@ export default function PagosInfiniteClient() {
                                         <DetailRow label="Autorización" value={payment.authorization_code ?? 'N/D'} />
                                         <DetailRow label="Comercio" value={payment.commerce_code ?? 'N/D'} />
                                         <DetailRow label="Terminal" value={payment.terminal_id ?? 'N/D'} />
-                                        <DetailRow label="Tipo tarjeta" value={payment.card_type ?? 'N/D'} />
+                                        <DetailRow label="Tipo tarjeta" value={formatCardType(payment.card_type) || 'N/D'} />
                                         <DetailRow label="Cuotas" value={payment.shares_number ? `${payment.shares_number}x (${payment.share_type ?? 'sin tipo'})` : 'Pago único'} />
                                         <DetailRow label="Máquina" value={payment.machine_name ?? `ID ${payment.machine_id ?? 'N/D'}`} />
                                         <DetailRow label="Registrado" value={new Date(payment.created_at).toLocaleString('es-CL')} />
@@ -1105,7 +1131,7 @@ export default function PagosInfiniteClient() {
               </div>
 
               {/* Payments Table */}
-              <div data-tour="payments-table" className="card overflow-hidden">
+              <div data-tour="payments-table" className="card">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-wrap">
                   <div className="flex items-center gap-3">
                     <h3 className="text-lg font-bold text-dark">Lista de Transacciones</h3>
@@ -1179,9 +1205,9 @@ export default function PagosInfiniteClient() {
                               </div>
                             </TableCell>
                             <TableCell className="hidden sm:table-cell px-6 py-2.5 whitespace-nowrap">
-                              <div className="text-sm text-dark">{payment.card_brand}</div>
+                              <div className="text-sm text-dark">{formatCardBrand(payment.card_brand)}</div>
                               <div className="text-sm text-muted">**** {payment.last_digits}</div>
-                              <div className="text-xs text-muted capitalize">{payment.card_type}</div>
+                              {payment.card_type && <div className="text-xs text-muted">{formatCardType(payment.card_type)}</div>}
                             </TableCell>
                             <TableCell className="px-4 sm:px-6 py-2.5 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full border ${getStatusColor(payment.successful)}`}>

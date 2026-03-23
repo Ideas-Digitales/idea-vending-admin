@@ -86,6 +86,19 @@ export function formatGroupDateFull(dateStr: string, groupBy: 'day' | 'month', p
   return `${DAY_SHORT[dt.getUTCDay()]} ${dayNum}/${monthNum}/${year}`;
 }
 
+export function mapDualAxisData(
+  points: AggregateDataPoint[] | undefined,
+  groupBy: 'day' | 'month',
+  period: Period,
+): { label: string; tooltipLabel: string; amount: number; count: number }[] {
+  return (points ?? []).map(pt => ({
+    label:        formatGroupDate(pt.date, groupBy, period),
+    tooltipLabel: formatGroupDateFull(pt.date, groupBy, period),
+    amount:       pt.total_amount,
+    count:        pt.total_count,
+  }));
+}
+
 export function mapGroupedData(
   points: AggregateDataPoint[] | undefined,
   groupBy: 'day' | 'month',

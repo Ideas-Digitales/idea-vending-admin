@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  AreaChart, Area, BarChart, Bar,
+  AreaChart, Area, BarChart, Bar, ComposedChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
 } from 'recharts';
@@ -156,6 +156,94 @@ export function SalesBarChart({ data }: { data: { label: string; value: number }
         {max > 0 && <ReferenceLine y={max} stroke="#3157b2" strokeDasharray="4 4" strokeOpacity={0.3} />}
         <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="url(#barGrad)" />
       </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+// ── Dual-axis chart (monto + cantidad, tipo por serie) ────────
+export type SeriesType = 'line' | 'bar';
+
+export function SalesDualAxisChart({
+  data,
+  amountType = 'line',
+  countType  = 'line',
+}: {
+  data:        { label: string; tooltipLabel?: string; amount: number; count: number }[];
+  amountType?: SeriesType;
+  countType?:  SeriesType;
+}) {
+  const sharedTooltip = (
+    <Tooltip
+      cursor={{ fill: 'rgba(49,87,178,0.06)' }}
+      content={({ active, payload, label: lbl }) => {
+        if (!active || !payload?.length) return null;
+        const displayLabel = (payload[0]?.payload as { tooltipLabel?: string })?.tooltipLabel ?? lbl;
+        const amountEntry  = payload.find(p => p.dataKey === 'amount');
+        const countEntry   = payload.find(p => p.dataKey === 'count');
+        return (
+          <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-3 py-2 text-xs space-y-1.5">
+            <p className="text-muted font-medium">{displayLabel}</p>
+            {amountEntry && (
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-sm bg-primary flex-shrink-0" />
+                <span className="text-muted">Monto:</span>
+                <span className="font-bold text-dark">{clp(amountEntry.value as number)}</span>
+              </div>
+            )}
+            {countEntry && (
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                <span className="text-muted">Ventas:</span>
+                <span className="font-bold text-dark">{(countEntry.value as number).toLocaleString('es-CL')}</span>
+              </div>
+            )}
+          </div>
+        );
+      }}
+    />
+  );
+
+  return (
+    <ResponsiveContainer width="100%" height={240}>
+      <ComposedChart data={data} margin={{ top: 10, right: 44, left: 8, bottom: 4 }} barCategoryGap="35%">
+        <defs>
+          <linearGradient id="dualBarAmount" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#4c6fd0" />
+            <stop offset="100%" stopColor="#3157b2" />
+          </linearGradient>
+          <linearGradient id="dualBarCount" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#34d399" />
+            <stop offset="100%" stopColor="#10b981" />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+        <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+        <YAxis
+          yAxisId="amount"
+          tick={{ fontSize: 10, fill: '#d1d5db' }}
+          axisLine={false} tickLine={false}
+          tickFormatter={clpShort}
+          width={52}
+        />
+        <YAxis
+          yAxisId="count"
+          orientation="right"
+          tick={{ fontSize: 10, fill: '#d1d5db' }}
+          axisLine={false} tickLine={false}
+          tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)}
+          width={36}
+        />
+        {sharedTooltip}
+
+        {amountType === 'bar'
+          ? <Bar  yAxisId="amount" dataKey="amount" radius={[4, 4, 0, 0]} fill="url(#dualBarAmount)" maxBarSize={28} />
+          : <Line yAxisId="amount" type="monotone" dataKey="amount" stroke="#3157b2" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#3157b2', stroke: 'white', strokeWidth: 2 }} />
+        }
+        {countType === 'bar'
+          ? <Bar  yAxisId="count" dataKey="count" radius={[4, 4, 0, 0]} fill="url(#dualBarCount)" maxBarSize={28} />
+          : <Line yAxisId="count" type="monotone" dataKey="count" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#10b981', stroke: 'white', strokeWidth: 2 }} />
+        }
+      </ComposedChart>
     </ResponsiveContainer>
   );
 }

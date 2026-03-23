@@ -30,17 +30,35 @@ import Link from 'next/link';
 import { HelpTooltip } from '@/components/help/HelpTooltip';
 import { TourRunner, type Step } from '@/components/help/TourRunner';
 import {
-  clp, getPeriodRange, getGroupBy, mapGroupedData,
+  clp, getPeriodRange, getGroupBy, mapDualAxisData,
   PERIOD_LABELS, type Period,
 } from '@/lib/utils/metricsHelpers';
-import { SalesAreaChart, KpiSkeleton } from '@/components/metrics/MetricsCharts';
+import { SalesDualAxisChart, KpiSkeleton, type SeriesType } from '@/components/metrics/MetricsCharts';
 import MachineProductsPanel from '@/components/metrics/MachineProductsPanel';
+import PaymentDetailModal from '@/app/(main)/pagos/PaymentDetailModal';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
 
 const MachineQRLabel = dynamic(() => import('@/components/MachineQRLabel'), { ssr: false });
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 type Tab = 'pagos' | 'productos' | 'reposicion' | 'configuracion';
 type PaymentSortOption = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc';
+
+const CARD_TYPE_LABELS: Record<string, string> = { 'CR': 'Crédito', 'DB': 'Débito', 'P ': 'Prepago' };
+const CARD_BRAND_LABELS: Record<string, string> = {
+  'VI': 'Visa', 'MC': 'Mastercard', 'AX': 'Amex',
+  'DC': 'Diners', 'MG': 'Magna', 'DB': 'Redcompra', 'P': '—',
+};
+function formatCardType(t?: string | null) {
+  if (!t) return '';
+  return CARD_TYPE_LABELS[t] ?? CARD_TYPE_LABELS[t.trim()] ?? t;
+}
+function formatCardBrand(b?: string | null) {
+  if (!b) return '';
+  return CARD_BRAND_LABELS[b.trim()] ?? b;
+}
 
 // ── Helpers de estado ─────────────────────────────────────────────────────────
 const getStatusColor = (s: string) =>
@@ -167,7 +185,9 @@ export default function MaquinaDetallePage() {
   const [period, setPeriod]         = useState<Period>('month');
   const [aggCurrent, setAggCurrent] = useState<{ total_amount: number; total_count: number } | null>(null);
   const [aggPrev, setAggPrev]       = useState<{ total_amount: number; total_count: number } | null>(null);
-  const [chartData, setChartData]   = useState<{ label: string; value: number }[]>([]);
+  const [chartData, setChartData]   = useState<{ label: string; tooltipLabel: string; amount: number; count: number }[]>([]);
+  const [amountType, setAmountType] = useState<SeriesType>('bar');
+  const [countType,  setCountType]  = useState<SeriesType>('line');
   const [loadingMetrics, setLoadingMetrics] = useState(true);
 
   useEffect(() => {
@@ -184,7 +204,7 @@ export default function MaquinaDetallePage() {
     ]).then(([curr, prev, chart]) => {
       if (curr.success)  setAggCurrent({ total_amount: curr.total_amount ?? 0, total_count: curr.total_count ?? 0 });
       if (prev.success)  setAggPrev({ total_amount: prev.total_amount ?? 0, total_count: prev.total_count ?? 0 });
-      if (chart.success) setChartData(mapGroupedData(chart.data, groupBy, period));
+      if (chart.success) setChartData(mapDualAxisData(chart.data, groupBy, period));
     }).catch(() => {}).finally(() => setLoadingMetrics(false));
   }, [machineId, period]);
 
@@ -201,6 +221,7 @@ export default function MaquinaDetallePage() {
   const [paymentsPage, setPaymentsPage]     = useState(1);
   const [paymentsTotalPages, setPaymentsTotalPages] = useState(1);
   const [paymentsSort, setPaymentsSort]     = useState<PaymentSortOption>('date_desc');
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const PAYMENTS_PER_PAGE = 10;
 
   useEffect(() => {
@@ -514,6 +535,15 @@ export default function MaquinaDetallePage() {
               </span>
             )}
             <div className="flex-1" />
+            {activeTab === 'productos' && (
+              <button
+                onClick={() => { setSlotToEdit(null); setSlotModalOpen(true); }}
+                className="inline-flex items-center gap-1.5 py-1.5 px-4 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Nuevo slot</span>
+              </button>
+            )}
             <button
               onClick={() => setIsQROpen(true)}
               className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-[#3157b2]/40 text-[#3157b2] text-xs font-semibold bg-white hover:bg-[#3157b2]/5 transition-colors"
@@ -1103,12 +1133,43 @@ export default function MaquinaDetallePage() {
                     </div>
                   </div>
 
+                  {/* Selector de tipo de serie */}
+                  <div className="px-5 py-2.5 border-t border-gray-100 flex items-center gap-4 flex-wrap">
+                    {(
+                      [
+                        { label: 'Monto',  type: amountType, setType: setAmountType, color: 'bg-primary' },
+                        { label: 'Ventas', type: countType,  setType: setCountType,  color: 'bg-emerald-500' },
+                      ] as { label: string; type: SeriesType; setType: (v: SeriesType) => void; color: string }[]
+                    ).map(({ label, type, setType, color }) => (
+                      <div key={label} className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${color} flex-shrink-0`} />
+                        <span className="text-xs text-muted">{label}</span>
+                        <div className="flex items-center gap-0.5 bg-gray-100 rounded-md p-0.5">
+                          <button
+                            onClick={() => setType('line')}
+                            title="Línea"
+                            className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${
+                              type === 'line' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                            }`}
+                          >〜</button>
+                          <button
+                            onClick={() => setType('bar')}
+                            title="Barras"
+                            className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${
+                              type === 'bar' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                            }`}
+                          >▌</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
                   <div className="px-4 pb-4">
                     {loadingMetrics
                       ? <div className="h-44 bg-gray-50 rounded-xl animate-pulse" />
-                      : chartData.every(d => d.value === 0)
+                      : chartData.every(d => d.amount === 0)
                         ? <div className="h-44 flex items-center justify-center text-sm text-muted bg-gray-50 rounded-xl">Sin ventas en este período</div>
-                        : <SalesAreaChart data={chartData} />
+                        : <SalesDualAxisChart data={chartData} amountType={amountType} countType={countType} />
                     }
                   </div>
                 </div>
@@ -1122,12 +1183,12 @@ export default function MaquinaDetallePage() {
 
                 {/* ── Listado de pagos ── */}
                 <div className="card overflow-hidden">
-                  <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-3">
+                  <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-2">
                       <CreditCard className="h-4 w-4 text-primary" />
                       <h3 className="text-sm font-semibold text-dark">Pagos recientes</h3>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <div className="relative">
                         <select
                           value={paymentsSort}
@@ -1147,6 +1208,14 @@ export default function MaquinaDetallePage() {
                           Página {paymentsPage} de {paymentsTotalPages}
                         </span>
                       )}
+                      <Link
+                        href={`/pagos?machine_id=${machineId}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-primary/30 text-primary hover:bg-primary/5 transition"
+                      >
+                        <CreditCard className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Ver todos los pagos</span>
+                        <span className="sm:hidden">Ver todos</span>
+                      </Link>
                     </div>
                   </div>
 
@@ -1160,45 +1229,68 @@ export default function MaquinaDetallePage() {
                       Sin pagos registrados para esta máquina
                     </div>
                   ) : (
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50/70 border-b border-gray-100">
-                        <tr>
-                          <th className="text-left px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide">Fecha</th>
-                          <th className="text-left px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide hidden sm:table-cell">Producto</th>
-                          <th className="text-left px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide hidden md:table-cell">Tarjeta</th>
-                          <th className="text-right px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide">Monto</th>
-                          <th className="text-center px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide">Estado</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {payments.map(p => (
-                          <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">
-                              {new Date(p.date || p.created_at).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-dark max-w-[180px] truncate hidden sm:table-cell">
-                              {p.product || <span className="italic text-muted">—</span>}
-                            </td>
-                            <td className="px-4 py-3 text-xs text-muted hidden md:table-cell">
-                              {p.card_brand ? `${p.card_brand} ···${p.last_digits}` : '—'}
-                            </td>
-                            <td className="px-4 py-3 text-sm font-semibold text-dark text-right whitespace-nowrap">
-                              {clp(p.amount ?? 0)}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${
-                                p.successful
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : 'bg-red-50 text-red-700 border-red-200'
-                              }`}>
-                                {p.successful ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                                {p.successful ? 'OK' : 'Error'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-gray-50">
+                            <TableHead className="hidden sm:table-cell px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">ID / Operación</TableHead>
+                            <TableHead className="px-4 sm:px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</TableHead>
+                            <TableHead className="px-4 sm:px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</TableHead>
+                            <TableHead className="hidden md:table-cell px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Tarjeta</TableHead>
+                            <TableHead className="px-4 sm:px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</TableHead>
+                            <TableHead className="hidden sm:table-cell px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</TableHead>
+                            <TableHead className="px-4 sm:px-6 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {payments.map(p => (
+                            <TableRow key={p.id} className="hover:bg-blue-50/60">
+                              <TableCell className="hidden sm:table-cell px-6 py-2.5 whitespace-nowrap">
+                                <div className="text-sm font-medium text-dark">#{p.id}</div>
+                                <div className="text-xs text-muted">{p.operation_number ?? '—'}</div>
+                              </TableCell>
+                              <TableCell className="px-4 sm:px-6 py-2.5">
+                                <div className="text-sm font-medium text-dark">{p.product || <span className="italic text-muted">—</span>}</div>
+                                <div className="text-xs text-muted sm:hidden">
+                                  {new Date(p.date || p.created_at).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })}
+                                </div>
+                              </TableCell>
+                              <TableCell className="px-4 sm:px-6 py-2.5 whitespace-nowrap">
+                                <div className="text-sm font-bold text-dark">{clp(p.amount ?? 0)}</div>
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell px-6 py-2.5 whitespace-nowrap">
+                                <div className="text-sm text-dark">{formatCardBrand(p.card_brand) || '—'}</div>
+                                {p.last_digits && <div className="text-xs text-muted">**** {p.last_digits}</div>}
+                                {p.card_type && <div className="text-xs text-muted">{formatCardType(p.card_type)}</div>}
+                              </TableCell>
+                              <TableCell className="px-4 sm:px-6 py-2.5 whitespace-nowrap">
+                                <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full border ${
+                                  p.successful
+                                    ? 'bg-green-100 text-green-800 border-green-200'
+                                    : 'bg-red-100 text-red-800 border-red-200'
+                                }`}>
+                                  {p.successful ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                                  <span className="ml-1 hidden sm:inline">{p.successful ? 'Exitoso' : 'Fallido'}</span>
+                                </span>
+                              </TableCell>
+                              <TableCell className="hidden sm:table-cell px-6 py-2.5 whitespace-nowrap text-sm text-muted">
+                                {new Date(p.date || p.created_at).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })}
+                              </TableCell>
+                              <TableCell className="px-4 sm:px-6 py-2.5 whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedPayment(p)}
+                                  className="inline-flex items-center rounded-lg border border-primary/30 px-3 py-1.5 text-sm font-semibold text-primary hover:bg-primary/5 transition"
+                                >
+                                  <span className="hidden sm:inline">Ver detalle</span>
+                                  <span className="sm:hidden">Ver</span>
+                                </button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   )}
 
                   {/* Paginación */}
@@ -1544,6 +1636,16 @@ export default function MaquinaDetallePage() {
         products={products}
         isLoadingProducts={isLoadingProducts}
         onSuccess={() => fetchSlots(Number(machineId))}
+      />
+
+      <PaymentDetailModal
+        payment={selectedPayment}
+        open={Boolean(selectedPayment)}
+        onClose={() => setSelectedPayment(null)}
+        enterpriseName={null}
+        machineDetails={machine ?? null}
+        machineDetailsLoading={false}
+        machineDetailsError={null}
       />
     </>
   );
