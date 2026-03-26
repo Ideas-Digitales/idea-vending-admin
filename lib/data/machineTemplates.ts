@@ -11,7 +11,6 @@ export interface MachineTemplate {
   description: string;
   columns: number;
   rows: number;
-  emoji: string;
   tags: string[];
   popular?: boolean;
   category: 'snack' | 'beverage' | 'combo' | 'compact';
@@ -40,7 +39,6 @@ export const MACHINE_TEMPLATES: MachineTemplate[] = [
     description: 'La máquina de snacks más popular en Chile y Latinoamérica. Distribución uniforme en 5 columnas.',
     columns: 5,
     rows: 7,
-    emoji: '🏭',
     tags: ['Snack'],
     popular: true,
     category: 'snack',
@@ -52,7 +50,6 @@ export const MACHINE_TEMPLATES: MachineTemplate[] = [
     description: 'Máquina de alta capacidad con 6 columnas. Ideal para ubicaciones de alto tráfico.',
     columns: 6,
     rows: 8,
-    emoji: '🗄️',
     tags: ['Snack', 'Alta cap.'],
     popular: true,
     category: 'snack',
@@ -64,7 +61,6 @@ export const MACHINE_TEMPLATES: MachineTemplate[] = [
     description: 'Diseño compacto de 4 columnas, ideal para espacios reducidos con buena variedad.',
     columns: 4,
     rows: 6,
-    emoji: '📦',
     tags: ['Compacta', 'Snack'],
     category: 'compact',
   },
@@ -75,7 +71,6 @@ export const MACHINE_TEMPLATES: MachineTemplate[] = [
     description: 'Máquina estándar de 5 columnas con 6 filas. Versatilidad para snacks y bebidas frías.',
     columns: 5,
     rows: 6,
-    emoji: '🛒',
     tags: ['Combo', 'Snack'],
     category: 'combo',
   },
@@ -86,7 +81,6 @@ export const MACHINE_TEMPLATES: MachineTemplate[] = [
     description: 'Formato angosto con 3 columnas. Perfecta para pasillos y espacios muy limitados.',
     columns: 3,
     rows: 5,
-    emoji: '🎪',
     tags: ['Compacta', 'Mini'],
     category: 'compact',
   },
@@ -97,7 +91,6 @@ export const MACHINE_TEMPLATES: MachineTemplate[] = [
     description: 'Combo de snacks y bebidas. 4 columnas con mayor profundidad por fila.',
     columns: 4,
     rows: 8,
-    emoji: '☕',
     tags: ['Combo', 'Bebidas'],
     category: 'beverage',
   },

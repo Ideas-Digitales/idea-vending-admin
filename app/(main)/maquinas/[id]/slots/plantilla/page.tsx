@@ -6,10 +6,20 @@ import Link from 'next/link';
 import {
   ArrowLeft, ArrowRight, Check, ChevronRight, Sparkles, Settings2,
   Grid3x3, AlignJustify, Layers, Plus, Package, Star, Minus, X,
-  CheckCircle2, Cpu, Zap,
+  CheckCircle2, Cpu, Zap, Factory, Server, Box, ShoppingCart,
+  LayoutTemplate, Coffee, Pencil, type LucideIcon,
 } from 'lucide-react';
 import { PageHeader } from '@/components/ui-custom';
 import { Monitor } from 'lucide-react';
+
+const TEMPLATE_ICONS: Record<string, LucideIcon> = {
+  'crane-167':     Factory,
+  'jofemar-vision': Server,
+  'bianchi-rondo': Box,
+  'sielaff-f3':    ShoppingCart,
+  'ivs-slim':      LayoutTemplate,
+  'nw-g-snack':    Coffee,
+};
 import {
   MACHINE_TEMPLATES, MOCK_PRODUCTS,
   type MachineTemplate, type MockProduct,
@@ -99,7 +109,9 @@ function TemplateCard({
       )}
 
       <div className="flex items-start gap-3 mb-4">
-        <div className="text-3xl">{template.emoji}</div>
+        <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
+          {(() => { const Icon = TEMPLATE_ICONS[template.id] ?? Package; return <Icon className="h-5 w-5 text-primary" />; })()}
+        </div>
         <div className="min-w-0">
           <p className="text-sm font-bold text-dark leading-tight">{template.name}</p>
           <p className="text-xs text-muted mt-0.5">{template.brand}</p>
@@ -160,7 +172,9 @@ function CustomTemplateCard({
       }`}
     >
       <div className="flex items-start gap-3 mb-4">
-        <div className="text-3xl">✏️</div>
+        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+          <Pencil className="h-5 w-5 text-gray-500" />
+        </div>
         <div>
           <p className="text-sm font-bold text-dark">Distribución personalizada</p>
           <p className="text-xs text-muted mt-0.5">Define tus propias columnas y filas</p>
@@ -790,8 +804,12 @@ export default function PlantillaMaquinaPage() {
                 {/* Summary card */}
                 <div className="rounded-2xl border border-gray-100 bg-white shadow-sm divide-y divide-gray-50">
                   <div className="px-5 py-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center text-xl">
-                      {isCustom ? '✏️' : selectedTemplate?.emoji}
+                    <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center">
+                      {(() => {
+                        if (isCustom) return <Pencil className="h-5 w-5 text-primary" />;
+                        const Icon = selectedTemplate ? (TEMPLATE_ICONS[selectedTemplate.id] ?? Package) : Package;
+                        return <Icon className="h-5 w-5 text-primary" />;
+                      })()}
                     </div>
                     <div>
                       <p className="text-sm font-bold text-dark">
