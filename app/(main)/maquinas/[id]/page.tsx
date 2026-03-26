@@ -536,13 +536,22 @@ export default function MaquinaDetallePage() {
             )}
             <div className="flex-1" />
             {activeTab === 'productos' && (
-              <button
-                onClick={() => { setSlotToEdit(null); setSlotModalOpen(true); }}
-                className="inline-flex items-center gap-1.5 py-1.5 px-4 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Nuevo slot</span>
-              </button>
+              <>
+                <Link
+                  href={`/maquinas/${machineId}/slots/plantilla`}
+                  className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-primary/40 text-primary text-xs font-semibold bg-white hover:bg-primary/5 transition-colors"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Plantilla</span>
+                </Link>
+                <button
+                  onClick={() => { setSlotToEdit(null); setSlotModalOpen(true); }}
+                  className="inline-flex items-center gap-1.5 py-1.5 px-4 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Nuevo slot</span>
+                </button>
+              </>
             )}
             <button
               onClick={() => setIsQROpen(true)}
@@ -627,13 +636,22 @@ export default function MaquinaDetallePage() {
                     <p className="text-sm text-muted mb-6 max-w-xs mx-auto">
                       Agrega compartimentos con sus productos y configuración de stock para gestionar el inventario.
                     </p>
-                    <button
-                      onClick={() => { setSlotToEdit(null); setSlotModalOpen(true); }}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Agregar primer slot
-                    </button>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <Link
+                        href={`/maquinas/${machineId}/slots/plantilla`}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
+                      >
+                        <LayoutGrid className="h-4 w-4" />
+                        Usar plantilla
+                      </Link>
+                      <button
+                        onClick={() => { setSlotToEdit(null); setSlotModalOpen(true); }}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Slot manual
+                      </button>
+                    </div>
                   </div>
                 )}
 
