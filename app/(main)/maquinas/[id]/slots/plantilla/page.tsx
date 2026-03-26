@@ -148,9 +148,12 @@ function CustomTemplateCard({
   onChangeDimensions: (c: number, r: number) => void;
 }) {
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
-      className={`relative text-left rounded-2xl border-2 p-5 transition-all hover:shadow-md ${
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onSelect(); }}
+      className={`relative text-left rounded-2xl border-2 p-5 transition-all hover:shadow-md cursor-pointer ${
         selected
           ? 'border-primary bg-primary/4 shadow-md shadow-primary/10'
           : 'border-dashed border-gray-200 bg-gray-50/50 hover:border-primary/30 hover:bg-white'
@@ -223,7 +226,7 @@ function CustomTemplateCard({
           <Check className="h-3 w-3 text-white" />
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
