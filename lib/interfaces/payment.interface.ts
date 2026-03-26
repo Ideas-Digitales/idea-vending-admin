@@ -1,25 +1,31 @@
+export type SaleStatus = 'completed' | 'failed' | 'canceled' | 'unknown';
+
 export interface Payment {
   id: number;
+  uuid?: string | null;
   successful: boolean;
   amount: number;
   date: string;
-  product: string;
-  response_code: number;
-  response_message: string;
-  commerce_code: string;
-  terminal_id: string;
-  authorization_code: number;
-  last_digits: string;
-  operation_number: string;
+  product: string | null;
+  product_id?: number | null;
+  response_code: string | null;
+  response_message: string | null;
+  commerce_code: string | null;
+  terminal_id: string | null;
+  authorization_code: string | null;
+  last_digits: string | null;
+  operation_number: string | null;
   card_type: string | null;
-  card_brand: string;
+  card_brand: string | null;
   share_type: string | null;
   shares_number: number | null;
   shares_amount: number | null;
   machine_id: number | null;
+  enterprise_id: number | null;
+  sale_status: SaleStatus | null;
+  meta: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
-  enterprise_id: number | null;
   machine_name: string | null;
   machine?: {
     id: number;

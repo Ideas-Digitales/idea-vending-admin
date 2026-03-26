@@ -198,7 +198,7 @@ const PaymentDetailModal = memo(function PaymentDetailModal({
                     '91': 'Inicialización fallida',
                     '93': 'Consultando cuota al autorizador',
                   };
-                  const code = payment.response_code != null ? String(payment.response_code).padStart(2, '0') : null;
+                  const code = payment.response_code ?? null;
                   const label = code ? (RESPONSE_LABELS[code] ?? payment.response_message ?? 'Sin mensaje') : (payment.response_message ?? 'Sin mensaje');
                   return code ? `${code} · ${label}` : label;
                 })()}

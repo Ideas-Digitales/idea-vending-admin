@@ -21,7 +21,7 @@ export function mapSaleEventToPayment(event: SaleEvent): Payment {
   const { sale } = event;
   const effectiveDate = parseSaleDateToIso(sale);
   const responseCode = normalizeResponseCode(sale.response_code);
-  const inferredSuccess = sale.successful ?? responseCode === 0;
+  const inferredSuccess = sale.successful ?? responseCode === '00';
   const sharesNumber = sale.shares_number ?? (sale.fees_quantity ? Number(sale.fees_quantity) : null);
 
   return {
@@ -35,8 +35,8 @@ export function mapSaleEventToPayment(event: SaleEvent): Payment {
     commerce_code: sale.commerce_code ?? 'N/D',
     terminal_id: sale.terminal_id ?? 'N/D',
     authorization_code: sale.authorization_code
-      ? Number(sale.authorization_code)
-      : 0,
+      ? String(sale.authorization_code)
+      : null,
     last_digits: sale.last_digits ?? '0000',
     operation_number: sale.operation_number ?? `SALE-${sale.id}`,
     card_type: mapCardType(sale.card_type),
@@ -45,9 +45,11 @@ export function mapSaleEventToPayment(event: SaleEvent): Payment {
     shares_number: sharesNumber ?? null,
     shares_amount: sale.shares_amount ?? null,
     machine_id: sale.machine_id ?? null,
+    enterprise_id: sale.enterprise_id ?? null,
+    sale_status: null,
+    meta: null,
     created_at: effectiveDate,
     updated_at: effectiveDate,
-    enterprise_id: sale.enterprise_id ?? null,
     machine_name: null,
     machine: null,
   };
@@ -170,12 +172,10 @@ const parseSaleDateToIso = (sale: SalePayload): string => {
   return new Date().toISOString();
 };
 
-const normalizeResponseCode = (code?: string | number | null): number => {
-  if (code === null || code === undefined) return -1;
-  if (typeof code === 'number') return code;
-  const trimmed = code.trim();
-  const numeric = Number(trimmed);
-  return Number.isNaN(numeric) ? -1 : numeric;
+const normalizeResponseCode = (code?: string | number | null): string | null => {
+  if (code === null || code === undefined) return null;
+  if (typeof code === 'number') return String(code).padStart(2, '0');
+  return code.trim() || null;
 };
 
 export const isPaymentStatusEvent = (event: unknown): event is PaymentStatusEvent => {
@@ -353,15 +353,11 @@ export function mapPaymentStatusToPayment(event: PaymentStatusEvent): Payment {
     amount: payment.amount ?? 0,
     date: effectiveDate,
     product: payment.product ?? 'Producto desconocido',
-    response_code: typeof payment.response_code === 'string'
-      ? Number(payment.response_code) || -1
-      : payment.response_code ?? -1,
+    response_code: payment.response_code != null ? String(payment.response_code) : null,
     response_message: payment.response_message ?? 'Sin mensaje',
     commerce_code: payment.commerce_code ?? 'N/D',
     terminal_id: payment.terminal_id ?? 'N/D',
-    authorization_code: typeof payment.authorization_code === 'string'
-      ? Number(payment.authorization_code) || 0
-      : payment.authorization_code ?? 0,
+    authorization_code: payment.authorization_code != null ? String(payment.authorization_code) : null,
     last_digits: payment.last_digits ?? '0000',
     operation_number: payment.operation_number ?? `OP-${payment.id ?? Date.now()}`,
     card_type: payment.card_type ?? null,
@@ -373,6 +369,8 @@ export function mapPaymentStatusToPayment(event: PaymentStatusEvent): Payment {
     created_at: payment.created_at ?? effectiveDate,
     updated_at: payment.updated_at ?? effectiveDate,
     enterprise_id: payment.enterprise_id ?? payment.machine?.enterprise_id ?? null,
+    sale_status: null,
+    meta: null,
     machine_name: payment.machine_name ?? payment.machine?.name ?? null,
     machine: payment.machine
       ? {
