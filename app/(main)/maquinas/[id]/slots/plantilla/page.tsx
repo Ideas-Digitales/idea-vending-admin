@@ -244,17 +244,21 @@ function CustomTemplateCard({
   );
 }
 
-// ── Product picker ────────────────────────────────────────────────────────────
-function ProductPicker({
-  current,
-  onSelect,
+// ── Slot edit panel ────────────────────────────────────────────────────────────
+function SlotEditPanel({
+  slot,
+  onEdit,
+  onAssign,
   onClose,
 }: {
-  current: MockProduct | null;
-  onSelect: (p: MockProduct | null) => void;
+  slot: GeneratedSlot;
+  onEdit: (id: string, field: 'label' | 'mdb_code', value: string | number) => void;
+  onAssign: (id: string, p: MockProduct | null) => void;
   onClose: () => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref       = useRef<HTMLDivElement>(null);
+  const [label, setLabel] = useState(slot.label);
+  const [mdb,   setMdb]   = useState(String(slot.mdb_code));
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -264,32 +268,71 @@ function ProductPicker({
     return () => document.removeEventListener('mousedown', handler);
   }, [onClose]);
 
+  const commitLabel = () => {
+    const v = label.trim();
+    if (v && v !== slot.label) onEdit(slot.id, 'label', v);
+  };
+  const commitMdb = () => {
+    const v = parseInt(mdb, 10);
+    if (!isNaN(v) && v !== slot.mdb_code) onEdit(slot.id, 'mdb_code', v);
+  };
+
   return (
     <div
       ref={ref}
-      className="absolute z-50 top-full left-0 mt-1 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 overflow-hidden"
+      className="absolute z-50 top-full left-0 mt-1 w-60 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden"
     >
-      <div className="px-3 py-2 border-b border-gray-50">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Asignar producto</p>
+      {/* Fields */}
+      <div className="px-3 pt-3 pb-2 border-b border-gray-50 space-y-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Configurar slot</p>
+        <div>
+          <label className="text-[10px] font-semibold text-gray-500 block mb-1">Etiqueta</label>
+          <input
+            type="text"
+            value={label}
+            onChange={e => setLabel(e.target.value)}
+            onBlur={commitLabel}
+            onKeyDown={e => { if (e.key === 'Enter') { commitLabel(); (e.target as HTMLInputElement).blur(); } }}
+            className="w-full px-2 py-1 rounded-md border border-gray-200 text-xs font-mono text-dark focus:outline-none focus:border-primary transition-colors"
+            maxLength={8}
+          />
+        </div>
+        <div>
+          <label className="text-[10px] font-semibold text-gray-500 block mb-1">Código MDB</label>
+          <input
+            type="number"
+            value={mdb}
+            onChange={e => setMdb(e.target.value)}
+            onBlur={commitMdb}
+            onKeyDown={e => { if (e.key === 'Enter') { commitMdb(); (e.target as HTMLInputElement).blur(); } }}
+            className="w-full px-2 py-1 rounded-md border border-gray-200 text-xs font-mono text-dark focus:outline-none focus:border-primary transition-colors"
+            min={0}
+            max={999}
+          />
+        </div>
       </div>
-      <div className="max-h-48 overflow-y-auto">
+      {/* Product */}
+      <div className="px-3 py-1.5 border-b border-gray-50">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Producto</p>
+      </div>
+      <div className="max-h-40 overflow-y-auto">
         <button
-          onClick={() => onSelect(null)}
-          className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 transition-colors ${!current ? 'bg-gray-50' : ''}`}
+          onClick={() => onAssign(slot.id, null)}
+          className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 transition-colors ${!slot.product ? 'bg-gray-50' : ''}`}
         >
           <div className="w-3 h-3 rounded-full border-2 border-dashed border-gray-300" />
           <span className="text-gray-400">Sin producto</span>
-          {!current && <Check className="h-3 w-3 text-primary ml-auto" />}
+          {!slot.product && <Check className="h-3 w-3 text-primary ml-auto" />}
         </button>
         {MOCK_PRODUCTS.map(p => (
           <button
             key={p.id}
-            onClick={() => onSelect(p)}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 transition-colors ${current?.id === p.id ? 'bg-gray-50' : ''}`}
+            onClick={() => onAssign(slot.id, p)}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 transition-colors ${slot.product?.id === p.id ? 'bg-gray-50' : ''}`}
           >
             <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
             <span className="truncate text-dark">{p.name}</span>
-            {current?.id === p.id && <Check className="h-3 w-3 text-primary ml-auto shrink-0" />}
+            {slot.product?.id === p.id && <Check className="h-3 w-3 text-primary ml-auto shrink-0" />}
           </button>
         ))}
       </div>
@@ -299,7 +342,7 @@ function ProductPicker({
 
 // ── Machine grid view ─────────────────────────────────────────────────────────
 function MachineGridView({
-  slots, columns, rows, activeSlot, setActiveSlot, onAssign,
+  slots, columns, rows, activeSlot, setActiveSlot, onAssign, onEdit,
 }: {
   slots: GeneratedSlot[];
   columns: string[];
@@ -307,6 +350,7 @@ function MachineGridView({
   activeSlot: string | null;
   setActiveSlot: (id: string | null) => void;
   onAssign: (id: string, p: MockProduct | null) => void;
+  onEdit: (id: string, field: 'label' | 'mdb_code', value: string | number) => void;
 }) {
   const slotMap = useMemo(() => {
     const m: Record<string, GeneratedSlot> = {};
@@ -380,9 +424,10 @@ function MachineGridView({
                   </button>
 
                   {isActive && (
-                    <ProductPicker
-                      current={slot.product}
-                      onSelect={(p) => onAssign(slotId, p)}
+                    <SlotEditPanel
+                      slot={slot}
+                      onEdit={onEdit}
+                      onAssign={(id, p) => { onAssign(id, p); }}
                       onClose={() => setActiveSlot(null)}
                     />
                   )}
@@ -396,12 +441,55 @@ function MachineGridView({
   );
 }
 
+// ── Inline editable cell ──────────────────────────────────────────────────────
+function InlineEdit({
+  value, type = 'text', onCommit, className,
+}: {
+  value: string;
+  type?: 'text' | 'number';
+  onCommit: (v: string) => void;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft,   setDraft]   = useState(value);
+
+  const commit = () => {
+    setEditing(false);
+    if (draft.trim() !== value) onCommit(draft.trim());
+  };
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        type={type}
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(value); setEditing(false); } }}
+        className={`px-2 py-0.5 rounded border border-primary text-xs font-mono focus:outline-none w-20 ${className ?? ''}`}
+      />
+    );
+  }
+  return (
+    <button
+      onClick={() => { setDraft(value); setEditing(true); }}
+      title="Haz clic para editar"
+      className={`font-mono text-xs group inline-flex items-center gap-1 hover:text-primary transition-colors ${className ?? ''}`}
+    >
+      {value}
+      <Pencil className="h-2.5 w-2.5 opacity-0 group-hover:opacity-40 transition-opacity" />
+    </button>
+  );
+}
+
 // ── List view ─────────────────────────────────────────────────────────────────
 function SlotListView({
-  slots, onAssign,
+  slots, onAssign, onEdit,
 }: {
   slots: GeneratedSlot[];
   onAssign: (id: string, p: MockProduct | null) => void;
+  onEdit: (id: string, field: 'label' | 'mdb_code', value: string | number) => void;
 }) {
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
 
@@ -420,11 +508,20 @@ function SlotListView({
         <tbody className="divide-y divide-gray-50">
           {slots.map(slot => (
             <tr key={slot.id} className="hover:bg-gray-50/50 transition-colors">
-              <td className="px-4 py-2.5">
-                <span className="font-mono font-bold text-dark text-xs bg-gray-100 px-2 py-0.5 rounded">{slot.label}</span>
+              <td className="px-4 py-2">
+                <InlineEdit
+                  value={slot.label}
+                  onCommit={v => onEdit(slot.id, 'label', v)}
+                  className="font-bold text-dark bg-gray-100 px-2 py-0.5 rounded"
+                />
               </td>
-              <td className="px-4 py-2.5">
-                <span className="font-mono text-xs text-gray-500">{slot.mdb_code}</span>
+              <td className="px-4 py-2">
+                <InlineEdit
+                  value={String(slot.mdb_code)}
+                  type="number"
+                  onCommit={v => { const n = parseInt(v, 10); if (!isNaN(n)) onEdit(slot.id, 'mdb_code', n); }}
+                  className="text-gray-500"
+                />
               </td>
               <td className="px-4 py-2.5 text-xs font-semibold text-primary">{slot.column}</td>
               <td className="px-4 py-2.5 text-xs text-gray-500">{slot.row}</td>
@@ -452,9 +549,10 @@ function SlotListView({
                     )}
                   </button>
                   {activeSlot === slot.id && (
-                    <ProductPicker
-                      current={slot.product}
-                      onSelect={(p) => { onAssign(slot.id, p); setActiveSlot(null); }}
+                    <SlotEditPanel
+                      slot={slot}
+                      onEdit={onEdit}
+                      onAssign={(id, p) => { onAssign(id, p); setActiveSlot(null); }}
                       onClose={() => setActiveSlot(null)}
                     />
                   )}
@@ -470,11 +568,12 @@ function SlotListView({
 
 // ── Compact view ──────────────────────────────────────────────────────────────
 function SlotCompactView({
-  slots, columns, onAssign,
+  slots, columns, onAssign, onEdit,
 }: {
   slots: GeneratedSlot[];
   columns: string[];
   onAssign: (id: string, p: MockProduct | null) => void;
+  onEdit: (id: string, field: 'label' | 'mdb_code', value: string | number) => void;
 }) {
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
   const byColumn = useMemo(() => {
@@ -518,9 +617,10 @@ function SlotCompactView({
                   )}
                 </button>
                 {activeSlot === slot.id && (
-                  <ProductPicker
-                    current={slot.product}
-                    onSelect={(p) => { onAssign(slot.id, p); setActiveSlot(null); }}
+                  <SlotEditPanel
+                    slot={slot}
+                    onEdit={onEdit}
+                    onAssign={(id, p) => { onAssign(id, p); setActiveSlot(null); }}
                     onClose={() => setActiveSlot(null)}
                   />
                 )}
@@ -575,6 +675,10 @@ export default function PlantillaMaquinaPage() {
   const handleAssign = (slotId: string, product: MockProduct | null) => {
     setSlots(prev => prev.map(s => s.id === slotId ? { ...s, product } : s));
     setActiveSlot(null);
+  };
+
+  const handleSlotEdit = (slotId: string, field: 'label' | 'mdb_code', value: string | number) => {
+    setSlots(prev => prev.map(s => s.id === slotId ? { ...s, [field]: value } : s));
   };
 
   if (applied) {
@@ -757,13 +861,14 @@ export default function PlantillaMaquinaPage() {
                       activeSlot={activeSlot}
                       setActiveSlot={setActiveSlot}
                       onAssign={handleAssign}
+                      onEdit={handleSlotEdit}
                     />
                   )}
                   {viewMode === 'list' && (
-                    <SlotListView slots={slots} onAssign={handleAssign} />
+                    <SlotListView slots={slots} onAssign={handleAssign} onEdit={handleSlotEdit} />
                   )}
                   {viewMode === 'compact' && (
-                    <SlotCompactView slots={slots} columns={columns} onAssign={handleAssign} />
+                    <SlotCompactView slots={slots} columns={columns} onAssign={handleAssign} onEdit={handleSlotEdit} />
                   )}
                 </div>
 
