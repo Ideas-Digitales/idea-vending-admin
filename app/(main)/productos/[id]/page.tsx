@@ -6,10 +6,7 @@ import {
   Package, Calendar, Building2, Edit,
   BarChart2, TrendingUp, TrendingDown,
 } from 'lucide-react';
-import {
-  AreaChart, Area,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
+import { SalesDualAxisChart, type SeriesType } from '@/components/metrics/MetricsCharts';
 import { useProductStore } from '@/lib/stores/productStore';
 import { getEnterpriseAction } from '@/lib/actions/enterprise';
 import { aggregatePaymentsAction } from '@/lib/actions/payments';
@@ -94,21 +91,6 @@ function generateIntervals(period: Period): { label: string; start: string; end:
 
 // ── Helpers visuales ─────────────────────────────────────────────────────────
 function clp(n: number) { return `$${n.toLocaleString('es-CL')}`; }
-function clpShort(n: number) {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000)     return `$${(n / 1_000).toFixed(0)}K`;
-  return `$${n}`;
-}
-
-function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-3 py-2 text-xs">
-      <p className="text-muted font-medium mb-0.5">{label}</p>
-      <p className="font-bold text-dark text-sm">{clp(payload[0].value)}</p>
-    </div>
-  );
-}
 
 // ── Componente principal ─────────────────────────────────────────────────────
 export default function ProductDetailPage() {
@@ -130,7 +112,8 @@ export default function ProductDetailPage() {
   const [period, setPeriod]         = useState<Period>('month');
   const [aggCurrent, setAggCurrent] = useState<{ total_amount: number; total_count: number } | null>(null);
   const [aggPrev, setAggPrev]       = useState<{ total_amount: number; total_count: number } | null>(null);
-  const [chartData, setChartData]   = useState<{ label: string; value: number }[]>([]);
+  const [chartData, setChartData]   = useState<{ label: string; amount: number; count: number }[]>([]);
+  const [seriesType, setSeriesType] = useState<SeriesType>('line');
   const [loadingMetrics, setLoadingMetrics] = useState(true);
 
   useEffect(() => {
@@ -173,8 +156,9 @@ export default function ProductDetailPage() {
       if (curr.success)  setAggCurrent({ total_amount: curr.total_amount ?? 0, total_count: curr.total_count ?? 0 });
       if (prev.success)  setAggPrev({ total_amount: prev.total_amount ?? 0, total_count: prev.total_count ?? 0 });
       setChartData(intervals.map((iv, i) => ({
-        label: iv.label,
-        value: ivResults[i]?.success ? (ivResults[i].total_amount ?? 0) : 0,
+        label:  iv.label,
+        amount: ivResults[i]?.success ? (ivResults[i].total_amount ?? 0) : 0,
+        count:  ivResults[i]?.success ? (ivResults[i].total_count  ?? 0) : 0,
       })));
     })
     .catch(() => {})
@@ -250,24 +234,41 @@ export default function ProductDetailPage() {
 
           {/* ── MÉTRICAS DE VENTAS ── */}
           <div className="card overflow-hidden">
-            {/* Header con selector de período */}
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+            {/* Header con selector de período y tipo de serie */}
+            <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <BarChart2 className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold text-dark">Métricas de ventas</h3>
               </div>
-              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                {(['day', 'month', 'year'] as Period[]).map(p => (
-                  <button
-                    key={p}
-                    onClick={() => setPeriod(p)}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                      period === p ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    {periodLabel[p]}
-                  </button>
-                ))}
+              <div className="flex items-center gap-2">
+                {/* Series type toggle */}
+                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                  {(['line', 'bar'] as SeriesType[]).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setSeriesType(t)}
+                      className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                        seriesType === t ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {t === 'line' ? 'Línea' : 'Barras'}
+                    </button>
+                  ))}
+                </div>
+                {/* Period toggle */}
+                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                  {(['day', 'month', 'year'] as Period[]).map(p => (
+                    <button
+                      key={p}
+                      onClick={() => setPeriod(p)}
+                      className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                        period === p ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {periodLabel[p]}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -310,29 +311,13 @@ export default function ProductDetailPage() {
             {/* Gráfico */}
             <div className="px-4 pb-4">
               {loadingMetrics ? (
-                <div className="h-44 bg-gray-50 rounded-xl animate-pulse" />
-              ) : chartData.every(d => d.value === 0) ? (
-                <div className="h-44 flex items-center justify-center text-sm text-muted bg-gray-50 rounded-xl">
+                <div className="h-60 bg-gray-50 rounded-xl animate-pulse" />
+              ) : chartData.every(d => d.amount === 0 && d.count === 0) ? (
+                <div className="h-60 flex items-center justify-center text-sm text-muted bg-gray-50 rounded-xl">
                   Sin ventas en este período
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={176}>
-                  <AreaChart data={chartData} margin={{ top: 10, right: 8, left: 8, bottom: 4 }}>
-                    <defs>
-                      <linearGradient id="prodAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3157b2" stopOpacity={0.25} />
-                        <stop offset="90%" stopColor="#3157b2" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: '#d1d5db' }} axisLine={false} tickLine={false} tickFormatter={clpShort} width={48} />
-                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: '#3157b2', strokeWidth: 1.5, strokeDasharray: '4 4' }} />
-                    <Area type="monotone" dataKey="value" stroke="#3157b2" strokeWidth={2.5}
-                      fill="url(#prodAreaGrad)" dot={false}
-                      activeDot={{ r: 5, fill: '#3157b2', stroke: 'white', strokeWidth: 2 }} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <SalesDualAxisChart data={chartData} amountType={seriesType} countType={seriesType} />
               )}
             </div>
           </div>
