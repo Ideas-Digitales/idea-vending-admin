@@ -113,7 +113,8 @@ export default function ProductDetailPage() {
   const [aggCurrent, setAggCurrent] = useState<{ total_amount: number; total_count: number } | null>(null);
   const [aggPrev, setAggPrev]       = useState<{ total_amount: number; total_count: number } | null>(null);
   const [chartData, setChartData]   = useState<{ label: string; amount: number; count: number }[]>([]);
-  const [seriesType, setSeriesType] = useState<SeriesType>('line');
+  const [amountType, setAmountType] = useState<SeriesType>('line');
+  const [countType,  setCountType]  = useState<SeriesType>('line');
   const [loadingMetrics, setLoadingMetrics] = useState(true);
 
   useEffect(() => {
@@ -241,20 +242,27 @@ export default function ProductDetailPage() {
                 <h3 className="text-sm font-semibold text-dark">Métricas de ventas</h3>
               </div>
               <div className="flex items-center gap-2">
-                {/* Series type toggle */}
-                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                  {(['line', 'bar'] as SeriesType[]).map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setSeriesType(t)}
-                      className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-                        seriesType === t ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      {t === 'line' ? 'Línea' : 'Barras'}
-                    </button>
-                  ))}
-                </div>
+                {/* Per-series type toggles */}
+                {([
+                  { label: 'Monto',    color: 'bg-primary',     current: amountType, set: setAmountType },
+                  { label: 'Cantidad', color: 'bg-emerald-500', current: countType,  set: setCountType  },
+                ] as { label: string; color: string; current: SeriesType; set: (v: SeriesType) => void }[]).map(({ label, color, current, set }) => (
+                  <div key={label} className="flex items-center gap-1.5 bg-gray-100 rounded-lg p-1">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${color}`} />
+                    <span className="text-[11px] font-medium text-gray-500 pr-0.5">{label}</span>
+                    {(['line', 'bar'] as SeriesType[]).map(t => (
+                      <button
+                        key={t}
+                        onClick={() => set(t)}
+                        className={`px-2 py-0.5 rounded-md text-xs font-semibold transition-all ${
+                          current === t ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                      >
+                        {t === 'line' ? 'Línea' : 'Barras'}
+                      </button>
+                    ))}
+                  </div>
+                ))}
                 {/* Period toggle */}
                 <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                   {(['day', 'month', 'year'] as Period[]).map(p => (
@@ -317,7 +325,7 @@ export default function ProductDetailPage() {
                   Sin ventas en este período
                 </div>
               ) : (
-                <SalesDualAxisChart data={chartData} amountType={seriesType} countType={seriesType} />
+                <SalesDualAxisChart data={chartData} amountType={amountType} countType={countType} />
               )}
             </div>
           </div>
