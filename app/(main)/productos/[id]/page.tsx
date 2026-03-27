@@ -243,26 +243,29 @@ export default function ProductDetailPage() {
               </div>
               <div className="flex items-center gap-2">
                 {/* Per-series type toggles */}
-                {([
-                  { label: 'Monto',    color: 'bg-primary',     current: amountType, set: setAmountType },
-                  { label: 'Cantidad', color: 'bg-emerald-500', current: countType,  set: setCountType  },
-                ] as { label: string; color: string; current: SeriesType; set: (v: SeriesType) => void }[]).map(({ label, color, current, set }) => (
-                  <div key={label} className="flex items-center gap-1.5 bg-gray-100 rounded-lg p-1">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${color}`} />
-                    <span className="text-[11px] font-medium text-gray-500 pr-0.5">{label}</span>
-                    {(['line', 'bar'] as SeriesType[]).map(t => (
-                      <button
-                        key={t}
-                        onClick={() => set(t)}
-                        className={`px-2 py-0.5 rounded-md text-xs font-semibold transition-all ${
-                          current === t ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'
-                        }`}
-                      >
-                        {t === 'line' ? 'Línea' : 'Barras'}
-                      </button>
-                    ))}
-                  </div>
-                ))}
+                <div className="flex items-center gap-3">
+                  {([
+                    { label: 'Monto',    color: 'bg-blue-400',    current: amountType, set: setAmountType },
+                    { label: 'Ventas',   color: 'bg-emerald-400', current: countType,  set: setCountType  },
+                  ] as { label: string; color: string; current: SeriesType; set: (v: SeriesType) => void }[]).map(({ label, color, current, set }) => (
+                    <div key={label} className="flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${color}`} />
+                      <span className="text-xs text-gray-500">{label}</span>
+                      <div className="flex items-center gap-0.5 bg-gray-100 rounded-md p-0.5">
+                        <button
+                          onClick={() => set('line')}
+                          title="Línea"
+                          className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${current === 'line' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                        >〜</button>
+                        <button
+                          onClick={() => set('bar')}
+                          title="Barras"
+                          className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${current === 'bar' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                        >▌</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
                 {/* Period toggle */}
                 <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                   {(['day', 'month', 'year'] as Period[]).map(p => (
