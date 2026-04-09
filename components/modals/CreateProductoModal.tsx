@@ -69,7 +69,7 @@ export function CreateProductoModal({ open, onOpenChange, onCreated }: Props) {
     }
   };
 
-  const busy = saving || isPublishing;
+  const busy = saving;
 
   useEffect(() => {
     return () => {

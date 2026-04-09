@@ -83,7 +83,7 @@ export function EditProductoModal({ open, onOpenChange, productId, onSaved }: Pr
     }
   };
 
-  const busy = saving || isPublishing;
+  const busy = saving;
 
   useEffect(() => {
     return () => {
