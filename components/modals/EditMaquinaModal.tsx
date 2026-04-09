@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { getMachineAction, updateMachineAction } from '@/lib/actions/machines';
 import { notify } from '@/lib/adapters/notification.adapter';
+import { uploadMachineImage } from '@/lib/utils/imageUpload';
 
 interface Props {
   open: boolean;
@@ -26,6 +27,9 @@ function FieldHint({ children }: { children: React.ReactNode }) {
 export function EditMaquinaModal({ open, onOpenChange, machineId, onSaved }: Props) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [manageStock, setManageStock] = useState(true);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -34,11 +38,16 @@ export function EditMaquinaModal({ open, onOpenChange, machineId, onSaved }: Pro
     setLoading(true);
     setName('');
     setLocation('');
+    setImageFile(null);
+    setImagePreview(null);
+    setManageStock(true);
     getMachineAction(machineId)
       .then(res => {
         if (res.success && res.machine) {
           setName(res.machine.name);
           setLocation(res.machine.location);
+          setImagePreview(res.machine.image ?? null);
+          setManageStock(res.machine.manage_stock ?? true);
         } else {
           notify.error('No se pudo cargar la máquina');
           onOpenChange(false);
@@ -52,10 +61,17 @@ export function EditMaquinaModal({ open, onOpenChange, machineId, onSaved }: Pro
     if (!machineId || !name.trim() || !location.trim()) return;
     setSaving(true);
     try {
-      const result = await updateMachineAction(machineId, { name: name.trim(), location: location.trim() });
+      const result = await updateMachineAction(machineId, {
+        name: name.trim(),
+        location: location.trim(),
+        manage_stock: manageStock,
+      });
       if (!result.success) {
         notify.error(`Error al actualizar: ${result.error}`);
         return;
+      }
+      if (imageFile) {
+        await uploadMachineImage(machineId, imageFile);
       }
       notify.success('Máquina actualizada exitosamente');
       onSaved();
@@ -66,6 +82,12 @@ export function EditMaquinaModal({ open, onOpenChange, machineId, onSaved }: Pro
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -98,6 +120,50 @@ export function EditMaquinaModal({ open, onOpenChange, machineId, onSaved }: Pro
               <FieldHint>
                 Nombre único e identificable. Incluye referencia al lugar y número si hay varias. Ej: <strong>«Snacks Casino Norte»</strong> o <strong>«VM-Torre B P3»</strong>.
               </FieldHint>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Imagen referencial</label>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={e => {
+                  const file = e.target.files?.[0] ?? null;
+                  setImageFile(file);
+                  if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+                  setImagePreview(file ? URL.createObjectURL(file) : imagePreview);
+                }}
+                className="input-field"
+                disabled={saving}
+              />
+              <FieldHint>
+                Sube una imagen de referencia para identificar visualmente la máquina.
+              </FieldHint>
+              {imagePreview && (
+                <img
+                  src={imagePreview}
+                  alt="Vista previa de máquina"
+                  className="mt-3 h-32 w-full rounded-xl border border-gray-200 object-cover"
+                />
+              )}
+            </div>
+
+            <div>
+              <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-3">
+                <input
+                  type="checkbox"
+                  checked={manageStock}
+                  onChange={e => setManageStock(e.target.checked)}
+                  disabled={saving}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-gray-700">Controlar stock de esta máquina</span>
+                  <span className="block mt-1 text-xs text-gray-500">
+                    Si lo desactivas, los slots heredados dejan de participar en alertas y reposición.
+                  </span>
+                </span>
+              </label>
             </div>
 
             <div>

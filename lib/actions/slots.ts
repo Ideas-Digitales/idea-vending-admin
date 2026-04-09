@@ -9,26 +9,14 @@ import {
 } from '../interfaces/slot.interface';
 import { createSlotSchema, updateSlotSchema } from '../schemas/slot.schema';
 import { authenticatedFetch } from '../utils/authenticatedFetch';
-import { AuthFetchError } from '../utils/authFetchError';
-
-const TOKEN_EXPIRED_ERROR = 'SESSION_EXPIRED';
-
-function handleError(error: unknown): { success: false; error: string } {
-  if (error instanceof AuthFetchError) {
-    if (error.code === 'TOKEN_EXPIRED' || error.code === 'NO_TOKEN') {
-      return { success: false, error: TOKEN_EXPIRED_ERROR };
-    }
-    return { success: false, error: error.message };
-  }
-  return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
-}
+import { handleActionError } from '../utils/actionError';
 
 /**
  * Obtiene todos los slots de una máquina
  */
 export async function getSlotsAction(machineId: string | number): Promise<SlotsListResponse> {
   try {
-    const { response } = await authenticatedFetch(`/machines/${machineId}/slots?include=product`, {
+    const { response } = await authenticatedFetch(`/machines/${machineId}/slots?include=product&limit=200`, {
       method: 'GET',
       cache: 'no-store',
     });
@@ -47,7 +35,7 @@ export async function getSlotsAction(machineId: string | number): Promise<SlotsL
 
     return { success: true, slots };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -86,7 +74,7 @@ export async function createSlotAction(
 
     return { success: true, slot };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -126,7 +114,7 @@ export async function updateSlotAction(
 
     return { success: true, slot };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -152,6 +140,6 @@ export async function deleteSlotAction(
 
     return { success: true };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }

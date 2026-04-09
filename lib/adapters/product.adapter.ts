@@ -7,28 +7,14 @@ import type {
 // Adaptador para convertir datos de API a formato de aplicación
 export class ProductAdapter {
   static apiToApp(apiProduct: ProductApiData): Producto {
-    console.log(
-      "ProductAdapter.apiToApp recibió:",
-      JSON.stringify(apiProduct, null, 2)
-    );
-
     if (!apiProduct || typeof apiProduct !== "object") {
-      console.error("Datos de producto inválidos:", apiProduct);
       throw new Error("Datos de producto inválidos");
     }
 
-    // Verificar si hay un ID válido en cualquiera de los campos posibles
     const productId = apiProduct.id || apiProduct.product_id;
     if (!productId) {
-      console.error(
-        "Faltan campos requeridos en producto. Campos disponibles:",
-        Object.keys(apiProduct)
-      );
-      console.error("Datos completos del producto:", apiProduct);
       throw new Error(
-        `Faltan campos requeridos en los datos del producto. ID no encontrado en: ${Object.keys(
-          apiProduct
-        ).join(", ")}`
+        `ID de producto no encontrado en campos: ${Object.keys(apiProduct).join(", ")}`
       );
     }
 
@@ -49,7 +35,7 @@ export class ProductAdapter {
       price: apiProduct.price || this.generateMockPrice(),
       category: apiProduct.category || this.getRandomCategory(),
       stock: apiProduct.stock || Math.floor(Math.random() * 100),
-      image: apiProduct.image || "/placeholder-product.jpg",
+      image: apiProduct.image || undefined,
       barcode: apiProduct.barcode || this.generateMockBarcode(),
       is_active: apiProduct.is_active ?? apiProduct.active ?? true,
     };
@@ -58,21 +44,11 @@ export class ProductAdapter {
   static apiProductsToApp(apiResponse: ApiProductsResponse): Producto[] {
     const productsArray = apiResponse.data || apiResponse.products || [];
 
-    console.log('🔍 ProductAdapter.apiProductsToApp - Productos recibidos:', productsArray.length);
-    console.log('🔍 Productos raw:', productsArray);
-
     if (!Array.isArray(productsArray)) {
-      console.warn(
-        "Los datos de productos no están en formato de array:",
-        apiResponse
-      );
       return [];
     }
 
-    const mappedProducts = productsArray.map((product) => this.apiToApp(product));
-    console.log('✅ ProductAdapter.apiProductsToApp - Productos mapeados:', mappedProducts.length);
-    
-    return mappedProducts;
+    return productsArray.map((product) => this.apiToApp(product));
   }
 
   // Funciones auxiliares para datos MOCK

@@ -9,6 +9,7 @@ import { useProductStore } from '@/lib/stores/productStore';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { useMqttProduct } from '@/lib/hooks/useMqttProduct';
 import type { UpdateProductFormData } from '@/lib/schemas/product.schema';
+import { uploadProductImage } from '@/lib/utils/imageUpload';
 
 export default function EditProductPage() {
   const params = useParams();
@@ -27,6 +28,8 @@ export default function EditProductPage() {
     clearUpdateError
   } = useProductStore();
   const { publishProductOperation, isPublishing } = useMqttProduct();
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<UpdateProductFormData>({
     name: '',
@@ -44,6 +47,7 @@ export default function EditProductPage() {
   useEffect(() => {
     if (product) {
       setFormData({ name: product.name });
+      setImagePreview(product.image ?? null);
     }
   }, [product]);
 
@@ -52,8 +56,9 @@ export default function EditProductPage() {
       clearSelectedProduct();
       clearProductError();
       clearUpdateError();
+      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
     };
-  }, [clearSelectedProduct, clearProductError, clearUpdateError]);
+  }, [clearSelectedProduct, clearProductError, clearUpdateError, imagePreview]);
 
   useEffect(() => {
     if (updateError) {
@@ -80,6 +85,9 @@ export default function EditProductPage() {
       const success = await updateProduct(productId, formData);
 
       if (success) {
+        if (imageFile) {
+          await uploadProductImage(productId, imageFile);
+        }
         if (product) {
           try {
             await publishProductOperation('update', {
@@ -172,6 +180,35 @@ export default function EditProductPage() {
             </h3>
 
             <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Imagen referencial
+                </label>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setImageFile(file);
+                    if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+                    setImagePreview(file ? URL.createObjectURL(file) : product?.image ?? null);
+                  }}
+                  className="input-field"
+                  disabled={isUpdating || isPublishing}
+                />
+                {imagePreview ? (
+                  <img
+                    src={imagePreview}
+                    alt={formData.name || product.name}
+                    className="mt-3 h-36 w-full rounded-xl border border-gray-200 object-cover"
+                  />
+                ) : (
+                  <div className="mt-3 h-36 w-full rounded-xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400">
+                    <Package className="h-10 w-10" />
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nombre del Producto *

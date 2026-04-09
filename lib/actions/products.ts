@@ -8,21 +8,10 @@ import {
 import { ProductAdapter } from '../adapters/product.adapter';
 import { createProductSchema, CreateProductFormData, updateProductSchema, UpdateProductFormData } from '../schemas/product.schema';
 import { authenticatedFetch } from '../utils/authenticatedFetch';
-import { AuthFetchError } from '../utils/authFetchError';
+import { handleActionError } from '../utils/actionError';
+
 
 const DEFAULT_PAGE_SIZE = 20;
-const TOKEN_EXPIRED_ERROR = 'SESSION_EXPIRED';
-
-function handleError(error: unknown): { success: false; error: string } {
-  if (error instanceof AuthFetchError) {
-    if (error.code === 'TOKEN_EXPIRED' || error.code === 'NO_TOKEN') {
-      return { success: false, error: TOKEN_EXPIRED_ERROR };
-    }
-    return { success: false, error: error.message };
-  }
-  return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
-}
-
 // Helper function to build search payload - simplified for name search only
 function buildProductsSearchPayload(filters: ProductsFilters = {}) {
   const page = filters.page || 1;
@@ -51,7 +40,7 @@ function buildProductsSearchPayload(filters: ProductsFilters = {}) {
   }
 
   // Add enterprise_id filter if present
-  if (filters.enterpriseId) {
+  if (filters.enterpriseId != null) {
     payload.filters = [
       { field: 'enterprise_id', operator: '=', value: filters.enterpriseId },
     ];
@@ -67,7 +56,7 @@ export async function getProductsAction(filters?: ProductsFilters): Promise<Prod
     const useSearch = filters && (
       filters.searchObj?.value ||
       filters.search ||
-      filters.enterpriseId
+      filters.enterpriseId != null
     );
 
     let response: Response;
@@ -137,7 +126,7 @@ export async function getProductsAction(filters?: ProductsFilters): Promise<Prod
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -168,7 +157,7 @@ export async function getProductAction(productId: string | number): Promise<Prod
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -213,7 +202,7 @@ export async function createProductAction(productData: CreateProductFormData): P
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -237,7 +226,7 @@ export async function deleteProductAction(productId: string | number): Promise<{
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -282,6 +271,6 @@ export async function updateProductAction(productId: string | number, productDat
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }

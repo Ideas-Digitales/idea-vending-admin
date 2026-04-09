@@ -6,6 +6,12 @@ export const createProductSchema = z.object({
     .min(1, 'El nombre es requerido')
     .min(2, 'El nombre debe tener al menos 2 caracteres')
     .max(100, 'El nombre no puede exceder 100 caracteres'),
+
+  image: z.string()
+    .url('La imagen debe ser una URL válida')
+    .max(2048, 'La URL de la imagen no puede exceder 2048 caracteres')
+    .optional()
+    .nullable(),
   
   enterprise_id: z.number()
     .min(1, 'Debe seleccionar una empresa'),
@@ -17,6 +23,12 @@ export const updateProductSchema = z.object({
     .min(1, 'El nombre es requerido')
     .min(2, 'El nombre debe tener al menos 2 caracteres')
     .max(100, 'El nombre no puede exceder 100 caracteres'),
+
+  image: z.string()
+    .url('La imagen debe ser una URL válida')
+    .max(2048, 'La URL de la imagen no puede exceder 2048 caracteres')
+    .optional()
+    .nullable(),
 });
 
 // Tipos TypeScript derivados de los schemas

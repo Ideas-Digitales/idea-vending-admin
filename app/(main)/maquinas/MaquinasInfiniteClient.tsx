@@ -185,7 +185,7 @@ export default function MaquinasInfiniteClient() {
 
   // Lazy-load slot stock for each visible machine
   useEffect(() => {
-    const toFetch = filteredMachines.filter(m => !fetchedMachineIdsRef.current.has(m.id));
+    const toFetch = filteredMachines.filter(m => m.manage_stock && !fetchedMachineIdsRef.current.has(m.id));
     if (toFetch.length === 0) return;
 
     toFetch.forEach(m => {
@@ -194,7 +194,7 @@ export default function MaquinasInfiniteClient() {
       getSlotsAction(m.id)
         .then(res => {
           if (res.success && res.slots) {
-            const slots = res.slots;
+            const slots = res.slots.filter(s => s.manage_stock ?? m.manage_stock);
             setStockMap(prev => ({
               ...prev,
               [m.id]: {
@@ -327,7 +327,9 @@ export default function MaquinasInfiniteClient() {
       key: 'stock',
       header: 'Stock',
       cell: (m) => (
-        <StockIndicator summary={stockMap[m.id]} loading={loadingStock[m.id]} />
+        m.manage_stock
+          ? <StockIndicator summary={stockMap[m.id]} loading={loadingStock[m.id]} />
+          : <span className="text-xs text-slate-500">Sin control</span>
       ),
     },
     {
@@ -503,7 +505,7 @@ export default function MaquinasInfiniteClient() {
               {filteredMachines.map((m) => {
                 const isOnline = m.status === 'online';
                 const summary  = stockMap[m.id];
-                const hasAlert = summary && (summary.emptyCount > 0 || summary.lowCount > 0);
+                const hasAlert = m.manage_stock && summary && (summary.emptyCount > 0 || summary.lowCount > 0);
                 const borderCls = isOnline
                   ? hasAlert
                     ? 'border-amber-200 ring-1 ring-amber-50'
@@ -541,7 +543,9 @@ export default function MaquinasInfiniteClient() {
 
                     {/* Stock */}
                     <div className="pb-3 mb-3 border-b border-gray-100">
-                      <StockIndicator summary={summary} loading={loadingStock[m.id]} />
+                      {m.manage_stock
+                        ? <StockIndicator summary={summary} loading={loadingStock[m.id]} />
+                        : <span className="text-xs text-slate-500">Sin control de stock</span>}
                     </div>
 
                     {/* Actions */}

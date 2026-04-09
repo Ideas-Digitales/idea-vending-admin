@@ -12,10 +12,25 @@ export const createSlotSchema = z.object({
     .min(1, 'La etiqueta debe tener al menos 1 carácter')
     .max(50, 'La etiqueta no puede exceder 50 caracteres')
     .optional(),
+
+  column: z.string()
+    .max(20, 'La columna no puede exceder 20 caracteres')
+    .nullable()
+    .optional(),
+
+  row: z.number()
+    .int('La fila debe ser un número entero')
+    .positive('La fila debe ser positiva')
+    .nullable()
+    .optional(),
   
   product_id: z.number()
     .int('El ID del producto debe ser un número entero')
     .positive('El ID del producto debe ser positivo')
+    .nullable()
+    .optional(),
+
+  manage_stock: z.boolean()
     .nullable()
     .optional(),
   
@@ -30,6 +45,11 @@ export const createSlotSchema = z.object({
     .nonnegative('El stock actual no puede ser negativo')
     .nullable()
     .optional(),
+
+  x: z.number().nullable().optional(),
+  y: z.number().nullable().optional(),
+  width: z.number().nonnegative('El ancho no puede ser negativo').nullable().optional(),
+  height: z.number().nonnegative('El alto no puede ser negativo').nullable().optional(),
 });
 
 /**
@@ -46,10 +66,25 @@ export const updateSlotSchema = z.object({
     .min(1, 'La etiqueta debe tener al menos 1 carácter')
     .max(50, 'La etiqueta no puede exceder 50 caracteres')
     .optional(),
+
+  column: z.string()
+    .max(20, 'La columna no puede exceder 20 caracteres')
+    .nullable()
+    .optional(),
+
+  row: z.number()
+    .int('La fila debe ser un número entero')
+    .positive('La fila debe ser positiva')
+    .nullable()
+    .optional(),
   
   product_id: z.number()
     .int('El ID del producto debe ser un número entero')
     .positive('El ID del producto debe ser positivo')
+    .nullable()
+    .optional(),
+
+  manage_stock: z.boolean()
     .nullable()
     .optional(),
   
@@ -64,6 +99,11 @@ export const updateSlotSchema = z.object({
     .nonnegative('El stock actual no puede ser negativo')
     .nullable()
     .optional(),
+
+  x: z.number().nullable().optional(),
+  y: z.number().nullable().optional(),
+  width: z.number().nonnegative('El ancho no puede ser negativo').nullable().optional(),
+  height: z.number().nonnegative('El alto no puede ser negativo').nullable().optional(),
 });
 
 // Tipos TypeScript derivados de los schemas

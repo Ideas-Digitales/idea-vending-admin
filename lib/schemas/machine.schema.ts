@@ -14,8 +14,16 @@ export const createMachineSchema = z.object({
     .min(5, 'La ubicación debe tener al menos 5 caracteres')
     .max(255, 'La ubicación no puede exceder 255 caracteres'),
 
+  image: z.string()
+    .url('La imagen debe ser una URL válida')
+    .max(2048, 'La URL de la imagen no puede exceder 2048 caracteres')
+    .optional()
+    .nullable(),
+
   type: z.string()
     .min(1, 'El tipo de máquina es requerido'),
+
+  manage_stock: z.boolean(),
 
   enterprise_id: z.number()
     .int('El ID de empresa debe ser un número entero')
@@ -40,9 +48,17 @@ export const updateMachineSchema = z.object({
     .max(255, 'La ubicación no puede exceder 255 caracteres')
     .optional(),
 
+  image: z.string()
+    .url('La imagen debe ser una URL válida')
+    .max(2048, 'La URL de la imagen no puede exceder 2048 caracteres')
+    .optional()
+    .nullable(),
+
   type: z.string()
     .min(1, 'El tipo de máquina es requerido')
     .optional(),
+
+  manage_stock: z.boolean().optional(),
 
   status: statusEnum.optional(),
 

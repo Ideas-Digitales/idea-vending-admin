@@ -2,7 +2,8 @@
 
 import { PaymentResponse, PaymentFilters } from '../interfaces/payment.interface';
 import { authenticatedFetch } from '../utils/authenticatedFetch';
-import { AuthFetchError } from '../utils/authFetchError';
+import { handleActionError } from '../utils/actionError';
+
 
 export interface AggregateFilters {
   start_date?: string;
@@ -27,18 +28,6 @@ export interface AggregateResult {
   data?: AggregateDataPoint[];
   filters_applied?: object;
   error?: string;
-}
-
-const TOKEN_EXPIRED_ERROR = 'SESSION_EXPIRED';
-
-function handleError(error: unknown): { success: false; error: string } {
-  if (error instanceof AuthFetchError) {
-    if (error.code === 'TOKEN_EXPIRED' || error.code === 'NO_TOKEN') {
-      return { success: false, error: TOKEN_EXPIRED_ERROR };
-    }
-    return { success: false, error: error.message };
-  }
-  return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
 }
 
 export const getPaymentsAction = async (filters?: PaymentFilters): Promise<PaymentResponse> => {
@@ -200,7 +189,7 @@ export const getPaymentsAction = async (filters?: PaymentFilters): Promise<Payme
       pagination,
     };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 };
 
@@ -247,7 +236,7 @@ export const productRankingAction = async (filters?: ProductRankingFilters): Pro
       low_performers: data.data?.low_performers ?? [],
     };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 };
 
@@ -294,7 +283,7 @@ export const machineRankingAction = async (filters: MachineRankingFilters): Prom
       low_performers: data.data?.low_performers ?? [],
     };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 };
 
@@ -319,6 +308,6 @@ export const aggregatePaymentsAction = async (filters?: AggregateFilters): Promi
       filters_applied: data.filters_applied,
     };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 };

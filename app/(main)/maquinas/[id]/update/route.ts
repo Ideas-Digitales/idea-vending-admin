@@ -15,11 +15,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const name = formData.get('name');
     const status = formData.get('status');
     const location = formData.get('location');
+    const image = formData.get('image');
     const type = formData.get('type');
 
     if (name !== null && String(name).trim() !== '') payload.name = String(name);
     if (status !== null && String(status).trim() !== '') payload.status = String(status);
     if (location !== null && String(location).trim() !== '') payload.location = String(location);
+    if (image !== null) payload.image = String(image).trim() || null;
     if (type !== null && String(type).trim() !== '') payload.type = String(type);
     
     // No incluir enterprise_id en actualizaciones - el API no lo permite

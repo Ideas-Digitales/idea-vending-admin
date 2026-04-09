@@ -2,7 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { authenticatedFetch } from '../utils/authenticatedFetch';
-import { AuthFetchError } from '../utils/authFetchError';
+import { handleActionError } from '../utils/actionError';
+
 import type {
   UserResponse,
   UsersResponse,
@@ -12,18 +13,6 @@ import type { CreateUser } from '@/lib/interfaces/user.interface';
 import { UserAdapter } from '@/lib/adapters/user.adapter';
 import type { ApiUsersResponse } from '@/lib/interfaces/user.interface';
 import type { CreateUserFormData } from '@/lib/schemas/user.schema';
-
-const TOKEN_EXPIRED_ERROR = 'SESSION_EXPIRED';
-
-function handleError(error: unknown): { success: false; error: string } {
-  if (error instanceof AuthFetchError) {
-    if (error.code === 'TOKEN_EXPIRED' || error.code === 'NO_TOKEN') {
-      return { success: false, error: TOKEN_EXPIRED_ERROR };
-    }
-    return { success: false, error: error.message };
-  }
-  return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
-}
 
 // Helper function to build search payload for POST /users/search
 function buildUsersSearchPayload(filters: UsersFilters) {
@@ -124,7 +113,7 @@ export async function getUsersAction(filters?: UsersFilters): Promise<UsersRespo
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -160,7 +149,7 @@ export async function getUserAction(userId: string | number): Promise<UserRespon
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -237,7 +226,7 @@ export async function createUserAction(userData: CreateUserFormData): Promise<Us
       user,
     };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -336,7 +325,7 @@ export async function updateUserAction(userId: string | number, userData: Record
       user,
     };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -378,6 +367,6 @@ export async function deleteUserAction(userId: string | number): Promise<{ succe
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }

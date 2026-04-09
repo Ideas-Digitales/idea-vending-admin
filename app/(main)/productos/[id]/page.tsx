@@ -232,6 +232,19 @@ export default function ProductDetailPage() {
 
       <main className="flex-1 p-4 sm:p-6 overflow-auto">
         <div className="max-w-4xl mx-auto space-y-6">
+          <div className="card p-5">
+            {product.image ? (
+              <img
+                src={product.image}
+                alt={product.name}
+                className="h-44 w-full rounded-2xl border border-gray-200 object-cover"
+              />
+            ) : (
+              <div className="h-44 w-full rounded-2xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400">
+                <Package className="h-12 w-12" />
+              </div>
+            )}
+          </div>
 
           {/* ── MÉTRICAS DE VENTAS ── */}
           <div className="card overflow-hidden">

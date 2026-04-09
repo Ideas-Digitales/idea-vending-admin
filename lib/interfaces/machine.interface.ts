@@ -22,9 +22,11 @@ export interface Machine {
   name: string;
   status: MachineStatus;
   location: string;
+  image?: string | null;
   created_at: string;
   updated_at: string;
   type: string;
+  manage_stock?: boolean;
   enterprise_id: number;
   enterprise?: MachineEnterprise;
   client_id?: number | null;
@@ -39,6 +41,7 @@ export interface ApiMachine {
   machine_name?: string;
   status?: string;
   location?: string;
+  image?: string | null;
   address?: string;
   client_id?: number | null;
   clientId?: number | null;
@@ -48,6 +51,7 @@ export interface ApiMachine {
   updatedAt?: string;
   type?: string;
   machine_type?: string;
+  manage_stock?: boolean;
   enterprise_id?: number;
   enterpriseId?: number;
   enterprise?: { id: number; name: string };
@@ -119,7 +123,9 @@ export interface MachinesFilters {
 export interface CreateMachine {
   name: string;
   location: string;
+  image?: string | null;
   type: string;
+  manage_stock: boolean;
   enterprise_id: number;
   client_id?: number | null;
 }
@@ -127,7 +133,9 @@ export interface CreateMachine {
 export interface UpdateMachine {
   name?: string;
   location?: string;
+  image?: string | null;
   type?: string;
+  manage_stock?: boolean;
   status?: MachineStatus;
   client_id?: number | null;
   enterprise_id?: number;

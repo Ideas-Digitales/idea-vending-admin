@@ -10,13 +10,20 @@ export interface Slot {
   id: number;
   mdb_code: number;
   label: string;
+  column?: string | null;
+  row?: number | null;
   product_id: number | null;
   product?: {
     id: number | string;
     name: string;
   } | null;
+  manage_stock?: boolean | null;
   capacity: number | null;
   current_stock: number | null;
+  x?: number | null;
+  y?: number | null;
+  width?: number | null;
+  height?: number | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -27,9 +34,16 @@ export interface Slot {
 export interface CreateSlot {
   mdb_code: number;
   label?: string;
+  column?: string | null;
+  row?: number | null;
   product_id?: number | null;
+  manage_stock?: boolean | null;
   capacity?: number | null;
   current_stock?: number | null;
+  x?: number | null;
+  y?: number | null;
+  width?: number | null;
+  height?: number | null;
 }
 
 /**
@@ -39,9 +53,16 @@ export interface CreateSlot {
 export interface UpdateSlot {
   mdb_code?: number;
   label?: string;
+  column?: string | null;
+  row?: number | null;
   product_id?: number | null;
+  manage_stock?: boolean | null;
   capacity?: number | null;
   current_stock?: number | null;
+  x?: number | null;
+  y?: number | null;
+  width?: number | null;
+  height?: number | null;
 }
 
 /**
@@ -51,6 +72,8 @@ export interface SlotApiData {
   id: number;
   mdb_code: number;
   label: string;
+  column?: string | null;
+  row?: number | null;
   product_id: number | null;
   product?: {
     id?: number | string;
@@ -58,8 +81,13 @@ export interface SlotApiData {
     name?: string;
     product_name?: string;
   } | null;
+  manage_stock?: boolean | null;
   capacity: number | null;
   current_stock: number | null;
+  x?: number | null;
+  y?: number | null;
+  width?: number | null;
+  height?: number | null;
   created_at?: string;
   updated_at?: string;
 }

@@ -14,10 +14,12 @@ export class MachineAdapter {
       name: apiMachine.name || apiMachine.machine_name || 'Máquina Sin Nombre',
       status: this.mapMachineStatus(apiMachine.status),
       location: apiMachine.location || apiMachine.address || 'Ubicación no especificada',
+      image: typeof apiMachine.image === 'string' ? apiMachine.image : null,
       client_id: apiMachine.client_id || apiMachine.clientId || null,
       created_at: apiMachine.created_at || apiMachine.createdAt || new Date().toISOString(),
       updated_at: apiMachine.updated_at || apiMachine.updatedAt || new Date().toISOString(),
       type: apiMachine.type || apiMachine.machine_type || 'MDB-DEX',
+      manage_stock: apiMachine.manage_stock ?? true,
       enterprise_id: apiMachine.enterprise_id ?? apiMachine.enterpriseId ?? enterprise?.id ?? 0,
       enterprise,
       connection_status: Boolean(apiMachine.connection_status ?? apiMachine.connected ?? false),
@@ -48,7 +50,9 @@ export class MachineAdapter {
 
     if (machine.name !== undefined) apiMachine.name = machine.name;
     if (machine.location !== undefined) apiMachine.location = machine.location;
+    if (machine.image !== undefined) apiMachine.image = machine.image;
     if (machine.type !== undefined) apiMachine.type = machine.type;
+    if (machine.manage_stock !== undefined) apiMachine.manage_stock = machine.manage_stock;
     if (machine.status !== undefined) apiMachine.status = machine.status;
     if (machine.client_id !== undefined) apiMachine.client_id = machine.client_id;
     if (machine.enterprise_id !== undefined) apiMachine.enterprise_id = machine.enterprise_id;

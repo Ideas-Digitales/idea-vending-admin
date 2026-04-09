@@ -13,6 +13,8 @@ export class SlotAdapter {
       id: apiData.id,
       mdb_code: apiData.mdb_code,
       label: apiData.label,
+      column: apiData.column,
+      row: apiData.row,
       product_id: apiData.product_id,
       product: apiData.product
         ? {
@@ -20,8 +22,13 @@ export class SlotAdapter {
             name: apiData.product.name ?? apiData.product.product_name ?? 'Producto Sin Nombre',
           }
         : null,
+      manage_stock: apiData.manage_stock ?? null,
       capacity: apiData.capacity,
       current_stock: apiData.current_stock,
+      x: apiData.x,
+      y: apiData.y,
+      width: apiData.width,
+      height: apiData.height,
       created_at: apiData.created_at,
       updated_at: apiData.updated_at,
     };
@@ -35,6 +42,8 @@ export class SlotAdapter {
       id: slot.id,
       mdb_code: slot.mdb_code,
       label: slot.label,
+      column: slot.column,
+      row: slot.row,
       product_id: slot.product_id,
       product: slot.product
         ? {
@@ -42,60 +51,43 @@ export class SlotAdapter {
             name: slot.product.name,
           }
         : null,
+      manage_stock: slot.manage_stock,
       capacity: slot.capacity,
       current_stock: slot.current_stock,
+      x: slot.x,
+      y: slot.y,
+      width: slot.width,
+      height: slot.height,
       created_at: slot.created_at,
       updated_at: slot.updated_at,
     };
   }
 
-  /**
-   * Mapea datos de formulario de creación al formato del API
-   */
   static mapCreateSlotData(formData: CreateSlot): CreateSlot {
-    return {
-      mdb_code: formData.mdb_code,
-      label: formData.label,
-      product_id: formData.product_id,
-      capacity: formData.capacity,
-      current_stock: formData.current_stock,
-    };
+    return formData;
   }
 
   /**
-   * Mapea datos de formulario de actualización al formato del API
-   * Solo incluye campos que están definidos para permitir actualizaciones parciales
+   * Solo incluye campos definidos para permitir actualizaciones parciales (PATCH)
    */
   static mapUpdateSlotData(formData: UpdateSlot): UpdateSlot {
-    const updateData: UpdateSlot = {};
-    
-    if (formData.mdb_code !== undefined) {
-      updateData.mdb_code = formData.mdb_code;
-    }
-    if (formData.label !== undefined) {
-      updateData.label = formData.label;
-    }
-    if (formData.product_id !== undefined) {
-      updateData.product_id = formData.product_id;
-    }
-    if (formData.capacity !== undefined) {
-      updateData.capacity = formData.capacity;
-    }
-    if (formData.current_stock !== undefined) {
-      updateData.current_stock = formData.current_stock;
-    }
-    
-    return updateData;
+    return Object.fromEntries(
+      Object.entries(formData).filter(([, v]) => v !== undefined),
+    ) as UpdateSlot;
   }
 
   /**
    * Obtiene el porcentaje de stock de un slot
    */
   static getStockPercentage(slot: Slot): number | null {
-    if (slot.capacity === null || slot.current_stock === null || slot.capacity === 0) {
+    if (!this.tracksStock(slot) || slot.capacity === null || slot.current_stock === null || slot.capacity === 0) {
       return null;
     }
     return Math.round((slot.current_stock / slot.capacity) * 100);
+  }
+
+  static tracksStock(slot: Pick<Slot, 'manage_stock'>, machineManageStock = true): boolean {
+    return slot.manage_stock ?? machineManageStock;
   }
 
   /**
@@ -110,7 +102,7 @@ export class SlotAdapter {
    * Determina si un slot está vacío
    */
   static isEmpty(slot: Slot): boolean {
-    return slot.current_stock === 0;
+    return this.tracksStock(slot) && slot.current_stock === 0;
   }
 
   /**

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Monitor, Loader2, Info } from "lucide-react";
 import { createMachineAction } from "@/lib/actions/machines";
@@ -8,6 +8,7 @@ import { notify } from '@/lib/adapters/notification.adapter';
 import { type CreateMachineFormData } from "@/lib/schemas/machine.schema";
 import { PageHeader } from '@/components/ui-custom';
 import EnterpriseSearchInput from '@/components/EnterpriseSearchInput';
+import { uploadMachineImage } from '@/lib/utils/imageUpload';
 
 function FieldHint({ children }: { children: React.ReactNode }) {
   return (
@@ -21,10 +22,13 @@ function FieldHint({ children }: { children: React.ReactNode }) {
 export default function NuevaMaquinaPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     location: '',
     type: 'MDB' as CreateMachineFormData['type'],
+    manage_stock: true,
     enterprise_id: 0,
   });
 
@@ -52,6 +56,9 @@ export default function NuevaMaquinaPage() {
       });
 
       if (result.success) {
+        if (result.machine && imageFile) {
+          await uploadMachineImage(result.machine.id, imageFile);
+        }
         notify.success('Máquina creada exitosamente');
         router.push('/maquinas');
       } else {
@@ -71,6 +78,12 @@ export default function NuevaMaquinaPage() {
       [name]: name === 'enterprise_id' ? Number(value) : value
     }));
   };
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   return (
     <>
@@ -98,6 +111,31 @@ export default function NuevaMaquinaPage() {
               <FieldHint>
                 Usa un nombre que identifique la máquina de forma única. Incluye una referencia al lugar y un número o código si hay varias. Ej: <strong>«Snacks Casino Norte»</strong> o <strong>«VM-Torre B P3»</strong>. Evita nombres genéricos como «Máquina 1».
               </FieldHint>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-black mb-2">Imagen referencial</label>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setImageFile(file);
+                  if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+                  setImagePreview(file ? URL.createObjectURL(file) : null);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black"
+              />
+              <FieldHint>
+                Sube una foto o referencia visual de la máquina para reconocerla más rápido.
+              </FieldHint>
+              {imagePreview && (
+                <img
+                  src={imagePreview}
+                  alt="Vista previa de máquina"
+                  className="mt-3 h-36 w-full rounded-xl border border-gray-200 object-cover"
+                />
+              )}
             </div>
 
             <div>
@@ -132,6 +170,24 @@ export default function NuevaMaquinaPage() {
               <FieldHint>
                 <strong>MDB</strong>: protocolo estándar para la mayoría de máquinas modernas. <strong>MDB-DEX</strong>: MDB con auditoría DEX para reportes detallados de ventas. <strong>PULSES</strong>: máquinas antiguas con señales de pulso. Consulta el manual de tu equipo si no estás seguro.
               </FieldHint>
+            </div>
+
+            <div>
+              <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-3">
+                <input
+                  type="checkbox"
+                  checked={formData.manage_stock}
+                  onChange={(e) => setFormData(prev => ({ ...prev, manage_stock: e.target.checked }))}
+                  disabled={isSubmitting}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-black">Controlar stock de esta máquina</span>
+                  <span className="block mt-1 text-xs text-gray-500">
+                    Si lo desactivas, los slots heredarán “sin control de stock” salvo configuración puntual por slot.
+                  </span>
+                </span>
+              </label>
             </div>
 
             <div>

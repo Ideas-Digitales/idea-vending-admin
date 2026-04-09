@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSlotStore } from '@/lib/stores/slotStore';
 import { useMachineStore } from '@/lib/stores/machineStore';
@@ -12,6 +12,8 @@ import { useMqttSlot } from '@/lib/hooks/useMqttSlot';
 import { PageHeader } from '@/components/ui-custom';
 import { HelpTooltip } from '@/components/help/HelpTooltip';
 import { TourRunner, type Step } from '@/components/help/TourRunner';
+import SlotSpanSelector from '@/components/slots/SlotSpanSelector';
+import { deriveSlotSpan, slotSpanToWidth } from '@/lib/utils/slotSpan';
 
 const EDIT_SLOT_TOUR: Step[] = [
   {
@@ -51,6 +53,11 @@ export default function EditSlotPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [products, setProducts] = useState<Producto[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const gridColumns = useMemo(() => {
+    const positioned = slots.filter((s) => s.column && s.row != null);
+    if (positioned.length === 0) return 0;
+    return new Set(positioned.map((s) => s.column as string)).size;
+  }, [slots]);
 
   useEffect(() => {
     if (machineId) { fetchMachine(Number(machineId)); fetchSlots(Number(machineId)); }
@@ -69,10 +76,12 @@ export default function EditSlotPage() {
   useEffect(() => {
     const slot = slots.find(s => s.id === Number(slotId));
     if (slot) {
-      setFormData({ mdb_code: slot.mdb_code, label: slot.label || '', product_id: slot.product_id, capacity: slot.capacity, current_stock: slot.current_stock });
+      setFormData({ mdb_code: slot.mdb_code, label: slot.label || '', product_id: slot.product_id, capacity: slot.capacity, current_stock: slot.current_stock, width: slot.width });
       setIsLoading(false);
     }
   }, [slots, slotId]);
+
+  const currentSlot = slots.find((s) => s.id === Number(slotId));
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -258,6 +267,21 @@ export default function EditSlotPage() {
                     {errors.current_stock && <p className="text-xs text-red-600 mt-1">{errors.current_stock}</p>}
                   </div>
                 </div>
+
+                {currentSlot?.column && currentSlot.row != null && gridColumns > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-dark mb-1.5">
+                      Tamaño del slot
+                      <HelpTooltip className="ml-1.5" text="Define si el slot ocupa 1, 2 o 3 columnas dentro de la retícula." side="top" />
+                    </label>
+                    <SlotSpanSelector
+                      value={deriveSlotSpan(formData.width, gridColumns)}
+                      totalColumns={gridColumns}
+                      disabled={busy}
+                      onChange={(span) => setFormData((prev) => ({ ...prev, width: slotSpanToWidth(span, gridColumns) }))}
+                    />
+                  </div>
+                )}
 
                 {/* Actions */}
                 <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2 border-t border-gray-100">

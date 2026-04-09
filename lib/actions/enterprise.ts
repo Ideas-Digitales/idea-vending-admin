@@ -1,7 +1,8 @@
 'use server';
 
 import { authenticatedFetch } from '../utils/authenticatedFetch';
-import { AuthFetchError } from '../utils/authFetchError';
+import { handleActionError } from '../utils/actionError';
+
 import {
   EnterpriseResponse,
   EnterprisesResponse,
@@ -14,18 +15,6 @@ import {
   CreateEnterpriseFormData,
   UpdateEnterpriseFormData
 } from '../schemas/enterprise.schema';
-
-const TOKEN_EXPIRED_ERROR = 'SESSION_EXPIRED';
-
-function handleError(error: unknown): { success: false; error: string } {
-  if (error instanceof AuthFetchError) {
-    if (error.code === 'TOKEN_EXPIRED' || error.code === 'NO_TOKEN') {
-      return { success: false, error: TOKEN_EXPIRED_ERROR };
-    }
-    return { success: false, error: error.message };
-  }
-  return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
-}
 
 /**
  * Obtener lista de empresas con búsqueda
@@ -71,7 +60,7 @@ export async function getEnterprisesAction(filters?: EnterprisesFilters): Promis
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -122,7 +111,7 @@ export async function searchEnterprisesAction(filters: EnterprisesFilters): Prom
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -152,7 +141,7 @@ export async function getEnterpriseAction(enterpriseId: string | number): Promis
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -197,7 +186,7 @@ export async function createEnterpriseAction(enterpriseData: CreateEnterpriseFor
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -243,7 +232,7 @@ export async function updateEnterpriseAction(
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -280,7 +269,7 @@ export async function attachUsersToEnterpriseAction(
     const data = await response.json().catch(() => ({}));
     return { success: true, attached: data.attached };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -317,7 +306,7 @@ export async function detachUsersFromEnterpriseAction(
     const data = await response.json().catch(() => ({}));
     return { success: true, detached: data.detached };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -343,6 +332,6 @@ export async function deleteEnterpriseAction(enterpriseId: string | number): Pro
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }

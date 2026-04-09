@@ -11,22 +11,10 @@ import {
 import { MachineAdapter } from '@/lib/adapters/machine.adapter';
 import { createMachineSchema, updateMachineSchema, CreateMachineFormData, UpdateMachineFormData } from '@/lib/schemas/machine.schema';
 import { authenticatedFetch } from '../utils/authenticatedFetch';
-import { AuthFetchError } from '../utils/authFetchError';
+import { handleActionError } from '../utils/actionError';
 
 // Re-export types for backward compatibility
 export type { Machine as Maquina } from '@/lib/interfaces/machine.interface';
-
-const TOKEN_EXPIRED_ERROR = 'SESSION_EXPIRED';
-
-function handleError(error: unknown): { success: false; error: string } {
-  if (error instanceof AuthFetchError) {
-    if (error.code === 'TOKEN_EXPIRED' || error.code === 'NO_TOKEN') {
-      return { success: false, error: TOKEN_EXPIRED_ERROR };
-    }
-    return { success: false, error: error.message };
-  }
-  return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' };
-}
 
 // Server Action para obtener lista de máquinas
 export async function getMachinesAction(filters?: MachinesFilters): Promise<MachinesResponse> {
@@ -93,7 +81,7 @@ export async function getMachinesAction(filters?: MachinesFilters): Promise<Mach
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -124,7 +112,7 @@ export async function getMachineAction(machineId: string | number, options: { in
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -148,7 +136,9 @@ export async function createMachineAction(machineData: CreateMachineFormData): P
     const createMachineData: CreateMachine = {
       name: validatedData.name,
       location: validatedData.location,
+      image: validatedData.image,
       type: validatedData.type,
+      manage_stock: validatedData.manage_stock,
       enterprise_id: validatedData.enterprise_id,
       client_id: validatedData.client_id
     };
@@ -202,7 +192,7 @@ export async function createMachineAction(machineData: CreateMachineFormData): P
       machine,
     };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -226,18 +216,13 @@ export async function updateMachineAction(machineId: string | number, machineDat
     const updateData: UpdateMachine = {
       name: validatedData.name,
       location: validatedData.location,
+      image: validatedData.image,
       type: validatedData.type,
+      manage_stock: validatedData.manage_stock,
       status: validatedData.status,
       client_id: validatedData.client_id,
       enterprise_id: validatedData.enterprise_id,
     };
-
-    // Filtrar valores undefined
-    Object.keys(updateData).forEach(key => {
-      if (updateData[key as keyof UpdateMachine] === undefined) {
-        delete updateData[key as keyof UpdateMachine];
-      }
-    });
 
     const { response } = await authenticatedFetch(`/machines/${machineId}`, {
       method: 'PATCH',
@@ -295,7 +280,7 @@ export async function updateMachineAction(machineId: string | number, machineDat
       machine,
     };
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }
 
@@ -337,6 +322,6 @@ export async function deleteMachineAction(machineId: string | number): Promise<{
     };
 
   } catch (error) {
-    return handleError(error);
+    return handleActionError(error);
   }
 }

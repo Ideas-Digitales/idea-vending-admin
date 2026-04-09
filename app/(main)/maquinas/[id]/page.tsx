@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { getMachineAction, updateMachineAction } from '@/lib/actions/machines';
 import { aggregatePaymentsAction, getPaymentsAction } from '@/lib/actions/payments';
-import { getProductsAction } from '@/lib/actions/products';
+import { getProductsAction, createProductAction } from '@/lib/actions/products';
 import { Machine } from '@/lib/interfaces/machine.interface';
 import type { Payment } from '@/lib/interfaces/payment.interface';
 import { useSlotStore } from '@/lib/stores/slotStore';
@@ -14,13 +14,14 @@ import { Slot } from '@/lib/interfaces/slot.interface';
 import type { Producto } from '@/lib/interfaces/product.interface';
 import { useMqttSlot } from '@/lib/hooks/useMqttSlot';
 import SlotFormModal from '@/components/slots/SlotFormModal';
+import SlotInspectorPanel from '@/components/slots/SlotInspectorPanel';
 import {
   Monitor, Wifi, WifiOff, MapPin, Calendar, Activity, Package,
   Shield, RotateCcw, QrCode, TrendingUp, TrendingDown, BarChart2,
   ChevronDown, Eye, EyeOff, Copy, Check, CreditCard,
   Plus, Edit, Trash2, AlertTriangle, CheckCircle, XCircle, Loader2, RefreshCw,
   Save, X, Info, LayoutGrid, LayoutList, ClipboardList, Printer, Clipboard,
-  AlertCircle, Lightbulb, Building2, Tag, Hash, Clock, Settings,
+  AlertCircle, Lightbulb, Building2, Tag, Hash, Clock, Settings, Search, Grid3x3, GripVertical,
 } from 'lucide-react';
 import { useMqttReboot } from '@/lib/hooks/useMqttReboot';
 import { PageHeader, ConfirmActionDialog } from '@/components/ui-custom';
@@ -29,6 +30,7 @@ import { useUser } from '@/lib/stores/authStore';
 import Link from 'next/link';
 import { HelpTooltip } from '@/components/help/HelpTooltip';
 import { TourRunner, type Step } from '@/components/help/TourRunner';
+import { uploadMachineImage } from '@/lib/utils/imageUpload';
 import {
   clp, getPeriodRange, getGroupBy, mapDualAxisData,
   PERIOD_LABELS, type Period,
@@ -41,6 +43,221 @@ import {
 } from '@/components/ui/table';
 
 const MachineQRLabel = dynamic(() => import('@/components/MachineQRLabel'), { ssr: false });
+
+// ── SlotCard ──────────────────────────────────────────────────────────────────
+// Diseño unificado: misma estructura que MachineGridView en aplicar-plantilla
+
+type StockLevel = 'disabled' | 'unknown' | 'critical' | 'low' | 'incomplete' | 'full';
+
+const STOCK_COLORS: Record<StockLevel, string> = {
+  disabled: 'text-slate-500', unknown: 'text-gray-400', critical: 'text-red-600',
+  low: 'text-amber-600', incomplete: 'text-blue-600', full: 'text-emerald-600',
+};
+const STOCK_BAR_COLORS: Record<StockLevel, string> = {
+  disabled: 'bg-slate-400', unknown: 'bg-gray-300', critical: 'bg-red-500',
+  low: 'bg-amber-400', incomplete: 'bg-blue-400', full: 'bg-emerald-500',
+};
+const STOCK_LABELS: Record<StockLevel, string> = {
+  disabled: 'Sin control', unknown: 'Sin registrar', critical: 'Crítico',
+  low: 'Stock bajo', incomplete: 'Incompleto', full: 'Lleno',
+};
+const STOCK_URGENCY: Record<StockLevel, number> = {
+  disabled: 6, unknown: 5, critical: 0, low: 1, incomplete: 2, full: 3,
+};
+
+function slotTracksStock(slot: Slot, machine?: Machine | null): boolean {
+  return slot.manage_stock ?? machine?.manage_stock ?? true;
+}
+
+function slotStockLevel(slot: Slot, machine?: Machine | null): StockLevel {
+  if (!slotTracksStock(slot, machine)) return 'disabled';
+  if (slot.capacity === null) return 'unknown';
+  if (slot.current_stock === null) return 'unknown';
+  const stock = slot.current_stock;
+  const cap   = slot.capacity;
+  if (cap === 0) return 'unknown';
+  if (stock === 0) return 'critical';
+  if (SlotAdapter.isFull(slot)) return 'full';
+  const pct = stock / cap;
+  if (pct < 0.1) return 'critical';
+  if (pct < 0.3) return 'low';
+  return 'incomplete';
+}
+
+function getProductColor(productId: number | string): string {
+  const palette = ['#3157b2','#d97706','#16a34a','#dc2626','#7c3aed','#0891b2','#ea580c','#4f46e5'];
+  const n = typeof productId === 'number' ? productId : Number(String(productId).replace(/\D/g,'')) || 0;
+  return palette[Math.abs(n) % palette.length];
+}
+
+function SlotCard({ slot, machine, products, totalColumns, productPickerSlotId, setProductPickerSlotId, onProductChange, onFieldChange, onStockUpdate, onEdit, onDelete, isDragTarget, onDragOver, onDragLeave, onDrop }: {
+  slot: Slot;
+  machine?: Machine | null;
+  products: Producto[];
+  totalColumns: number;
+  productPickerSlotId: number | null;
+  setProductPickerSlotId: (id: number | null) => void;
+  onProductChange: (slot: Slot, product: Producto | null) => void;
+  onFieldChange: (slot: Slot, field: 'label' | 'mdb_code' | 'capacity' | 'width', value: string | number | null) => void;
+  onStockUpdate: (slot: Slot) => void;
+  onEdit: (slot: Slot) => void;
+  onDelete: (slot: Slot) => void;
+  isDragTarget?: boolean;
+  onDragOver?: React.DragEventHandler;
+  onDragLeave?: React.DragEventHandler;
+  onDrop?: React.DragEventHandler;
+}) {
+  const tracksStock = slotTracksStock(slot, machine);
+  const level       = slotStockLevel(slot, machine);
+  const pct         = SlotAdapter.getStockPercentage({ ...slot, manage_stock: tracksStock }) ?? 0;
+  const productName = slot.product?.name ?? products.find(p => Number(p.id) === slot.product_id)?.name;
+  const isOpen      = productPickerSlotId === slot.id;
+  const productColor = productName
+    ? getProductColor(slot.product?.id ?? slot.product_id ?? 0)
+    : null;
+
+  const borderCls = isDragTarget
+    ? 'border-primary/60 bg-primary/5 shadow-sm ring-2 ring-primary/20'
+    : level === 'critical'   ? 'border-red-200/80 bg-red-50/10' :
+      level === 'low'        ? 'border-amber-200/80 bg-amber-50/10' :
+      level === 'incomplete' ? 'border-blue-200/80 bg-white' :
+      level === 'disabled'   ? 'border-slate-200/80 bg-slate-50/40' :
+      level === 'unknown'    ? 'border-dashed border-gray-200/80 bg-white' :
+                               'border-gray-200/80 bg-white';
+
+  const badgeCls =
+    level === 'critical'   ? 'bg-red-50 text-red-600 border-red-200' :
+    level === 'low'        ? 'bg-amber-50 text-amber-600 border-amber-200' :
+    level === 'incomplete' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+    level === 'disabled'   ? 'bg-slate-100 text-slate-600 border-slate-200' :
+    level === 'unknown'    ? 'bg-gray-100 text-gray-400 border-gray-200' :
+                             'bg-emerald-50 text-emerald-600 border-emerald-200';
+
+  return (
+    <div
+      className={`group relative rounded-xl border-2 flex flex-col items-center justify-between gap-1 py-2.5 px-2 min-h-[90px] transition-all hover:shadow-sm ${borderCls}`}
+      onDragOver={(e) => { e.preventDefault(); onDragOver?.(e); }}
+      onDragLeave={onDragLeave}
+      onDrop={(e) => { e.preventDefault(); onDrop?.(e); }}
+    >
+      {/* Fila superior: badge + acciones */}
+      <div className="flex items-center justify-between w-full">
+        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${badgeCls}`}>
+          {STOCK_LABELS[level]}
+        </span>
+        <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          {tracksStock && (
+            <button onClick={() => onStockUpdate(slot)} title="Actualizar stock" className="p-0.5 rounded text-emerald-600 hover:bg-emerald-50 transition-colors">
+              <RefreshCw className="h-3 w-3" />
+            </button>
+          )}
+          <button onClick={() => onEdit(slot)} title="Editar" className="p-0.5 rounded text-blue-500 hover:bg-blue-50 transition-colors">
+            <Edit className="h-3 w-3" />
+          </button>
+          <button onClick={() => onDelete(slot)} title="Eliminar" className="p-0.5 rounded text-red-400 hover:bg-red-50 transition-colors">
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+
+      {/* Label */}
+      <span className="text-sm font-bold text-[#203c84] text-center leading-tight w-full truncate px-1">
+        {slot.label}
+      </span>
+
+      {/* Producto — chip con color igual al panel lateral */}
+      <div className="relative w-full">
+        {isDragTarget ? (
+          <div className="w-full flex items-center justify-center gap-1 px-1.5 py-0.5 rounded-lg border border-dashed border-primary/40 text-primary">
+            <span className="text-[10px] font-medium">+ soltar aquí</span>
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setProductPickerSlotId(isOpen ? null : slot.id)}
+              className="w-full flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-left transition-all border"
+              style={productColor
+                ? { borderColor: `${productColor}40`, backgroundColor: `${productColor}10` }
+                : { borderStyle: 'dashed', borderColor: '#e5e7eb' }
+              }
+            >
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: productColor ?? '#d1d5db' }} />
+              <span className={`text-[10px] flex-1 truncate ${productName ? 'font-medium text-dark' : 'text-gray-400'}`}>
+                {productName ?? '+ asignar'}
+              </span>
+            </button>
+            {isOpen && (
+              <SlotInspectorPanel
+                slot={slot}
+                products={products}
+                totalColumns={totalColumns}
+                onEditField={(field, value) => onFieldChange(slot, field, value)}
+                onAssign={(p) => onProductChange(slot, p)}
+                onClose={() => setProductPickerSlotId(null)}
+                actions={
+                  <>
+                    {tracksStock && (
+                      <button
+                        onClick={() => onStockUpdate(slot)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        Reponer
+                      </button>
+                    )}
+                    <button
+                      onClick={() => onEdit(slot)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                    >
+                      <Edit className="h-3.5 w-3.5" />
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => onDelete(slot)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Eliminar
+                    </button>
+                  </>
+                }
+              />
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Barra de stock */}
+      {level === 'disabled' ? (
+        <div className="w-full bg-slate-100 rounded-full h-1" />
+      ) : level === 'unknown' ? (
+        <div className="w-full bg-gray-100 rounded-full h-1"
+          style={{ backgroundImage: 'repeating-linear-gradient(90deg,transparent,transparent 4px,#e5e7eb 4px,#e5e7eb 8px)' }} />
+      ) : slot.capacity !== null && slot.current_stock !== null ? (
+        <div className="w-full bg-gray-100 rounded-full h-1">
+          <div className={`h-1 rounded-full transition-all ${STOCK_BAR_COLORS[level]}`} style={{ width: `${pct}%` }} />
+        </div>
+      ) : null}
+
+      {/* Pills */}
+      <div className="flex items-center gap-1 justify-center w-full">
+        <div className="flex items-center gap-0.5 bg-gray-50/80 rounded-md px-1.5 py-0.5">
+          <span className="text-[8px] font-bold text-gray-300 uppercase tracking-widest leading-none select-none">MDB</span>
+          <span className="text-[10px] font-mono text-gray-400">{slot.mdb_code}</span>
+        </div>
+        {(tracksStock && (slot.capacity !== null || slot.current_stock !== null)) && (
+          <div className={`flex items-center gap-0.5 bg-gray-50/80 rounded-md px-1.5 py-0.5 ${STOCK_COLORS[level]}`}>
+            <span className="text-[8px] font-bold uppercase tracking-widest leading-none select-none opacity-60">Stk</span>
+            <span className="text-[10px] font-mono font-semibold">
+              {level === 'unknown' ? `?/${slot.capacity}` : `${slot.current_stock ?? 0}/${slot.capacity ?? '?'}`}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 type Tab = 'pagos' | 'productos' | 'reposicion' | 'configuracion';
@@ -68,37 +285,6 @@ const getStatusColor = (s: string) =>
 const getStatusLabel = (s: string) =>
   s?.toLowerCase() === 'online' ? 'En línea' : 'Fuera de línea';
 
-// ── Helpers de stock ──────────────────────────────────────────────────────────
-type StockLevel = 'critical' | 'low' | 'incomplete' | 'full';
-function stockLevel(slot: Slot): StockLevel {
-  const stock = slot.current_stock ?? 0;
-  const cap   = slot.capacity ?? 0;
-  if (cap === 0 || stock === 0 || slot.current_stock === null) return 'critical';
-  if (SlotAdapter.isFull(slot)) return 'full';
-  const pct = stock / cap;
-  if (pct < 0.1) return 'critical';
-  if (pct < 0.3) return 'low';
-  return 'incomplete';
-}
-const STOCK_COLORS: Record<StockLevel, string> = {
-  critical:   'text-red-600',
-  low:        'text-amber-600',
-  incomplete: 'text-blue-600',
-  full:       'text-emerald-600',
-};
-const STOCK_BAR_COLORS: Record<StockLevel, string> = {
-  critical:   'bg-red-500',
-  low:        'bg-amber-400',
-  incomplete: 'bg-blue-400',
-  full:       'bg-emerald-500',
-};
-const STOCK_LABELS: Record<StockLevel, string> = {
-  critical:   'Crítico',
-  low:        'Stock bajo',
-  incomplete: 'Incompleto',
-  full:       'Lleno',
-};
-const STOCK_URGENCY: Record<StockLevel, number> = { critical: 0, low: 1, incomplete: 2, full: 3 };
 const PAYMENT_SORT_OPTIONS: Array<{ value: PaymentSortOption; label: string }> = [
   { value: 'date_desc', label: 'Más recientes primero' },
   { value: 'date_asc', label: 'Más antiguos primero' },
@@ -254,9 +440,10 @@ export default function MaquinaDetallePage() {
   } = useSlotStore();
   const { publishSlotOperation, isPublishing } = useMqttSlot();
 
-  const [slotsFetched, setSlotsFetched]   = useState(false);
-  const [slotsViewMode, setSlotsViewMode] = useState<'card' | 'table'>('card');
-  const [replenOpen, setReplenOpen]       = useState(false);
+  const [slotsFetched, setSlotsFetched]     = useState(false);
+  const [slotsViewMode, setSlotsViewMode]   = useState<'grid' | 'card' | 'table'>('card');
+  const [showProductSidebar, setShowProductSidebar] = useState(false);
+  const [replenOpen, setReplenOpen]         = useState(false);
   const [copiedRepl, setCopiedRepl]       = useState(false);
 
   const [slotToDelete, setSlotToDelete]       = useState<Slot | null>(null);
@@ -268,8 +455,36 @@ export default function MaquinaDetallePage() {
   // ── Modal de slot (crear / editar) ────────────────────────────────────────
   const [slotModalOpen, setSlotModalOpen] = useState(false);
   const [slotToEdit, setSlotToEdit]       = useState<Slot | null>(null);
+  const [productPickerSlotId, setProductPickerSlotId] = useState<number | null>(null);
   const [products, setProducts]           = useState<Producto[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [productPanelSearch, setProductPanelSearch] = useState('');
+  const [dragProduct, setDragProduct]     = useState<Producto | null>(null);
+  const [isDraggingProduct, setIsDraggingProduct] = useState(false);
+  const [dragOverSlotId, setDragOverSlotId] = useState<number | null>(null);
+
+  // ── Creación rápida de producto ───────────────────────────────────────────
+  const [showQuickCreate, setShowQuickCreate]     = useState(false);
+  const [quickCreateName, setQuickCreateName]     = useState('');
+  const [quickCreateError, setQuickCreateError]   = useState<string | null>(null);
+  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+
+  const handleQuickCreateProduct = async () => {
+    const name = quickCreateName.trim();
+    if (name.length < 2) { setQuickCreateError('Mínimo 2 caracteres'); return; }
+    if (!machine?.enterprise_id) return;
+    setIsCreatingProduct(true);
+    setQuickCreateError(null);
+    const result = await createProductAction({ name, enterprise_id: machine.enterprise_id });
+    setIsCreatingProduct(false);
+    if (result.success && result.product) {
+      setProducts(prev => [result.product!, ...prev]);
+      setQuickCreateName('');
+      setShowQuickCreate(false);
+    } else {
+      setQuickCreateError(result.error ?? 'No fue posible crear el producto');
+    }
+  };
 
   useEffect(() => {
     if ((activeTab === 'productos' || activeTab === 'reposicion') && machineId && !slotsFetched) {
@@ -292,20 +507,47 @@ export default function MaquinaDetallePage() {
 
   // Ordenar slots por urgencia
   const sortedSlots = useMemo(() =>
-    [...slots].sort((a, b) => STOCK_URGENCY[stockLevel(a)] - STOCK_URGENCY[stockLevel(b)]),
-    [slots]
+    [...slots].sort((a, b) => STOCK_URGENCY[slotStockLevel(a, machine)] - STOCK_URGENCY[slotStockLevel(b, machine)]),
+    [slots, machine]
   );
 
   // Slots que necesitan reposición (todo lo que no está lleno)
   const replenSlots = useMemo(() =>
-    sortedSlots.filter(s => stockLevel(s) !== 'full'),
-    [sortedSlots]
+    sortedSlots.filter(s => {
+      const level = slotStockLevel(s, machine);
+      return level !== 'disabled' && level !== 'full';
+    }),
+    [sortedSlots, machine]
   );
 
-  const alertCount      = useMemo(() => slots.filter(s => stockLevel(s) !== 'full').length, [slots]);
-  const criticalCount   = useMemo(() => slots.filter(s => stockLevel(s) === 'critical').length, [slots]);
-  const lowCount        = useMemo(() => slots.filter(s => stockLevel(s) === 'low').length, [slots]);
-  const incompleteCount = useMemo(() => slots.filter(s => stockLevel(s) === 'incomplete').length, [slots]);
+  const alertCount      = useMemo(() => slots.filter(s => {
+    const level = slotStockLevel(s, machine);
+    return level !== 'disabled' && level !== 'full';
+  }).length, [slots, machine]);
+  const criticalCount   = useMemo(() => slots.filter(s => slotStockLevel(s, machine) === 'critical').length, [slots, machine]);
+  const lowCount        = useMemo(() => slots.filter(s => slotStockLevel(s, machine) === 'low').length, [slots, machine]);
+  const incompleteCount = useMemo(() => slots.filter(s => slotStockLevel(s, machine) === 'incomplete').length, [slots, machine]);
+  const fullCount       = useMemo(() => slots.filter(s => slotStockLevel(s, machine) === 'full').length, [slots, machine]);
+  const disabledCount   = useMemo(() => slots.filter(s => slotStockLevel(s, machine) === 'disabled').length, [slots, machine]);
+
+  // Estructura de retícula derivada de los slots con column/row
+  const gridStructure = useMemo(() => {
+    const withGrid = slots.filter(s => s.column && s.row != null);
+    if (withGrid.length === 0) return null;
+    const cols  = [...new Set(withGrid.map(s => s.column as string))].sort((a, b) => {
+      const na = Number(a), nb = Number(b);
+      return (!isNaN(na) && !isNaN(nb)) ? na - nb : a.localeCompare(b);
+    });
+    const rows  = [...new Set(withGrid.map(s => s.row as number))].sort((a, b) => a - b);
+    const map   = new Map(withGrid.map(s => [`${s.column}-${s.row}`, s]));
+    const extra = slots.filter(s => !s.column || s.row == null);
+    return { cols, rows, map, extra };
+  }, [slots]);
+
+  // Activa automáticamente la vista retícula cuando los slots tienen estructura de cuadrícula
+  useEffect(() => {
+    if (gridStructure) setSlotsViewMode('grid');
+  }, [!!gridStructure]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const copyReplenishmentList = () => {
     if (!machine) return;
@@ -315,9 +557,11 @@ export default function MaquinaDetallePage() {
       `${'─'.repeat(45)}`,
       ...replenSlots.map(s => {
         const needed = (s.capacity ?? 0) - (s.current_stock ?? 0);
-        const lvl = stockLevel(s);
+        const lvl = slotStockLevel(s, machine);
         const status = lvl === 'critical' ? '[CRÍTICO]' : lvl === 'low' ? '[BAJO]' : '[INCOMPLETO]';
-        return `${status} ${s.label} (${s.mdb_code}) — necesita ${needed} uds. (stock: ${s.current_stock}/${s.capacity})${s.product_id ? ` — Prod. #${s.product_id}` : ''}`;
+        const pName = s.product?.name ?? products.find(p => Number(p.id) === s.product_id)?.name;
+        return `${status} ${s.label} (${s.mdb_code}) — necesita ${needed} uds. (stock: ${s.current_stock}/${s.capacity})${pName ? ` — ${pName}` : s.product_id ? ` — Prod. #${s.product_id}` : ''}`;
+
       }),
       `${'─'.repeat(45)}`,
       `Total a reponer: ${replenSlots.reduce((sum, s) => sum + (s.capacity ?? 0) - (s.current_stock ?? 0), 0)} unidades en ${replenSlots.length} slots`,
@@ -331,7 +575,7 @@ export default function MaquinaDetallePage() {
     if (!machine) return;
     const rows = replenSlots.map(s => {
       const needed = (s.capacity ?? 0) - (s.current_stock ?? 0);
-      const level  = stockLevel(s);
+      const level  = slotStockLevel(s, machine);
       const badge  = level === 'critical'
         ? '<span style="color:#dc2626;font-weight:700">CRÍTICO</span>'
         : level === 'low'
@@ -340,7 +584,7 @@ export default function MaquinaDetallePage() {
       return `<tr>
         <td>${s.label}</td>
         <td style="font-family:monospace">${s.mdb_code}</td>
-        <td>${s.product_id ?? '—'}</td>
+        <td>${(s.product?.name ?? products.find(p => Number(p.id) === s.product_id)?.name) || (s.product_id ? `#${s.product_id}` : '—')}</td>
         <td>${s.current_stock ?? 0} / ${s.capacity ?? '?'}</td>
         <td style="font-weight:700;color:#1d4ed8">${needed}</td>
         <td>${badge}</td>
@@ -390,8 +634,24 @@ export default function MaquinaDetallePage() {
   };
 
   const handleStockUpdateClick = (slot: Slot) => {
+    if (!slotTracksStock(slot, machine)) return;
     setStockUpdateSlot(slot);
     setNewStockValue(slot.current_stock || 0);
+  };
+
+  const handleQuickProductChange = async (slot: Slot, product: Producto | null) => {
+    setProductPickerSlotId(null);
+    await updateSlot(Number(machineId), slot.id, { product_id: product ? Number(product.id) : null });
+    fetchSlots(Number(machineId));
+  };
+
+  const handleQuickSlotFieldChange = async (
+    slot: Slot,
+    field: 'label' | 'mdb_code' | 'capacity' | 'width',
+    value: string | number | null
+  ) => {
+    await updateSlot(Number(machineId), slot.id, { [field]: value });
+    fetchSlots(Number(machineId));
   };
 
   const handleStockUpdateConfirm = async () => {
@@ -415,13 +675,20 @@ export default function MaquinaDetallePage() {
   };
 
   // ── Configuración (tab Configuración) ─────────────────────────────────────
-  const [formData, setFormData]       = useState({ name: '', location: '', enterprise_id: 0 });
+  const [formData, setFormData]       = useState({ name: '', location: '', manage_stock: true, enterprise_id: 0 });
+  const [imageFile, setImageFile]     = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [saving, setSaving]           = useState(false);
   const [saveError, setSaveError]     = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
-    if (machine) setFormData({ name: machine.name, location: machine.location, enterprise_id: machine.enterprise_id });
+    if (machine) setFormData({
+      name: machine.name,
+      location: machine.location,
+      manage_stock: machine.manage_stock ?? true,
+      enterprise_id: machine.enterprise_id,
+    });
   }, [machine]);
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -435,9 +702,13 @@ export default function MaquinaDetallePage() {
     const result = await updateMachineAction(machineId, {
       name: formData.name,
       location: formData.location,
+      manage_stock: formData.manage_stock,
     });
     setSaving(false);
     if (result.success && result.machine) {
+      if (imageFile) {
+        await uploadMachineImage(machineId, imageFile);
+      }
       setMachine({
         ...result.machine,
         enterprise_id: result.machine.enterprise_id || formData.enterprise_id,
@@ -448,6 +719,12 @@ export default function MaquinaDetallePage() {
       setSaveError(result.error ?? 'Error al guardar');
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   // ── MQTT (tab Información) ────────────────────────────────────────────────
   const [mqttOpen, setMqttOpen] = useState(false);
@@ -518,6 +795,18 @@ export default function MaquinaDetallePage() {
       />
 
       <main className="flex-1 overflow-auto">
+        {(imagePreview || machine.image) && (
+          <div className="border-b border-gray-100 bg-white">
+            <div className="px-4 sm:px-6 py-4">
+              <img
+                src={imagePreview || machine.image || ''}
+                alt={`Referencia visual de ${machine.name}`}
+                className="h-40 w-full rounded-2xl border border-gray-200 object-cover"
+              />
+            </div>
+          </div>
+        )}
+
         {/* ── Barra de acción ─────────────────────────────────────────────── */}
         <div className="border-b border-gray-100 bg-white">
           <div data-tour="machine-actions" className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center gap-2">
@@ -676,18 +965,182 @@ export default function MaquinaDetallePage() {
                       </div>
                       <div className="rounded-xl border bg-emerald-50 border-emerald-200 p-3 sm:p-4">
                         <p className="text-xs font-medium text-muted mb-1">Llenos</p>
-                        <p className="text-2xl font-bold text-emerald-600">{slots.filter(s => stockLevel(s) === 'full').length}</p>
+                        <p className="text-2xl font-bold text-emerald-600">{fullCount}</p>
                         <p className="text-xs text-muted mt-0.5">al 100% de capacidad</p>
                       </div>
                     </div>
 
+                    {/* ── Layout: panel productos + vistas de slots ── */}
+                    <div className="flex gap-4 items-start relative">
+
+                      {/* Panel de productos — sidebar en desktop, overlay en móvil */}
+                      {slotsViewMode !== 'table' && (
+                        <div className={`
+                          ${showProductSidebar ? 'flex' : 'hidden'} lg:flex
+                          absolute inset-0 lg:relative lg:inset-auto z-30 lg:z-auto
+                          w-full lg:w-[200px]
+                          shrink-0 lg:sticky lg:top-4
+                          rounded-xl border border-gray-200 bg-white overflow-hidden flex-col
+                        `} style={{ maxHeight: 'calc(100vh - 180px)' }}>
+                          {/* Barra de cierre (solo móvil) */}
+                          <div className="lg:hidden flex items-center justify-between px-3 py-2.5 border-b border-gray-100 shrink-0">
+                            <span className="text-sm font-semibold text-dark">Productos</span>
+                            <button onClick={() => setShowProductSidebar(false)} className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                              <X className="h-5 w-5" />
+                            </button>
+                          </div>
+
+                          <div className="px-3 pt-3 pb-2 border-b border-gray-100 shrink-0">
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Productos</p>
+                              <button
+                                onClick={() => { setShowQuickCreate(v => !v); setQuickCreateName(''); setQuickCreateError(null); }}
+                                title="Crear producto rápido"
+                                className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${
+                                  showQuickCreate
+                                    ? 'bg-primary text-white'
+                                    : 'bg-gray-100 text-gray-400 hover:bg-primary/10 hover:text-primary'
+                                }`}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </button>
+                            </div>
+
+                            {/* Formulario de creación rápida */}
+                            {showQuickCreate && (
+                              <div className="mb-2 space-y-1.5">
+                                <div className="flex gap-1">
+                                  <input
+                                    autoFocus
+                                    type="text"
+                                    value={quickCreateName}
+                                    onChange={(e) => { setQuickCreateName(e.target.value); setQuickCreateError(null); }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleQuickCreateProduct();
+                                      if (e.key === 'Escape') { setShowQuickCreate(false); setQuickCreateName(''); }
+                                    }}
+                                    placeholder="Nombre del producto…"
+                                    maxLength={100}
+                                    className={`flex-1 px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:border-primary bg-white transition-colors ${
+                                      quickCreateError ? 'border-red-400' : 'border-primary/40'
+                                    }`}
+                                  />
+                                  <button
+                                    onClick={handleQuickCreateProduct}
+                                    disabled={isCreatingProduct || quickCreateName.trim().length < 2}
+                                    className="px-2 py-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-40 transition-colors shrink-0"
+                                    title="Guardar"
+                                  >
+                                    {isCreatingProduct
+                                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                                      : <Check className="h-3 w-3" />}
+                                  </button>
+                                  <button
+                                    onClick={() => { setShowQuickCreate(false); setQuickCreateName(''); setQuickCreateError(null); }}
+                                    className="px-1.5 py-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
+                                    title="Cancelar"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </div>
+                                {quickCreateError && (
+                                  <p className="text-[10px] text-red-500 flex items-center gap-1">
+                                    <AlertCircle className="h-2.5 w-2.5 shrink-0" />{quickCreateError}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400 pointer-events-none" />
+                              <input
+                                type="text"
+                                placeholder="Buscar..."
+                                value={productPanelSearch}
+                                onChange={(e) => setProductPanelSearch(e.target.value)}
+                                className="w-full pl-7 pr-2 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg placeholder-gray-400 focus:outline-none focus:border-primary focus:bg-white transition-all"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+                            <div
+                              draggable
+                              onDragStart={() => { setDragProduct(null); setIsDraggingProduct(true); }}
+                              onDragEnd={() => { setDragProduct(null); setIsDraggingProduct(false); setDragOverSlotId(null); }}
+                              className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border border-dashed border-gray-200 cursor-grab active:cursor-grabbing select-none hover:border-gray-300 transition-all"
+                            >
+                              <div className="w-2.5 h-2.5 rounded-full border-2 border-dashed border-gray-300 shrink-0" />
+                              <span className="text-xs text-gray-400 flex-1 truncate italic">Sin producto</span>
+                              <GripVertical className="h-3 w-3 text-gray-300 shrink-0" />
+                            </div>
+
+                            {(productPanelSearch.trim()
+                              ? products.filter(p => p.name.toLowerCase().includes(productPanelSearch.toLowerCase()))
+                              : products
+                            ).length === 0 ? (
+                              <p className="text-xs text-gray-400 text-center py-6">Sin resultados</p>
+                            ) : (
+                              (productPanelSearch.trim()
+                                ? products.filter(p => p.name.toLowerCase().includes(productPanelSearch.toLowerCase()))
+                                : products
+                              ).map(product => {
+                                const color = getProductColor(product.id);
+                                const isBeingDragged = dragProduct?.id === product.id;
+                                return (
+                                  <div
+                                    key={product.id}
+                                    draggable
+                                    onDragStart={() => { setDragProduct(product); setIsDraggingProduct(true); }}
+                                    onDragEnd={() => { setDragProduct(null); setIsDraggingProduct(false); setDragOverSlotId(null); }}
+                                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border cursor-grab active:cursor-grabbing select-none transition-all ${
+                                      isBeingDragged ? 'opacity-40 border-primary/30' : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'
+                                    }`}
+                                  >
+                                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                    <span className="text-xs text-dark truncate flex-1">{product.name}</span>
+                                    <GripVertical className="h-3 w-3 text-gray-300 shrink-0" />
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          <div className="px-3 py-2 border-t border-gray-100 shrink-0">
+                            <p className="text-[10px] text-gray-400 text-center">Arrastra al slot · o toca para asignar</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Área de slots (flex-1) */}
+                      <div className="flex-1 min-w-0 space-y-3">
+
                     {/* ── Encabezado del inventario completo ── */}
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <h3 className="text-sm font-semibold text-dark">
-                        Inventario completo · {slots.length} slot{slots.length !== 1 ? 's' : ''}
+                        Inventario · {slots.length} slot{slots.length !== 1 ? 's' : ''}
                       </h3>
                       <div className="flex items-center gap-2">
+                        {/* Botón "Productos" — solo visible en móvil y cuando la vista no es tabla */}
+                        {slotsViewMode !== 'table' && (
+                          <button
+                            onClick={() => setShowProductSidebar(true)}
+                            className="lg:hidden inline-flex items-center gap-1.5 py-1.5 px-2.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 transition-colors"
+                          >
+                            <Package className="h-3.5 w-3.5" />
+                            Productos
+                          </button>
+                        )}
                         <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden">
+                          {gridStructure && (
+                            <button
+                              onClick={() => setSlotsViewMode('grid')}
+                              title="Retícula"
+                              className={`p-1.5 transition-colors ${slotsViewMode === 'grid' ? 'bg-primary text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}
+                            >
+                              <Grid3x3 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => setSlotsViewMode('card')}
                             title="Tarjetas"
@@ -720,7 +1173,7 @@ export default function MaquinaDetallePage() {
                           <thead className="bg-gray-50/70 border-b border-gray-100">
                             <tr>
                               <th className="text-left px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide">Slot</th>
-                              <th className="text-left px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide hidden sm:table-cell">Código</th>
+                              <th className="text-left px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide hidden sm:table-cell">Código MDB</th>
                               <th className="text-left px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide hidden md:table-cell">Producto</th>
                               <th className="text-left px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide">Stock</th>
                               <th className="px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide text-right">Acciones</th>
@@ -728,24 +1181,82 @@ export default function MaquinaDetallePage() {
                           </thead>
                           <tbody className="divide-y divide-gray-50">
                             {sortedSlots.map(slot => {
-                              const level  = stockLevel(slot);
-                              const pct    = SlotAdapter.getStockPercentage(slot) ?? 0;
+                              const level  = slotStockLevel(slot, machine);
+                              const tracksStock = slotTracksStock(slot, machine);
+                              const pct    = SlotAdapter.getStockPercentage({ ...slot, manage_stock: tracksStock }) ?? 0;
                               return (
-                                <tr key={slot.id} className={`hover:bg-gray-50/60 transition-colors ${level === 'critical' ? 'bg-red-50/30' : level === 'low' ? 'bg-amber-50/20' : level === 'incomplete' ? 'bg-blue-50/10' : ''}`}>
+                                <tr key={slot.id} className={`hover:bg-gray-50/60 transition-colors ${level === 'critical' ? 'bg-red-50/30' : level === 'low' ? 'bg-amber-50/20' : level === 'incomplete' ? 'bg-blue-50/10' : level === 'disabled' ? 'bg-slate-50/70' : ''}`}>
                                   <td className="px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                      <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold text-white ${level === 'critical' ? 'bg-red-500' : level === 'low' ? 'bg-amber-400' : level === 'incomplete' ? 'bg-blue-400' : 'bg-emerald-500'}`}>
-                                        {level === 'critical' ? '!' : level === 'low' ? '↓' : level === 'incomplete' ? '~' : '✓'}
+                                      <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold text-white ${level === 'critical' ? 'bg-red-500' : level === 'low' ? 'bg-amber-400' : level === 'incomplete' ? 'bg-blue-400' : level === 'unknown' ? 'bg-gray-400' : level === 'disabled' ? 'bg-slate-400' : 'bg-emerald-500'}`}>
+                                        {level === 'critical' ? '!' : level === 'low' ? '↓' : level === 'incomplete' ? '~' : level === 'unknown' ? '?' : level === 'disabled' ? '∅' : '✓'}
                                       </span>
                                       <span className="font-medium text-dark">{slot.label}</span>
                                     </div>
                                   </td>
-                                  <td className="px-4 py-3 text-muted font-mono text-xs hidden sm:table-cell">{slot.mdb_code}</td>
-                                  <td className="px-4 py-3 text-muted text-xs hidden md:table-cell">
-                                    {slot.product_id ? `#${slot.product_id}` : <span className="italic">—</span>}
+                                  <td className="px-4 py-3 font-mono text-xs text-muted hidden sm:table-cell">{slot.mdb_code}</td>
+                                  <td className="px-4 py-3 text-xs hidden md:table-cell">
+                                    {(() => {
+                                      const productName = slot.product?.name ?? products.find(p => Number(p.id) === slot.product_id)?.name;
+                                      const isOpen = productPickerSlotId === slot.id;
+                                      return (
+                                        <div className="relative">
+                                          <button
+                                            type="button"
+                                            onClick={() => setProductPickerSlotId(isOpen ? null : slot.id)}
+                                            className="flex items-center gap-1.5 px-2 py-1 rounded-lg border border-transparent hover:border-gray-200 hover:bg-gray-50 transition-all group"
+                                          >
+                                            <div className={`w-2 h-2 rounded-full shrink-0 ${productName ? 'bg-primary/60' : 'bg-gray-300'}`} />
+                                            <span className={productName ? 'text-dark font-medium' : 'italic text-muted'}>
+                                              {productName ?? 'Sin producto'}
+                                            </span>
+                                            <Edit className="h-3 w-3 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                                          </button>
+                                          {isOpen && (
+                                            <SlotInspectorPanel
+                                              slot={slot}
+                                              products={products}
+                                              totalColumns={gridStructure?.cols.length ?? 0}
+                                              onEditField={(field, value) => handleQuickSlotFieldChange(slot, field, value)}
+                                              onAssign={(p) => handleQuickProductChange(slot, p)}
+                                              onClose={() => setProductPickerSlotId(null)}
+                                              actions={
+                                                <>
+                                                  {tracksStock && (
+                                                    <button
+                                                      onClick={() => handleStockUpdateClick(slot)}
+                                                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                                                    >
+                                                      <RefreshCw className="h-3.5 w-3.5" />
+                                                      Reponer
+                                                    </button>
+                                                  )}
+                                                  <button
+                                                    onClick={() => { setSlotToEdit(slot); setSlotModalOpen(true); }}
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                                                  >
+                                                    <Edit className="h-3.5 w-3.5" />
+                                                    Editar
+                                                  </button>
+                                                  <button
+                                                    onClick={() => setSlotToDelete(slot)}
+                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                                                  >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                    Eliminar
+                                                  </button>
+                                                </>
+                                              }
+                                            />
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                   </td>
                                   <td className="px-4 py-3">
-                                    {slot.capacity !== null && slot.current_stock !== null ? (
+                                    {!tracksStock ? (
+                                      <span className="text-xs text-slate-500 italic">Sin control</span>
+                                    ) : slot.capacity !== null && slot.current_stock !== null ? (
                                       <div className="flex items-center gap-2 min-w-[130px]">
                                         <div className="flex-1 bg-gray-200 rounded-full h-1.5">
                                           <div className={`h-1.5 rounded-full ${STOCK_BAR_COLORS[level]}`} style={{ width: `${pct}%` }} />
@@ -760,13 +1271,15 @@ export default function MaquinaDetallePage() {
                                   </td>
                                   <td className="px-4 py-3">
                                     <div className="flex items-center justify-end gap-0.5">
-                                      <button
-                                        onClick={() => handleStockUpdateClick(slot)}
-                                        title="Actualizar stock"
-                                        className="p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors"
-                                      >
-                                        <RefreshCw className="h-3.5 w-3.5" />
-                                      </button>
+                                      {tracksStock && (
+                                        <button
+                                          onClick={() => handleStockUpdateClick(slot)}
+                                          title="Actualizar stock"
+                                          className="p-1.5 rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors"
+                                        >
+                                          <RefreshCw className="h-3.5 w-3.5" />
+                                        </button>
+                                      )}
                                       <button onClick={() => { setSlotToEdit(slot); setSlotModalOpen(true); }} title="Editar" className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors">
                                         <Edit className="h-3.5 w-3.5" />
                                       </button>
@@ -783,90 +1296,133 @@ export default function MaquinaDetallePage() {
                       </div>
                     )}
 
-                    {/* ── Vista tarjetas ── */}
-                    {slotsViewMode === 'card' && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                        {sortedSlots.map(slot => {
-                          const level  = stockLevel(slot);
-                          const pct    = SlotAdapter.getStockPercentage(slot) ?? 0;
-                          const needed = (slot.capacity ?? 0) - (slot.current_stock ?? 0);
-                          const borderCls = level === 'critical'
-                            ? 'border-red-200 ring-1 ring-red-100'
-                            : level === 'low'
-                              ? 'border-amber-200 ring-1 ring-amber-50'
-                              : level === 'incomplete'
-                                ? 'border-blue-200 ring-1 ring-blue-50'
-                                : 'border-gray-100';
-                          return (
-                            <div key={slot.id} className={`bg-white rounded-xl border p-4 hover:shadow-md transition-shadow ${borderCls}`}>
-                              {/* Header */}
-                              <div className="flex items-start justify-between mb-3">
-                                <div>
-                                  <h4 className="text-sm font-semibold text-dark">{slot.label}</h4>
-                                  <p className="text-xs text-muted font-mono">{slot.mdb_code}</p>
-                                </div>
-                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
-                                  level === 'critical'   ? 'bg-red-50 text-red-700 border-red-200' :
-                                  level === 'low'        ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                  level === 'incomplete' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                                           'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                }`}>
-                                  {STOCK_LABELS[level]}
-                                </span>
-                              </div>
-
-                              {/* Stock */}
-                              {slot.capacity !== null && slot.current_stock !== null ? (
-                                <div className="mb-3">
-                                  <div className="flex justify-between text-xs text-muted mb-1.5">
-                                    <span>Stock</span>
-                                    <span className={`font-semibold ${STOCK_COLORS[level]}`}>{slot.current_stock} / {slot.capacity}</span>
-                                  </div>
-                                  <div className="w-full bg-gray-100 rounded-full h-2">
-                                    <div className={`h-2 rounded-full transition-all ${STOCK_BAR_COLORS[level]}`} style={{ width: `${pct}%` }} />
-                                  </div>
-                                  {level !== 'full' && (
-                                    <p className="text-xs mt-1.5 font-medium text-muted">
-                                      Faltan <span className={`font-bold ${STOCK_COLORS[level]}`}>{needed}</span> unidades para llenar
-                                    </p>
-                                  )}
-                                </div>
-                              ) : (
-                                <p className="text-xs text-muted italic mb-3">Sin información de stock</p>
-                              )}
-
-                              {/* Producto */}
-                              {slot.product_id && (
-                                <p className="text-xs text-muted mb-3 pb-3 border-b border-gray-100">
-                                  Producto <span className="text-dark font-medium">#{slot.product_id}</span>
-                                </p>
-                              )}
-
-                              {/* Acciones */}
-                              <div className="flex gap-1.5">
-                                <button
-                                  onClick={() => handleStockUpdateClick(slot)}
-                                  className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                                    level !== 'full'
-                                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                  }`}
-                                >
-                                  <RefreshCw className="h-3.5 w-3.5" />
-                                  {level !== 'full' ? 'Reponer' : 'Actualizar'}
-                                </button>
-                                <button onClick={() => { setSlotToEdit(slot); setSlotModalOpen(true); }} className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors" title="Editar">
-                                  <Edit className="h-4 w-4" />
-                                </button>
-                                <button onClick={() => setSlotToDelete(slot)} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors" title="Eliminar">
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
+                    {/* ── Vista retícula ── */}
+                    {slotsViewMode === 'grid' && gridStructure && (
+                      <div className="space-y-4">
+                        <div className="overflow-x-auto pb-2">
+                          <div className="inline-block min-w-full">
+                            {/* Cabeceras de columna — igual a MachineGridView de aplicar plantilla */}
+                            <div className="grid mb-1.5" style={{ gridTemplateColumns: `28px repeat(${gridStructure.cols.length}, minmax(80px, 1fr))` }}>
+                              <div />
+                              {gridStructure.cols.map(col => (
+                                <div key={col} className="text-center text-xs font-bold text-primary py-1">{col}</div>
+                              ))}
                             </div>
-                          );
-                        })}
+
+                            {/* Filas */}
+                            {gridStructure.rows.map(row => {
+                              const coveredCols = new Set<number>();
+                              return (
+                                <div key={row} className="grid mb-1.5" style={{ gridTemplateColumns: `28px repeat(${gridStructure.cols.length}, minmax(80px, 1fr))` }}>
+                                  <div className="flex items-center justify-center text-xs font-bold text-gray-400 pr-1">{row}</div>
+                                  {gridStructure.cols.map((col, ci) => {
+                                    if (coveredCols.has(ci)) return null;
+                                    const slot = gridStructure.map.get(`${col}-${row}`);
+                                    if (!slot) return <div key={`e-${col}-${row}`} className="mx-0.5 rounded-xl border-2 border-dashed border-gray-100" />;
+                                    const span = (() => {
+                                      if (!slot.width || gridStructure.cols.length === 0) return 1;
+                                      const cellW = 100 / gridStructure.cols.length;
+                                      return Math.max(1, Math.min(gridStructure.cols.length, Math.round(slot.width / cellW)));
+                                    })();
+                                    for (let s = 1; s < span; s++) coveredCols.add(ci + s);
+                                    return (
+                                      <div key={slot.id} className="px-0.5" style={span > 1 ? { gridColumn: `span ${span}` } : undefined}>
+                                        <SlotCard
+                                          slot={slot}
+                                          machine={machine}
+                                          products={products}
+                                          totalColumns={gridStructure.cols.length}
+                                          productPickerSlotId={productPickerSlotId}
+                                          setProductPickerSlotId={setProductPickerSlotId}
+                                          onProductChange={handleQuickProductChange}
+                                          onFieldChange={handleQuickSlotFieldChange}
+                                          onStockUpdate={handleStockUpdateClick}
+                                          onEdit={(s) => { setSlotToEdit(s); setSlotModalOpen(true); }}
+                                          onDelete={setSlotToDelete}
+                                          isDragTarget={dragOverSlotId === slot.id}
+                                          onDragOver={() => { if (isDraggingProduct) setDragOverSlotId(slot.id); }}
+                                          onDragLeave={() => setDragOverSlotId(null)}
+                                          onDrop={() => {
+                                            if (isDraggingProduct) handleQuickProductChange(slot, dragProduct);
+                                            setDragOverSlotId(null); setDragProduct(null); setIsDraggingProduct(false);
+                                          }}
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Slots sin posición en retícula */}
+                        {gridStructure.extra.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-muted mb-2">
+                              Slots adicionales · {gridStructure.extra.length}
+                            </p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1.5">
+                              {gridStructure.extra.map(slot => (
+                                <SlotCard
+                                  key={slot.id}
+                                  slot={slot}
+                                  machine={machine}
+                                  products={products}
+                                  totalColumns={gridStructure.cols.length}
+                                  productPickerSlotId={productPickerSlotId}
+                                  setProductPickerSlotId={setProductPickerSlotId}
+                                  onProductChange={handleQuickProductChange}
+                                  onFieldChange={handleQuickSlotFieldChange}
+                                  onStockUpdate={handleStockUpdateClick}
+                                  onEdit={(s) => { setSlotToEdit(s); setSlotModalOpen(true); }}
+                                  onDelete={setSlotToDelete}
+                                  isDragTarget={dragOverSlotId === slot.id}
+                                  onDragOver={() => setDragOverSlotId(slot.id)}
+                                  onDragLeave={() => setDragOverSlotId(null)}
+                                  onDrop={() => {
+                                    handleQuickProductChange(slot, dragProduct);
+                                    setDragOverSlotId(null); setDragProduct(null);
+                                  }}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
+
+                    {/* ── Vista tarjetas ── */}
+                    {slotsViewMode === 'card' && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1.5">
+                        {sortedSlots.map(slot => (
+                          <SlotCard
+                            key={slot.id}
+                            slot={slot}
+                            machine={machine}
+                            products={products}
+                            totalColumns={gridStructure?.cols.length ?? 0}
+                            productPickerSlotId={productPickerSlotId}
+                            setProductPickerSlotId={setProductPickerSlotId}
+                            onProductChange={handleQuickProductChange}
+                            onFieldChange={handleQuickSlotFieldChange}
+                            onStockUpdate={handleStockUpdateClick}
+                            onEdit={(s) => { setSlotToEdit(s); setSlotModalOpen(true); }}
+                            onDelete={setSlotToDelete}
+                            isDragTarget={dragOverSlotId === slot.id}
+                            onDragOver={() => setDragOverSlotId(slot.id)}
+                            onDragLeave={() => setDragOverSlotId(null)}
+                            onDrop={() => {
+                              handleQuickProductChange(slot, dragProduct);
+                              setDragOverSlotId(null); setDragProduct(null);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                      </div>{/* /flex-1 */}
+                    </div>{/* /flex gap-4 */}
                   </>
                 )}
               </div>
@@ -922,6 +1478,13 @@ export default function MaquinaDetallePage() {
                       </div>
                     </div>
 
+                    {disabledCount > 0 && (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <p className="text-sm font-medium text-slate-700">Slots sin control de stock: {disabledCount}</p>
+                        <p className="text-xs text-slate-600 mt-1">No se incluyen en alertas, reposición ni métricas de inventario.</p>
+                      </div>
+                    )}
+
                     {/* ── Lista de slots a reponer ── */}
                     {replenSlots.length === 0 ? (
                       <div className="card p-10 text-center">
@@ -929,7 +1492,11 @@ export default function MaquinaDetallePage() {
                           <CheckCircle className="h-7 w-7 text-emerald-500" />
                         </div>
                         <h3 className="text-sm font-semibold text-dark mb-1">Todo abastecido</h3>
-                        <p className="text-xs text-muted">Todos los slots están al máximo de su capacidad configurada.</p>
+                        <p className="text-xs text-muted">
+                          {alertCount === 0 && disabledCount > 0
+                            ? 'No hay slots que requieran reposición. Los slots sin control quedan fuera de este panel.'
+                            : 'Todos los slots controlados están al máximo de su capacidad configurada.'}
+                        </p>
                       </div>
                     ) : (
                       <div className="card overflow-hidden">
@@ -937,7 +1504,7 @@ export default function MaquinaDetallePage() {
                         <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 bg-gray-50/60">
                           <div>
                             <span className="text-sm font-semibold text-dark">Slots que necesitan atención</span>
-                            <span className="ml-2 text-xs text-muted">{replenSlots.length} de {slots.length} slots</span>
+                            <span className="ml-2 text-xs text-muted">{replenSlots.length} de {slots.length - disabledCount} slots controlados</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <button
@@ -970,9 +1537,9 @@ export default function MaquinaDetallePage() {
                           </thead>
                           <tbody className="divide-y divide-gray-50">
                             {replenSlots.map(slot => {
-                              const level  = stockLevel(slot);
+                              const level  = slotStockLevel(slot, machine);
                               const needed = (slot.capacity ?? 0) - (slot.current_stock ?? 0);
-                              const pct    = SlotAdapter.getStockPercentage(slot) ?? 0;
+                              const pct    = SlotAdapter.getStockPercentage({ ...slot, manage_stock: true }) ?? 0;
                               const productName = slot.product?.name ?? products.find(p => Number(p.id) === slot.product_id)?.name;
                               return (
                                 <tr
@@ -989,9 +1556,10 @@ export default function MaquinaDetallePage() {
                                     <span className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${
                                       level === 'critical'   ? 'bg-red-50 text-red-700 border-red-200' :
                                       level === 'low'        ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                      level === 'unknown'    ? 'bg-gray-100 text-gray-500 border-gray-200' :
                                                                'bg-blue-50 text-blue-700 border-blue-200'
                                     }`}>
-                                      {level === 'critical' ? <XCircle className="h-2.5 w-2.5" /> : level === 'low' ? <AlertTriangle className="h-2.5 w-2.5" /> : <AlertCircle className="h-2.5 w-2.5" />}
+                                      {level === 'critical' ? <XCircle className="h-2.5 w-2.5" /> : level === 'low' ? <AlertTriangle className="h-2.5 w-2.5" /> : level === 'unknown' ? <AlertCircle className="h-2.5 w-2.5" /> : <AlertCircle className="h-2.5 w-2.5" />}
                                       {STOCK_LABELS[level]}
                                     </span>
                                   </td>
@@ -1002,7 +1570,12 @@ export default function MaquinaDetallePage() {
                                     }
                                   </td>
                                   <td className="px-5 py-3.5 text-right">
-                                    {slot.capacity !== null ? (
+                                    {level === 'unknown' ? (
+                                      <div className="inline-flex flex-col items-end gap-1">
+                                        <span className="text-xs text-gray-400 italic">Sin registrar</span>
+                                        <span className="text-[10px] text-muted">máx. {slot.capacity} uds.</span>
+                                      </div>
+                                    ) : slot.capacity !== null ? (
                                       <div className="inline-flex flex-col items-end gap-1">
                                         <div>
                                           <span className={`text-xl font-bold ${STOCK_COLORS[level]}`}>{needed}</span>
@@ -1049,11 +1622,11 @@ export default function MaquinaDetallePage() {
                     )}
 
                     {/* ── Slots completos (referencia) ── */}
-                    {slots.filter(s => stockLevel(s) === 'full').length > 0 && (
+                    {fullCount > 0 && (
                       <details className="group">
                         <summary className="flex items-center gap-2 cursor-pointer list-none px-4 py-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors text-sm text-muted select-none">
                           <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
-                          <span>{slots.filter(s => stockLevel(s) === 'full').length} slots llenos (100%)</span>
+                          <span>{fullCount} slots llenos (100%)</span>
                         </summary>
                         <div className="mt-2 card overflow-hidden">
                           <table className="w-full text-sm">
@@ -1065,8 +1638,8 @@ export default function MaquinaDetallePage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
-                              {slots.filter(s => stockLevel(s) === 'full').map(slot => {
-                                const pct = SlotAdapter.getStockPercentage(slot) ?? 0;
+                              {slots.filter(s => slotStockLevel(s, machine) === 'full').map(slot => {
+                                const pct = SlotAdapter.getStockPercentage({ ...slot, manage_stock: true }) ?? 0;
                                 const productName = slot.product?.name ?? products.find(p => Number(p.id) === slot.product_id)?.name;
                                 return (
                                   <tr key={slot.id} className="hover:bg-gray-50/60 transition-colors">
@@ -1394,6 +1967,32 @@ export default function MaquinaDetallePage() {
                         </div>
                       </div>
 
+                      <div>
+                        <label className="block text-sm font-medium text-dark mb-1.5 flex items-center gap-1.5">
+                          <Monitor className="h-3.5 w-3.5 text-primary" />
+                          Imagen referencial
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] ?? null;
+                            setImageFile(file);
+                            if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+                            setImagePreview(file ? URL.createObjectURL(file) : machine?.image ?? null);
+                          }}
+                          className="input-field"
+                        />
+                        <p className="mt-1.5 text-xs text-muted">Sube una imagen para identificar visualmente esta máquina.</p>
+                        {(imagePreview || machine?.image) && (
+                          <img
+                            src={imagePreview || machine?.image || ''}
+                            alt={`Vista previa de ${formData.name || 'máquina'}`}
+                            className="mt-3 h-40 w-full rounded-xl border border-gray-200 object-cover"
+                          />
+                        )}
+                      </div>
+
                       {/* Ubicación */}
                       <div>
                         <label className="block text-sm font-medium text-dark mb-1.5 flex items-center gap-1.5">
@@ -1419,6 +2018,28 @@ export default function MaquinaDetallePage() {
                             <p className="text-amber-700">Una ubicación detallada ahorra tiempo al personal de mantención y reposición.</p>
                           </div>
                         </div>
+                      </div>
+
+                      <div>
+                        <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50/70 px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={formData.manage_stock}
+                            onChange={(e) => {
+                              setSaveError(null);
+                              setSaveSuccess(false);
+                              setFormData(prev => ({ ...prev, manage_stock: e.target.checked }));
+                            }}
+                            disabled={saving}
+                            className="mt-0.5"
+                          />
+                          <span>
+                            <span className="block text-sm font-medium text-dark">Controlar stock a nivel de máquina</span>
+                            <span className="block mt-1 text-xs text-muted">
+                              Al desactivarlo, los slots que heredan esta configuración quedan fuera de alertas, reposición y paneles de inventario.
+                            </span>
+                          </span>
+                        </label>
                       </div>
 
 
@@ -1651,6 +2272,7 @@ export default function MaquinaDetallePage() {
         onOpenChange={setSlotModalOpen}
         machineId={Number(machineId)}
         slot={slotToEdit}
+        gridColumns={gridStructure?.cols.length}
         products={products}
         isLoadingProducts={isLoadingProducts}
         onSuccess={() => fetchSlots(Number(machineId))}

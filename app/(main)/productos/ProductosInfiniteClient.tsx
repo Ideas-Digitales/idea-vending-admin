@@ -157,9 +157,17 @@ export default function ProductosInfiniteClient() {
       header: 'Producto',
       cell: (p) => (
         <Link href={`/productos/${p.id}`} className="flex items-center gap-3 group">
-          <div className="h-9 w-9 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-            <Package className="h-4 w-4 text-white" />
-          </div>
+          {p.image ? (
+            <img
+              src={p.image}
+              alt={p.name}
+              className="h-9 w-9 rounded-full border border-gray-200 object-cover flex-shrink-0"
+            />
+          ) : (
+            <div className="h-9 w-9 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+              <Package className="h-4 w-4 text-white" />
+            </div>
+          )}
           <div className="min-w-0">
             <div className="text-sm font-semibold text-dark group-hover:text-primary transition-colors truncate">{p.name}</div>
             <div className="text-xs text-muted">ID: {p.id}</div>
@@ -324,9 +332,17 @@ export default function ProductosInfiniteClient() {
           {products.map(p => (
             <div key={p.id} className="card p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start gap-3 mb-3">
-                <div className="h-10 w-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                  <Package className="h-5 w-5 text-white" />
-                </div>
+                {p.image ? (
+                  <img
+                    src={p.image}
+                    alt={p.name}
+                    className="h-10 w-10 rounded-full border border-gray-200 object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div className="h-10 w-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+                    <Package className="h-5 w-5 text-white" />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <Link href={`/productos/${p.id}`} className="text-sm font-semibold text-dark hover:text-primary transition-colors block truncate">{p.name}</Link>
                   <p className="text-xs text-muted">ID: {p.id}</p>

@@ -9,6 +9,7 @@ import { PageHeader } from '@/components/ui-custom';
 import EnterpriseSearchInput from '@/components/EnterpriseSearchInput';
 import { useUser } from '@/lib/stores/authStore';
 import Link from 'next/link';
+import { uploadMachineImage } from '@/lib/utils/imageUpload';
 
 function FieldHint({ children }: { children: React.ReactNode }) {
   return (
@@ -30,6 +31,8 @@ export default function EditarMaquinaPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     status: 'offline',
@@ -54,6 +57,7 @@ export default function EditarMaquinaPage() {
             type: result.machine.type,
             enterprise_id: result.machine.enterprise_id,
           });
+          setImagePreview(result.machine.image ?? null);
         } else {
           setError(result.error || 'Máquina no encontrada');
         }
@@ -101,6 +105,9 @@ export default function EditarMaquinaPage() {
         const updated = redirectUrl.searchParams.get('updated');
 
         if (updated === '1') {
+          if (imageFile) {
+            await uploadMachineImage(machineId, imageFile);
+          }
           setSuccessMessage('¡Máquina actualizada exitosamente!');
           setError(null);
           setTimeout(() => setSuccessMessage(null), 5000);
@@ -116,6 +123,12 @@ export default function EditarMaquinaPage() {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   if (loading) {
     return (
@@ -233,6 +246,33 @@ export default function EditarMaquinaPage() {
                 <FieldHint>
                   Usa un nombre que identifique la máquina de forma única. Incluye una referencia al lugar y un número o código si hay varias. Ej: <strong>«Snacks Casino Norte»</strong> o <strong>«VM-Torre B P3»</strong>. Evita nombres genéricos como «Máquina 1».
                 </FieldHint>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-black mb-2">
+                  Imagen referencial
+                </label>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setImageFile(file);
+                    if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+                    setImagePreview(file ? URL.createObjectURL(file) : imagePreview);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black"
+                />
+                <FieldHint>
+                  Sube una imagen de referencia para reconocer visualmente la máquina.
+                </FieldHint>
+                {imagePreview && (
+                  <img
+                    src={imagePreview}
+                    alt={`Vista previa de ${formData.name || 'máquina'}`}
+                    className="mt-3 h-40 w-full rounded-xl border border-gray-200 object-cover"
+                  />
+                )}
               </div>
 
               <div>

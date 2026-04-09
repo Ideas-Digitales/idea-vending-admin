@@ -9,6 +9,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { HelpTooltip } from '@/components/help/HelpTooltip';
+import SlotSpanSelector from '@/components/slots/SlotSpanSelector';
+import { deriveSlotSpan, slotSpanToWidth } from '@/lib/utils/slotSpan';
 import {
   Save, Loader2, XCircle, AlertCircle, Package, Sparkles,
   Hash, Layers, Tag, BarChart2, ChevronRight, ChevronLeft, CheckCircle,
@@ -19,6 +21,7 @@ interface SlotFormModalProps {
   onOpenChange: (open: boolean) => void;
   machineId: number;
   slot?: Slot | null;
+  gridColumns?: number;
   products: Producto[];
   isLoadingProducts: boolean;
   onSuccess: () => void;
@@ -28,16 +31,20 @@ type FormData = {
   mdb_code:      number | null;
   label:         string;
   product_id:    number | null;
+  manage_stock:  boolean | null;
   capacity:      number | null;
   current_stock: number | null;
+  width:         number | null;
 };
 
 const EMPTY_FORM: FormData = {
   mdb_code:      null,
   label:         '',
   product_id:    null,
+  manage_stock:  null,
   capacity:      null,
   current_stock: null,
+  width:         null,
 };
 
 // ── Pasos (solo para crear) ────────────────────────────────────
@@ -75,11 +82,11 @@ const STEPS = [
 ];
 
 export default function SlotFormModal({
-  open, onOpenChange, machineId, slot, products, isLoadingProducts, onSuccess,
+  open, onOpenChange, machineId, slot, gridColumns, products, isLoadingProducts, onSuccess,
 }: SlotFormModalProps) {
   const isEdit = !!slot;
 
-  const { createSlot, updateSlot, isCreating, isUpdating, createError, updateError, clearErrors } = useSlotStore();
+  const { createSlot, updateSlot, slots, isCreating, isUpdating, createError, updateError, clearErrors } = useSlotStore();
   const { publishSlotOperation, isPublishing } = useMqttSlot();
 
   const [formData, setFormData]               = useState<FormData>(EMPTY_FORM);
@@ -95,8 +102,10 @@ export default function SlotFormModal({
         mdb_code:      slot.mdb_code,
         label:         slot.label || '',
         product_id:    slot.product_id,
+        manage_stock:  slot.manage_stock ?? null,
         capacity:      slot.capacity,
         current_stock: slot.current_stock,
+        width:         slot.width ?? null,
       });
     } else {
       setFormData(EMPTY_FORM);
@@ -111,6 +120,12 @@ export default function SlotFormModal({
     const { name, value } = e.target;
     if (errors[name]) setErrors(prev => { const n = { ...prev }; delete n[name]; return n; });
     clearErrors();
+    if (name === 'manage_stock') {
+      const nextValue = value === '' ? null : value === 'true';
+      setFormData(prev => ({ ...prev, manage_stock: nextValue }));
+      return;
+    }
+
     const numFields = ['mdb_code', 'capacity', 'current_stock', 'product_id'];
     const parsed    = numFields.includes(name) ? (value === '' ? null : Number(value)) : value;
 
@@ -135,12 +150,14 @@ export default function SlotFormModal({
         e.mdb_code = 'Requerido y debe ser ≥ 0';
     }
     if (s === 3) {
-      if (formData.capacity != null && formData.capacity < 0)
-        e.capacity = 'No puede ser negativo';
-      if (formData.current_stock != null && formData.current_stock < 0)
-        e.current_stock = 'No puede ser negativo';
-      if (formData.capacity != null && formData.current_stock != null && formData.current_stock > formData.capacity)
-        e.current_stock = 'No puede superar la capacidad';
+      if (formData.manage_stock !== false) {
+        if (formData.capacity != null && formData.capacity < 0)
+          e.capacity = 'No puede ser negativo';
+        if (formData.current_stock != null && formData.current_stock < 0)
+          e.current_stock = 'No puede ser negativo';
+        if (formData.capacity != null && formData.current_stock != null && formData.current_stock > formData.capacity)
+          e.current_stock = 'No puede superar la capacidad';
+      }
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -151,12 +168,14 @@ export default function SlotFormModal({
     const e: Record<string, string> = {};
     if (formData.mdb_code == null || formData.mdb_code < 0)
       e.mdb_code = 'Requerido y debe ser ≥ 0';
-    if (formData.capacity != null && formData.capacity < 0)
-      e.capacity = 'No puede ser negativo';
-    if (formData.current_stock != null && formData.current_stock < 0)
-      e.current_stock = 'No puede ser negativo';
-    if (formData.capacity != null && formData.current_stock != null && formData.current_stock > formData.capacity)
-      e.current_stock = 'No puede superar la capacidad';
+    if (formData.manage_stock !== false) {
+      if (formData.capacity != null && formData.capacity < 0)
+        e.capacity = 'No puede ser negativo';
+      if (formData.current_stock != null && formData.current_stock < 0)
+        e.current_stock = 'No puede ser negativo';
+      if (formData.capacity != null && formData.current_stock != null && formData.current_stock > formData.capacity)
+        e.current_stock = 'No puede superar la capacidad';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -180,8 +199,10 @@ export default function SlotFormModal({
         mdb_code:      formData.mdb_code ?? undefined,
         label:         formData.label,
         product_id:    formData.product_id,
+        manage_stock:  formData.manage_stock,
         capacity:      formData.capacity,
         current_stock: formData.current_stock,
+        width:         formData.width,
       };
       const updated = await updateSlot(machineId, slot!.id, payload);
       if (updated) {
@@ -191,6 +212,10 @@ export default function SlotFormModal({
             slotData: { id: updated.id, mdb_code: updated.mdb_code, label: updated.label, product_id: updated.product_id, machine_id: machineId, capacity: updated.capacity, current_stock: updated.current_stock },
           });
         } catch { /* MQTT no crítico */ }
+
+        // Si el span se redujo, crear slots vacíos para las columnas liberadas
+        await createFreedSlots(slot!, payload.width ?? null);
+
         onSuccess();
         onOpenChange(false);
       }
@@ -200,6 +225,7 @@ export default function SlotFormModal({
         mdb_code:      formData.mdb_code ?? 0,
         label:         formData.label,
         product_id:    formData.product_id,
+        manage_stock:  formData.manage_stock,
         capacity:      formData.capacity,
         current_stock: formData.current_stock,
       };
@@ -217,12 +243,42 @@ export default function SlotFormModal({
     }
   };
 
+  // Crea slots vacíos para las columnas que quedaron libres al reducir el span.
+  const createFreedSlots = async (original: Slot, newWidth: number | null) => {
+    if (!original.column || original.row == null || !gridColumns) return;
+
+    const oldSpan = deriveSlotSpan(original.width, gridColumns);
+    const newSpan = deriveSlotSpan(newWidth, gridColumns);
+    if (newSpan >= oldSpan) return;
+
+    const cellWidth   = parseFloat((100 / gridColumns).toFixed(2));
+    const baseCol     = original.column.charCodeAt(0) - 'A'.charCodeAt(0);
+    const usedCodes   = new Set(slots.map(s => s.mdb_code));
+    let   nextCode    = Math.max(0, ...Array.from(usedCodes)) + 1;
+
+    for (let i = newSpan; i < oldSpan; i++) {
+      const col = String.fromCharCode('A'.charCodeAt(0) + baseCol + i);
+      const x   = original.x != null ? parseFloat((original.x + i * cellWidth).toFixed(2)) : null;
+      await createSlot(machineId, {
+        mdb_code: nextCode++,
+        column:   col,
+        row:      original.row,
+        x,
+        y:        original.y,
+        width:    cellWidth,
+        height:   original.height,
+      });
+    }
+  };
+
   const busy     = isCreating || isUpdating || isPublishing;
   const apiError = isEdit ? updateError : createError;
 
   const currentStep    = STEPS[step - 1];
   const StepIcon       = currentStep.icon;
   const selectedProduct = products.find(p => p.id === formData.product_id);
+  const slotSpan = deriveSlotSpan(formData.width, gridColumns);
+  const canEditSpan = isEdit && !!slot?.column && slot?.row != null && (gridColumns ?? 0) > 0;
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!busy) onOpenChange(v); }}>
@@ -309,7 +365,40 @@ export default function SlotFormModal({
                 </div>
               </div>
 
+              {canEditSpan && (
+                <div>
+                  <label className="block text-sm font-medium text-dark mb-1.5">
+                    Tamaño del slot
+                    <HelpTooltip className="ml-1.5" text="Define si el slot ocupa 1, 2 o 3 columnas dentro de la retícula." side="top" />
+                  </label>
+                  <SlotSpanSelector
+                    value={slotSpan}
+                    totalColumns={gridColumns ?? 0}
+                    disabled={busy}
+                    onChange={(span) => setFormData((prev) => ({ ...prev, width: slotSpanToWidth(span, gridColumns) }))}
+                  />
+                </div>
+              )}
+
               {/* Capacidad + Stock */}
+              <div>
+                <label className="block text-sm font-medium text-dark mb-1.5">
+                  Control de stock
+                  <HelpTooltip className="ml-1.5" text="El slot puede heredar la configuración de la máquina o sobrescribirla para controlar o ignorar stock." side="top" />
+                </label>
+                <select
+                  name="manage_stock"
+                  value={formData.manage_stock === null ? '' : String(formData.manage_stock)}
+                  onChange={handleChange}
+                  disabled={busy}
+                  className="input-field !py-2.5 !text-sm"
+                >
+                  <option value="">Heredar de la máquina</option>
+                  <option value="true">Controlar stock</option>
+                  <option value="false">No controlar stock</option>
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-dark mb-1.5">
@@ -319,7 +408,7 @@ export default function SlotFormModal({
                   <input
                     type="number" name="capacity"
                     value={formData.capacity ?? ''} onChange={handleChange}
-                    disabled={busy} min="0" placeholder="Máx. unidades"
+                    disabled={busy || formData.manage_stock === false} min="0" placeholder="Máx. unidades"
                     className={`input-field !py-2.5 !text-sm ${errors.capacity ? '!border-red-400' : ''}`}
                     suppressHydrationWarning
                   />
@@ -333,7 +422,7 @@ export default function SlotFormModal({
                   <input
                     type="number" name="current_stock"
                     value={formData.current_stock ?? ''} onChange={handleChange}
-                    disabled={busy} min="0" placeholder="Unidades actuales"
+                    disabled={busy || formData.manage_stock === false} min="0" placeholder="Unidades actuales"
                     className={`input-field !py-2.5 !text-sm ${errors.current_stock ? '!border-red-400' : ''}`}
                     suppressHydrationWarning
                   />
@@ -515,6 +604,21 @@ export default function SlotFormModal({
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-dark mb-1.5">Control de stock</label>
+                      <select
+                        name="manage_stock"
+                        value={formData.manage_stock === null ? '' : String(formData.manage_stock)}
+                        onChange={handleChange}
+                        disabled={busy}
+                        className="input-field !py-2.5 !text-sm"
+                      >
+                        <option value="">Heredar de la máquina</option>
+                        <option value="true">Controlar stock</option>
+                        <option value="false">No controlar stock</option>
+                      </select>
+                      <p className="text-xs text-muted mt-1">Si lo desactivas, este slot no genera alertas ni reposición aunque la máquina controle stock.</p>
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-dark mb-1.5">Capacidad</label>
                       <div className="relative">
@@ -522,7 +626,7 @@ export default function SlotFormModal({
                         <input
                           type="number" name="capacity"
                           value={formData.capacity ?? ''} onChange={handleChange}
-                          disabled={busy} min="0" placeholder="Máx. unidades"
+                          disabled={busy || formData.manage_stock === false} min="0" placeholder="Máx. unidades"
                           className={`input-field !py-2.5 !text-sm !pl-9 ${errors.capacity ? '!border-red-400' : ''}`}
                           suppressHydrationWarning
                         />
@@ -539,7 +643,7 @@ export default function SlotFormModal({
                         <input
                           type="number" name="current_stock"
                           value={formData.current_stock ?? ''} onChange={handleChange}
-                          disabled={busy} min="0" placeholder="Unidades actuales"
+                          disabled={busy || formData.manage_stock === false} min="0" placeholder="Unidades actuales"
                           className={`input-field !py-2.5 !text-sm !pl-9 ${errors.current_stock ? '!border-red-400' : ''}`}
                           suppressHydrationWarning
                         />

@@ -8,6 +8,7 @@ import { createMachineAction } from '@/lib/actions/machines';
 import { notify } from '@/lib/adapters/notification.adapter';
 import type { CreateMachineFormData } from '@/lib/schemas/machine.schema';
 import EnterpriseSearchInput from '@/components/EnterpriseSearchInput';
+import { uploadMachineImage } from '@/lib/utils/imageUpload';
 
 interface Props {
   open: boolean;
@@ -29,7 +30,10 @@ function FieldHint({ children }: { children: React.ReactNode }) {
 export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [type, setType] = useState<CreateMachineFormData['type']>('MDB');
+  const [manageStock, setManageStock] = useState(true);
   const [enterpriseId, setEnterpriseId] = useState(0);
   const [saving, setSaving] = useState(false);
 
@@ -37,7 +41,10 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
     if (!open) {
       setName('');
       setLocation('');
+      setImageFile(null);
+      setImagePreview(null);
       setType('MDB');
+      setManageStock(true);
       setEnterpriseId(0);
     }
   }, [open]);
@@ -51,12 +58,16 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
         name: name.trim(),
         location: location.trim(),
         type,
+        manage_stock: manageStock,
         enterprise_id: enterpriseId,
         client_id: null,
       });
       if (!result.success) {
         notify.error(result.error ?? 'Error al crear máquina');
         return;
+      }
+      if (result.machine && imageFile) {
+        await uploadMachineImage(result.machine.id, imageFile);
       }
       notify.success('Máquina creada exitosamente');
       onCreated();
@@ -67,6 +78,12 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,6 +111,32 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
             <FieldHint>
               Nombre único e identificable. Incluye referencia al lugar y número si hay varias. Ej: <strong>«Snacks Casino Norte»</strong> o <strong>«VM-Torre B P3»</strong>. Evita nombres genéricos como «Máquina 1».
             </FieldHint>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Imagen referencial</label>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={e => {
+                const file = e.target.files?.[0] ?? null;
+                setImageFile(file);
+                if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+                setImagePreview(file ? URL.createObjectURL(file) : null);
+              }}
+              className="input-field"
+              disabled={saving}
+            />
+            <FieldHint>
+              Sube una foto o referencia visual de la máquina. Se usará solo como apoyo visual.
+            </FieldHint>
+            {imagePreview && (
+              <img
+                src={imagePreview}
+                alt="Vista previa de máquina"
+                className="mt-3 h-32 w-full rounded-xl border border-gray-200 object-cover"
+              />
+            )}
           </div>
 
           <div>
@@ -129,6 +172,24 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
               <FieldHint>
                 <strong>MDB</strong>: estándar para máquinas modernas. <strong>MDB-DEX</strong>: MDB con auditoría detallada de ventas. <strong>PULSES</strong>: máquinas antiguas con señales de pulso. Consulta el manual de tu equipo si no estás seguro.
               </FieldHint>
+            </div>
+
+            <div className="col-span-2">
+              <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-3">
+                <input
+                  type="checkbox"
+                  checked={manageStock}
+                  onChange={e => setManageStock(e.target.checked)}
+                  disabled={saving}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-gray-700">Controlar stock de esta máquina</span>
+                  <span className="block mt-1 text-xs text-gray-500">
+                    Si lo desactivas, los slots heredarán “sin control de stock” salvo que un slot se configure explícitamente para controlarlo.
+                  </span>
+                </span>
+              </label>
             </div>
 
             <div className="col-span-2">
