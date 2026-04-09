@@ -8,6 +8,7 @@ import {
   MachineTemplateResponse,
   MachineTemplatesResponse,
 } from '@/lib/interfaces/machine-template.interface';
+import type { CreateMachineTemplateFormData } from '@/lib/schemas/machine-template.schema';
 import { createMachineTemplateSchema } from '@/lib/schemas/machine-template.schema';
 import { authenticatedFetch } from '@/lib/utils/authenticatedFetch';
 import { handleActionError } from '@/lib/utils/actionError';
@@ -72,6 +73,47 @@ export async function createMachineTemplateAction(
       success: true,
       template: MachineTemplateAdapter.apiToApp(templateData),
     };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function getMachineTemplateAction(id: string | number): Promise<MachineTemplateResponse> {
+  try {
+    const { response } = await authenticatedFetch(`/machine-templates/${id}?include=slots`, {
+      method: 'GET',
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, error: errorData.message || `Error ${response.status}` };
+    }
+
+    const data = await response.json();
+    return { success: true, template: MachineTemplateAdapter.apiToApp(data.data || data) };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function updateMachineTemplateAction(
+  id: string | number,
+  payload: Omit<CreateMachineTemplateFormData, 'slots'>
+): Promise<MachineTemplateResponse> {
+  try {
+    const { response } = await authenticatedFetch(`/machine-templates/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, error: errorData.message || `Error ${response.status}` };
+    }
+
+    const data = await response.json();
+    return { success: true, template: MachineTemplateAdapter.apiToApp(data.data || data) };
   } catch (error) {
     return handleActionError(error);
   }

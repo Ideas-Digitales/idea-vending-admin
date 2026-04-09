@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
   BarChart3, ShoppingCart, Monitor, Users, Building2, LogOut,
-  CreditCard, X, Loader2, ChevronLeft, ChevronRight, PackageSearch,
+  CreditCard, X, Loader2, ChevronLeft, ChevronRight, PackageSearch, LayoutTemplate,
 } from 'lucide-react';
 import { useAuthStore, useUser } from '@/lib/stores/authStore';
 import { ROLE_LABELS } from '@/lib/constants/roles';
@@ -55,8 +55,9 @@ export default function Sidebar({ onClose, collapsed = false, onToggleCollapse }
     { name: 'Dashboard',  href: '/dashboard',  icon: BarChart3,    current: pathname === '/dashboard' },
     { name: 'Pagos',      href: '/pagos',      icon: CreditCard,   current: pathname === '/pagos',     requiredPermissions: ['payments.read.all', 'payments.read.enterprise_owned'] },
     { name: 'Reposición', href: '/reposicion', icon: PackageSearch, current: pathname === '/reposicion', requiredPermissions: ['machines.read.all', 'machines.read.enterprise_owned'] },
-    { name: 'Máquinas',   href: '/maquinas',   icon: Monitor,      current: pathname === '/maquinas',  requiredPermissions: ['machines.read.all', 'machines.read.enterprise_owned'] },
-    { name: 'Productos',  href: '/productos',  icon: ShoppingCart, current: pathname === '/productos', requiredPermissions: ['products.read.all', 'products.read.enterprise_owned'] },
+    { name: 'Máquinas',   href: '/maquinas',   icon: Monitor,         current: pathname === '/maquinas',   requiredPermissions: ['machines.read.all', 'machines.read.enterprise_owned'] },
+    { name: 'Plantillas', href: '/plantillas', icon: LayoutTemplate,  current: pathname.startsWith('/plantillas'), requiredPermissions: ['machines.read.all', 'machines.read.enterprise_owned'] },
+    { name: 'Productos',  href: '/productos',  icon: ShoppingCart,    current: pathname === '/productos',  requiredPermissions: ['products.read.all', 'products.read.enterprise_owned'] },
     { name: 'Empresas',   href: '/empresas',   icon: Building2,    current: pathname === '/empresas',  requiredPermissions: ['enterprises.read.all', 'enterprises.read.own'] },
     { name: 'Usuarios',   href: '/usuarios',   icon: Users,        current: pathname === '/usuarios',  requiredPermissions: ['users.read.all'] },
   ];

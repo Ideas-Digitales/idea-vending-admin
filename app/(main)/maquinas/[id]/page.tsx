@@ -797,12 +797,14 @@ export default function MaquinaDetallePage() {
       <main className="flex-1 overflow-auto">
         {(imagePreview || machine.image) && (
           <div className="border-b border-gray-100 bg-white">
-            <div className="px-4 sm:px-6 py-4">
-              <img
-                src={imagePreview || machine.image || ''}
-                alt={`Referencia visual de ${machine.name}`}
-                className="h-40 w-full rounded-2xl border border-gray-200 object-cover"
-              />
+            <div className="px-4 sm:px-6 py-4 flex justify-center">
+              <div className="w-40 aspect-[3/4] rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+                <img
+                  src={imagePreview || machine.image || ''}
+                  alt={`Referencia visual de ${machine.name}`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
             </div>
           </div>
         )}
@@ -1985,11 +1987,15 @@ export default function MaquinaDetallePage() {
                         />
                         <p className="mt-1.5 text-xs text-muted">Sube una imagen para identificar visualmente esta máquina.</p>
                         {(imagePreview || machine?.image) && (
-                          <img
-                            src={imagePreview || machine?.image || ''}
-                            alt={`Vista previa de ${formData.name || 'máquina'}`}
-                            className="mt-3 h-40 w-full rounded-xl border border-gray-200 object-cover"
-                          />
+                          <div className="mt-3 flex justify-center">
+                            <div className="w-32 aspect-[3/4] rounded-xl overflow-hidden border border-gray-200">
+                              <img
+                                src={imagePreview || machine?.image || ''}
+                                alt={`Vista previa de ${formData.name || 'máquina'}`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          </div>
                         )}
                       </div>
 

@@ -25,14 +25,19 @@ export const uploadMachineImage = (id: number | string, file: File) =>
 export const uploadProductImage = (id: number | string, file: File) =>
   uploadEntityImage('productos', id, file);
 
-export const uploadTemplateImage = async (id: number | string, file: File): Promise<void> => {
+export const uploadTemplateImage = async (
+  id: number | string,
+  file: File,
+  fromRoute: 'maquinas' | 'plantillas' = 'plantillas',
+): Promise<void> => {
   const formData = new FormData();
   formData.append('image', file);
 
-  const response = await fetch(`/maquinas/plantillas/${id}/image`, {
-    method: 'POST',
-    body: formData,
-  });
+  const path = fromRoute === 'plantillas'
+    ? `/plantillas/${id}/image`
+    : `/maquinas/plantillas/${id}/image`;
+
+  const response = await fetch(path, { method: 'POST', body: formData });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));

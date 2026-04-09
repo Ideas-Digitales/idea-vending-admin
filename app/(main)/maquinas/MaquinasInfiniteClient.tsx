@@ -67,6 +67,22 @@ const MACHINES_TOUR_STEPS: Step[] = [
   },
 ];
 
+// ── Mini slot grid for card view ─────────────────────────────────────────────
+
+function MiniSlotGrid({ slots }: { slots: { x: number; y: number; width: number; height: number }[] }) {
+  return (
+    <div className="relative w-full h-full">
+      {slots.map((s, i) => (
+        <div
+          key={i}
+          className="absolute bg-[#3157b2]/12 border border-[#3157b2]/20 rounded-[2px]"
+          style={{ left: `${s.x}%`, top: `${s.y}%`, width: `${s.width}%`, height: `${s.height}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 const STATUS_FILTER_VALUES = ['online', 'offline'] as const;
 type MachineStatusFilter = '' | (typeof STATUS_FILTER_VALUES)[number];
 const STATUS_FILTER_SET = new Set<string>(STATUS_FILTER_VALUES);
@@ -133,9 +149,10 @@ export default function MaquinasInfiniteClient() {
   });
   const [createModal, setCreateModal] = useState(false);
 
-  // Stock lazy loading
+  // Stock + slot layout lazy loading
   const [stockMap, setStockMap]       = useState<Record<number, StockSummary>>({});
   const [loadingStock, setLoadingStock] = useState<Record<number, boolean>>({});
+  const [slotsMap, setSlotsMap]         = useState<Record<number, { x: number; y: number; width: number; height: number }[]>>({});
   const fetchedMachineIdsRef           = useRef<Set<number>>(new Set());
 
   // Metrics filter
@@ -183,26 +200,36 @@ export default function MaquinasInfiniteClient() {
     });
   }, [machines, searchTerm, statusFilter, typeFilter]);
 
-  // Lazy-load slot stock for each visible machine
+  // Lazy-load slot data for each visible machine (stock + layout)
   useEffect(() => {
-    const toFetch = filteredMachines.filter(m => m.manage_stock && !fetchedMachineIdsRef.current.has(m.id));
+    const toFetch = filteredMachines.filter(m => !fetchedMachineIdsRef.current.has(m.id));
     if (toFetch.length === 0) return;
 
     toFetch.forEach(m => {
       fetchedMachineIdsRef.current.add(m.id);
-      setLoadingStock(prev => ({ ...prev, [m.id]: true }));
+      if (m.manage_stock) setLoadingStock(prev => ({ ...prev, [m.id]: true }));
       getSlotsAction(m.id)
         .then(res => {
           if (res.success && res.slots) {
-            const slots = res.slots.filter(s => s.manage_stock ?? m.manage_stock);
-            setStockMap(prev => ({
-              ...prev,
-              [m.id]: {
-                total:      slots.length,
-                lowCount:   slots.filter(s => SlotAdapter.isLowStock(s)).length,
-                emptyCount: slots.filter(s => SlotAdapter.isEmpty(s)).length,
-              },
-            }));
+            // Stock summary
+            if (m.manage_stock) {
+              const tracked = res.slots.filter(s => s.manage_stock ?? m.manage_stock);
+              setStockMap(prev => ({
+                ...prev,
+                [m.id]: {
+                  total:      tracked.length,
+                  lowCount:   tracked.filter(s => SlotAdapter.isLowStock(s)).length,
+                  emptyCount: tracked.filter(s => SlotAdapter.isEmpty(s)).length,
+                },
+              }));
+            }
+            // Layout for mini grid preview
+            const layout = res.slots
+              .filter(s => s.x != null && s.y != null && s.width != null && s.height != null)
+              .map(s => ({ x: s.x!, y: s.y!, width: s.width!, height: s.height! }));
+            if (layout.length > 0) {
+              setSlotsMap(prev => ({ ...prev, [m.id]: layout }));
+            }
           }
         })
         .catch(() => {})
@@ -511,16 +538,37 @@ export default function MaquinasInfiniteClient() {
                     ? 'border-amber-200 ring-1 ring-amber-50'
                     : 'border-emerald-200 ring-1 ring-emerald-50'
                   : 'border-red-200 ring-1 ring-red-50';
+                const slotLayout = slotsMap[m.id];
                 return (
-                  <div key={m.id} className={`bg-white rounded-xl border p-3.5 hover:shadow-md transition-all duration-200 ${borderCls}`}>
-                    {/* Header: icon + name + status */}
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className={`h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0 ${isOnline ? 'bg-emerald-100' : 'bg-red-100'}`}>
-                          <Monitor className={`h-4 w-4 ${isOnline ? 'text-emerald-600' : 'text-red-500'}`} />
-                        </div>
-                        <p className="text-sm font-semibold text-dark truncate leading-tight">{m.name}</p>
+                  <div key={m.id} className={`bg-white rounded-xl border hover:shadow-md transition-all duration-200 overflow-hidden ${borderCls}`}>
+                    {/* Image + mini grid */}
+                    <div className="flex h-32 border-b border-gray-100">
+                      {/* Avatar image */}
+                      <div className="w-20 flex-shrink-0 bg-gray-50 border-r border-gray-100">
+                        {m.image ? (
+                          <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Monitor className={`h-5 w-5 ${isOnline ? 'text-emerald-400' : 'text-red-300'}`} />
+                          </div>
+                        )}
                       </div>
+                      {/* Mini slot grid */}
+                      <div className="flex-1 p-1.5 relative">
+                        {slotLayout ? (
+                          <MiniSlotGrid slots={slotLayout} />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-200">
+                            <Monitor className="h-6 w-6" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-3.5">
+                    {/* Header: name + status */}
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <p className="text-sm font-semibold text-dark truncate leading-tight">{m.name}</p>
                       <StatusBadge
                         label={MachineAdapter.getStatusText(m.status)}
                         variant={machineStatusToVariant(m.status)}
@@ -580,6 +628,7 @@ export default function MaquinasInfiniteClient() {
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
+                    </div> {/* end inner padding div */}
                   </div>
                 );
               })}
