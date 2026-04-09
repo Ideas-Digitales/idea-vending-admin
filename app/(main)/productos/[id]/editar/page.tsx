@@ -56,9 +56,14 @@ export default function EditProductPage() {
       clearSelectedProduct();
       clearProductError();
       clearUpdateError();
+    };
+  }, [clearSelectedProduct, clearProductError, clearUpdateError]);
+
+  useEffect(() => {
+    return () => {
       if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
     };
-  }, [clearSelectedProduct, clearProductError, clearUpdateError, imagePreview]);
+  }, [imagePreview]);
 
   useEffect(() => {
     if (updateError) {
