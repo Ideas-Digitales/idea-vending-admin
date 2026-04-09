@@ -25,5 +25,17 @@ export const uploadMachineImage = (id: number | string, file: File) =>
 export const uploadProductImage = (id: number | string, file: File) =>
   uploadEntityImage('productos', id, file);
 
-export const uploadTemplateImage = (id: number | string, file: File) =>
-  uploadEntityImage('plantillas', id, file);
+export const uploadTemplateImage = async (id: number | string, file: File): Promise<void> => {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await fetch(`/maquinas/plantillas/${id}/image`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || `No se pudo subir la imagen.`);
+  }
+};
