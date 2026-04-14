@@ -332,9 +332,13 @@ export default function MaquinasInfiniteClient() {
       key: 'nombre',
       header: 'Nombre',
       cell: (m) => (
-        <Link href={`/maquinas/${m.id}`} className="flex items-center group cursor-pointer">
-          <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center mr-3 shrink-0">
-            <Monitor className="h-4 w-4 text-white" />
+        <Link href={`/maquinas/${m.id}`} className="flex items-center gap-3 group cursor-pointer">
+          <div className="h-14 w-10 rounded-lg overflow-hidden shrink-0 border border-gray-200 bg-primary flex items-center justify-center">
+            {m.image ? (
+              <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
+            ) : (
+              <Monitor className="h-4 w-4 text-white" />
+            )}
           </div>
           <span className="text-sm font-medium text-dark group-hover:text-primary transition-colors">{m.name}</span>
         </Link>

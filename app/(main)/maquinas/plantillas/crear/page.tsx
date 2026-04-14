@@ -10,6 +10,7 @@ import {
 import { PageHeader } from '@/components/ui-custom';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { createMachineTemplateAction } from '@/lib/actions/machine-templates';
+import { useUser } from '@/lib/stores/authStore';
 import { uploadTemplateImage } from '@/lib/utils/imageUpload';
 import type { CreateMachineTemplateFormData } from '@/lib/schemas/machine-template.schema';
 
@@ -333,6 +334,11 @@ function SlotGrid({
 
 export default function CreateMachineTemplatePage() {
   const router = useRouter();
+  const user   = useUser();
+
+  useEffect(() => {
+    if (user && user.role !== 'admin') { router.replace('/dashboard'); }
+  }, [user, router]);
   const [isSubmitting, setIsSubmitting]   = useState(false);
   const [imageFile, setImageFile]         = useState<File | null>(null);
   const [imagePreview, setImagePreview]   = useState<string | null>(null);

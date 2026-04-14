@@ -56,7 +56,7 @@ export default function Sidebar({ onClose, collapsed = false, onToggleCollapse }
     { name: 'Pagos',      href: '/pagos',      icon: CreditCard,   current: pathname === '/pagos',     requiredPermissions: ['payments.read.all', 'payments.read.enterprise_owned'] },
     { name: 'Reposición', href: '/reposicion', icon: PackageSearch, current: pathname === '/reposicion', requiredPermissions: ['machines.read.all', 'machines.read.enterprise_owned'] },
     { name: 'Máquinas',   href: '/maquinas',   icon: Monitor,         current: pathname === '/maquinas',   requiredPermissions: ['machines.read.all', 'machines.read.enterprise_owned'] },
-    { name: 'Plantillas', href: '/plantillas', icon: LayoutTemplate,  current: pathname.startsWith('/plantillas'), requiredPermissions: ['machines.read.all', 'machines.read.enterprise_owned'] },
+    { name: 'Plantillas', href: '/plantillas', icon: LayoutTemplate,  current: pathname.startsWith('/plantillas'), onlyRoles: ['admin'] },
     { name: 'Productos',  href: '/productos',  icon: ShoppingCart,    current: pathname === '/productos',  requiredPermissions: ['products.read.all', 'products.read.enterprise_owned'] },
     { name: 'Empresas',   href: '/empresas',   icon: Building2,    current: pathname === '/empresas',  requiredPermissions: ['enterprises.read.all', 'enterprises.read.own'] },
     { name: 'Usuarios',   href: '/usuarios',   icon: Users,        current: pathname === '/usuarios',  requiredPermissions: ['users.read.all'] },

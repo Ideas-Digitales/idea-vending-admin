@@ -7,6 +7,8 @@ import { PageHeader } from '@/components/ui-custom';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { getMachineTemplatesAction } from '@/lib/actions/machine-templates';
 import type { MachineTemplate, MachineTemplateSlot } from '@/lib/interfaces/machine-template.interface';
+import { useUser } from '@/lib/stores/authStore';
+import { useRouter } from 'next/navigation';
 
 // ── Mini grid preview ─────────────────────────────────────────────────────────
 
@@ -95,10 +97,13 @@ function TemplateCard({ template }: { template: MachineTemplate }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PlantillasPage() {
+  const user   = useUser();
+  const router = useRouter();
   const [templates, setTemplates] = useState<MachineTemplate[]>([]);
   const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
+    if (user && user.role !== 'admin') { router.replace('/dashboard'); return; }
     getMachineTemplatesAction()
       .then((res) => {
         if (res.success) setTemplates(res.templates ?? []);

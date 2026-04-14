@@ -20,6 +20,7 @@ export class SlotAdapter {
         ? {
             id: apiData.product.id ?? apiData.product.product_id ?? apiData.product_id ?? 0,
             name: apiData.product.name ?? apiData.product.product_name ?? 'Producto Sin Nombre',
+            image: apiData.product.image ?? null,
           }
         : null,
       manage_stock: apiData.manage_stock ?? null,

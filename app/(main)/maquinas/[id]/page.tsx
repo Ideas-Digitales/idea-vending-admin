@@ -18,10 +18,11 @@ import SlotInspectorPanel from '@/components/slots/SlotInspectorPanel';
 import {
   Monitor, Wifi, WifiOff, MapPin, Calendar, Activity, Package,
   Shield, RotateCcw, QrCode, TrendingUp, TrendingDown, BarChart2,
-  ChevronDown, Eye, EyeOff, Copy, Check, CreditCard,
+  ChevronDown, ChevronLeft, ChevronRight, Eye, EyeOff, Copy, Check, CreditCard,
   Plus, Edit, Trash2, AlertTriangle, CheckCircle, XCircle, Loader2, RefreshCw,
   Save, X, Info, LayoutGrid, LayoutList, ClipboardList, Printer, Clipboard,
   AlertCircle, Lightbulb, Building2, Tag, Hash, Clock, Settings, Search, Grid3x3, GripVertical,
+  ImageIcon,
 } from 'lucide-react';
 import { useMqttReboot } from '@/lib/hooks/useMqttReboot';
 import { PageHeader, ConfirmActionDialog } from '@/components/ui-custom';
@@ -135,29 +136,42 @@ function SlotCard({ slot, machine, products, totalColumns, productPickerSlotId, 
 
   return (
     <div
-      className={`group relative rounded-xl border-2 flex flex-col items-center justify-between gap-1 py-2.5 px-2 min-h-[90px] transition-all hover:shadow-sm ${borderCls}`}
+      className={`group relative rounded-xl border-2 flex flex-col items-center gap-1.5 py-2.5 px-2 transition-all hover:shadow-sm ${borderCls}`}
       onDragOver={(e) => { e.preventDefault(); onDragOver?.(e); }}
       onDragLeave={onDragLeave}
       onDrop={(e) => { e.preventDefault(); onDrop?.(e); }}
     >
-      {/* Fila superior: badge + acciones */}
-      <div className="flex items-center justify-between w-full">
-        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${badgeCls}`}>
-          {STOCK_LABELS[level]}
-        </span>
-        <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-          {tracksStock && (
-            <button onClick={() => onStockUpdate(slot)} title="Actualizar stock" className="p-0.5 rounded text-emerald-600 hover:bg-emerald-50 transition-colors">
-              <RefreshCw className="h-3 w-3" />
-            </button>
-          )}
-          <button onClick={() => onEdit(slot)} title="Editar" className="p-0.5 rounded text-blue-500 hover:bg-blue-50 transition-colors">
-            <Edit className="h-3 w-3" />
+      {/* Acciones — overlay absoluto, solo visible en hover */}
+      <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 backdrop-blur-sm rounded-lg p-0.5 shadow-sm">
+        {tracksStock && (
+          <button onClick={() => onStockUpdate(slot)} title="Actualizar stock" className="p-0.5 rounded text-emerald-600 hover:bg-emerald-50 transition-colors">
+            <RefreshCw className="h-3 w-3" />
           </button>
-          <button onClick={() => onDelete(slot)} title="Eliminar" className="p-0.5 rounded text-red-400 hover:bg-red-50 transition-colors">
-            <Trash2 className="h-3 w-3" />
-          </button>
-        </div>
+        )}
+        <button onClick={() => onEdit(slot)} title="Editar" className="p-0.5 rounded text-blue-500 hover:bg-blue-50 transition-colors">
+          <Edit className="h-3 w-3" />
+        </button>
+        <button onClick={() => onDelete(slot)} title="Eliminar" className="p-0.5 rounded text-red-400 hover:bg-red-50 transition-colors">
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </div>
+
+      {/* Badge de estado */}
+      <span className={`self-start text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${badgeCls}`}>
+        {STOCK_LABELS[level]}
+      </span>
+
+      {/* Imagen del producto */}
+      <div className="w-10 h-10 flex items-center justify-center">
+        {slot.product?.image ? (
+          <img
+            src={slot.product.image}
+            alt={slot.product.name}
+            className="w-10 h-10 object-contain rounded-md"
+          />
+        ) : (
+          <span className="text-[22px]">📦</span>
+        )}
       </div>
 
       {/* Label */}
@@ -241,7 +255,7 @@ function SlotCard({ slot, machine, products, totalColumns, productPickerSlotId, 
       ) : null}
 
       {/* Pills */}
-      <div className="flex items-center gap-1 justify-center w-full">
+      <div className="flex flex-wrap items-center gap-1 justify-center w-full">
         <div className="flex items-center gap-0.5 bg-gray-50/80 rounded-md px-1.5 py-0.5">
           <span className="text-[8px] font-bold text-gray-300 uppercase tracking-widest leading-none select-none">MDB</span>
           <span className="text-[10px] font-mono text-gray-400">{slot.mdb_code}</span>
@@ -346,7 +360,8 @@ export default function MaquinaDetallePage() {
   const [machine, setMachine]     = useState<Machine | null>(null);
   const [loading, setLoading]     = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [isQROpen, setIsQROpen]   = useState(false);
+  const [isQROpen, setIsQROpen]         = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { rebootMachine, isLoading: rebootLoading, hasCredentials } = useMqttReboot();
 
   const handleReboot = async () => {
@@ -642,7 +657,6 @@ export default function MaquinaDetallePage() {
   const handleQuickProductChange = async (slot: Slot, product: Producto | null) => {
     setProductPickerSlotId(null);
     await updateSlot(Number(machineId), slot.id, { product_id: product ? Number(product.id) : null });
-    fetchSlots(Number(machineId));
   };
 
   const handleQuickSlotFieldChange = async (
@@ -651,7 +665,6 @@ export default function MaquinaDetallePage() {
     value: string | number | null
   ) => {
     await updateSlot(Number(machineId), slot.id, { [field]: value });
-    fetchSlots(Number(machineId));
   };
 
   const handleStockUpdateConfirm = async () => {
@@ -795,33 +808,29 @@ export default function MaquinaDetallePage() {
       />
 
       <main className="flex-1 overflow-auto">
-        {(imagePreview || machine.image) && (
-          <div className="border-b border-gray-100 bg-white">
-            <div className="px-4 sm:px-6 py-4 flex justify-center">
-              <div className="w-40 aspect-[3/4] rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+        {/* ── Barra de acción — en desktop solo visible en tab productos ── */}
+        <div className={`border-b border-gray-100 bg-white ${activeTab !== 'productos' ? 'lg:hidden' : ''}`}>
+          <div data-tour="machine-actions" className="px-4 sm:px-6 py-2 flex flex-wrap items-center gap-2">
+            {/* Machine avatar — solo en mobile, en desktop está en el sidebar */}
+            {(imagePreview || machine.image) && (
+              <div className="lg:hidden w-10 h-14 rounded-lg overflow-hidden border border-gray-200 shrink-0">
                 <img
                   src={imagePreview || machine.image || ''}
-                  alt={`Referencia visual de ${machine.name}`}
+                  alt={machine.name}
                   className="w-full h-full object-cover"
                 />
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Barra de acción ─────────────────────────────────────────────── */}
-        <div className="border-b border-gray-100 bg-white">
-          <div data-tour="machine-actions" className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center gap-2">
-            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(machine.status)}`}>
+            )}
+            <span className={`lg:hidden inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(machine.status)}`}>
               <Activity className="h-3 w-3" />
               {getStatusLabel(machine.status)}
             </span>
             {machine.mqtt_user?.connection_status ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-emerald-700 bg-emerald-50 border border-emerald-200">
+              <span className="lg:hidden inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-emerald-700 bg-emerald-50 border border-emerald-200">
                 <Wifi className="h-3 w-3" /> MQTT
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-gray-500 bg-gray-50 border border-gray-200">
+              <span className="lg:hidden inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-gray-500 bg-gray-50 border border-gray-200">
                 <WifiOff className="h-3 w-3" /> Sin MQTT
               </span>
             )}
@@ -844,9 +853,10 @@ export default function MaquinaDetallePage() {
                 </button>
               </>
             )}
+            {/* QR y Reiniciar — solo en mobile; en desktop están en el sidebar */}
             <button
               onClick={() => setIsQROpen(true)}
-              className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-[#3157b2]/40 text-[#3157b2] text-xs font-semibold bg-white hover:bg-[#3157b2]/5 transition-colors"
+              className="lg:hidden inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-[#3157b2]/40 text-[#3157b2] text-xs font-semibold bg-white hover:bg-[#3157b2]/5 transition-colors"
             >
               <QrCode className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Generar QR</span>
@@ -855,7 +865,7 @@ export default function MaquinaDetallePage() {
               onClick={handleReboot}
               disabled={rebootLoading || !hasCredentials}
               title={!hasCredentials ? 'Sin credenciales MQTT' : undefined}
-              className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-red-200 text-red-600 text-xs font-semibold bg-white hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="lg:hidden inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-red-200 text-red-600 text-xs font-semibold bg-white hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <RotateCcw className={`h-3.5 w-3.5 ${rebootLoading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">{rebootLoading ? 'Reiniciando...' : 'Reiniciar'}</span>
@@ -865,7 +875,7 @@ export default function MaquinaDetallePage() {
 
         {/* ── Tabs ────────────────────────────────────────────────────────── */}
         <div className="border-b border-gray-200 bg-white">
-          <div data-tour="machine-tabs" className="max-w-7xl mx-auto px-4 sm:px-6 overflow-x-auto">
+          <div data-tour="machine-tabs" className="px-4 sm:px-6 overflow-x-auto overflow-y-hidden">
             <nav className="flex gap-0 -mb-px">
               {tabs.map(tab => (
                 <button
@@ -891,8 +901,9 @@ export default function MaquinaDetallePage() {
         </div>
 
         {/* ── Contenido ────────────────────────────────────────────────────── */}
-        <div className="p-4 sm:p-6">
-          <div className="max-w-7xl mx-auto space-y-5">
+        <div className="flex items-start">
+          <div className="flex-1 min-w-0 px-3 pt-3 pb-3">
+          <div className="space-y-5">
 
             {/* ════════════════════════════════════════════════════════════════
                 Tab: Productos
@@ -1974,29 +1985,41 @@ export default function MaquinaDetallePage() {
                           <Monitor className="h-3.5 w-3.5 text-primary" />
                           Imagen referencial
                         </label>
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0] ?? null;
-                            setImageFile(file);
-                            if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-                            setImagePreview(file ? URL.createObjectURL(file) : machine?.image ?? null);
-                          }}
-                          className="input-field"
-                        />
-                        <p className="mt-1.5 text-xs text-muted">Sube una imagen para identificar visualmente esta máquina.</p>
-                        {(imagePreview || machine?.image) && (
-                          <div className="mt-3 flex justify-center">
-                            <div className="w-32 aspect-[3/4] rounded-xl overflow-hidden border border-gray-200">
+                        <div className="flex items-start gap-4">
+                          {/* Avatar preview */}
+                          <div className="w-20 aspect-[3/4] rounded-xl overflow-hidden border border-gray-200 bg-gray-50 shrink-0">
+                            {(imagePreview || machine?.image) ? (
                               <img
                                 src={imagePreview || machine?.image || ''}
                                 alt={`Vista previa de ${formData.name || 'máquina'}`}
                                 className="w-full h-full object-cover"
                               />
-                            </div>
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                <Monitor className="h-5 w-5" />
+                              </div>
+                            )}
                           </div>
-                        )}
+                          {/* Upload control */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors w-fit">
+                              <ImageIcon className="h-4 w-4 text-gray-500" />
+                              {imageFile ? imageFile.name : 'Seleccionar imagen'}
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0] ?? null;
+                                  setImageFile(file);
+                                  if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+                                  setImagePreview(file ? URL.createObjectURL(file) : machine?.image ?? null);
+                                }}
+                              />
+                            </label>
+                            <p className="text-xs text-muted">PNG, JPG o WEBP. Ayuda a identificar la máquina visualmente en listas y reportes.</p>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Ubicación */}
@@ -2217,7 +2240,171 @@ export default function MaquinaDetallePage() {
             )}
 
           </div>
-        </div>
+          </div>
+
+          {/* ══════════════════════════════════════════════════════════════════
+              Sidebar derecho: imagen + info de la máquina (solo desktop)
+          ══════════════════════════════════════════════════════════════════ */}
+        <aside className={`hidden lg:flex flex-col bg-white border border-gray-200 rounded-2xl shrink-0 relative transition-all duration-300 ease-in-out overflow-hidden my-3 mr-3 shadow-md sticky top-3 self-start max-h-[calc(100vh-5rem)] ${sidebarCollapsed ? 'w-12' : 'w-64'}`}>
+
+          {sidebarCollapsed ? (
+            /* ── Colapsado ── */
+            <div className="relative flex flex-col items-center h-full min-h-[220px]">
+              {/* Fondo: imagen desenfocada o gradiente */}
+              {(imagePreview || machine.image) ? (
+                <div className="absolute inset-0 overflow-hidden">
+                  <img src={imagePreview || machine.image || ''} alt="" className="w-full h-full object-cover scale-150 blur-md" />
+                  <div className="absolute inset-0 bg-[#3157b2]/60" />
+                </div>
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-b from-[#3157b2]/70 to-[#3157b2]/90" />
+              )}
+              {/* Toggle */}
+              <button
+                onClick={() => setSidebarCollapsed(v => !v)}
+                title="Expandir panel"
+                className="relative z-10 mt-3 w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm border border-white/40 shadow-sm flex items-center justify-center text-white hover:bg-white/30 transition-all"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <div className="flex-1" />
+              {/* Thumbnail + estado anclados abajo */}
+              <div className="relative z-10 flex flex-col items-center gap-2 mb-3">
+                <div
+                  className={`w-2 h-2 rounded-full ${machine.status?.toLowerCase() === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`}
+                  title={getStatusLabel(machine.status)}
+                />
+                {(imagePreview || machine.image) && (
+                  <div className="w-9 aspect-[3/5] rounded-xl overflow-hidden border-2 border-white shadow-md">
+                    <img src={imagePreview || machine.image || ''} alt={machine.name} className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* ── Expandido: imagen + bento info ── */
+            <div className="flex-1 overflow-y-auto">
+
+              {/* Imagen de máquina — full width, sin padding */}
+              <div className="relative">
+                {(imagePreview || machine.image) ? (
+                  <div className="aspect-[3/5] w-full">
+                    <img
+                      src={imagePreview || machine.image || ''}
+                      alt={machine.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="aspect-[3/5] w-full flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-gray-50 to-gray-100">
+                    <Monitor className="h-10 w-10 text-gray-200" />
+                    <span className="text-xs text-gray-400">Sin imagen</span>
+                  </div>
+                )}
+                {/* Toggle — overlay top-left */}
+                <button
+                  onClick={() => setSidebarCollapsed(v => !v)}
+                  title="Colapsar panel"
+                  className="absolute top-2 left-2 z-10 w-6 h-6 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-primary hover:bg-white transition-all"
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+                {/* Badges — overlay bottom */}
+                <div className="absolute bottom-2 left-2 right-2 flex items-end justify-between gap-1">
+                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border backdrop-blur-sm bg-white/80 ${getStatusColor(machine.status)}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${machine.status?.toLowerCase() === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-red-400'}`} />
+                    {getStatusLabel(machine.status)}
+                  </span>
+                  {machine.mqtt_user?.connection_status ? (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium text-emerald-700 bg-emerald-50/90 border border-emerald-200 backdrop-blur-sm">
+                      <Wifi className="h-2.5 w-2.5" />
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium text-gray-500 bg-white/80 border border-gray-200 backdrop-blur-sm">
+                      <WifiOff className="h-2.5 w-2.5" />
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Nombre */}
+              <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-wide mb-1">Máquina</p>
+                <h2 className="text-sm font-bold text-dark leading-snug break-words">{machine.name}</h2>
+                {machine.type && (
+                  <span className="text-[10px] font-medium text-muted uppercase tracking-wide">{machine.type}</span>
+                )}
+              </div>
+
+              {/* Bento info */}
+              <div className="p-3 space-y-2">
+
+                {machine.enterprise && (
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 flex items-start gap-2.5">
+                    <div className="w-6 h-6 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0 mt-0.5">
+                      <Building2 className="h-3 w-3 text-gray-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted font-medium">Empresa</p>
+                      <p className="text-xs font-semibold text-dark break-words">{machine.enterprise.name}</p>
+                    </div>
+                  </div>
+                )}
+
+                {machine.location && (
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 flex items-start gap-2.5">
+                    <div className="w-6 h-6 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0 mt-0.5">
+                      <MapPin className="h-3 w-3 text-gray-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted font-medium">Ubicación</p>
+                      <p className="text-xs font-medium text-dark leading-relaxed break-words">{machine.location}</p>
+                    </div>
+                  </div>
+                )}
+
+                {slotsFetched && slots.length > 0 && (
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 flex items-start gap-2.5">
+                    <div className="w-6 h-6 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0 mt-0.5">
+                      <Package className="h-3 w-3 text-gray-500" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] text-muted font-medium">Inventario</p>
+                      <p className="text-xs font-semibold text-dark">{slots.length} slot{slots.length !== 1 ? 's' : ''}</p>
+                      {criticalCount > 0 && (
+                        <p className="text-[10px] font-bold text-red-600 mt-0.5">{criticalCount} crítico{criticalCount !== 1 ? 's' : ''}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Acciones */}
+              <div className="px-3 pb-4 space-y-1.5">
+                <button
+                  onClick={() => setIsQROpen(true)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border border-primary/30 text-primary hover:bg-primary/5 transition-colors"
+                >
+                  <QrCode className="h-3.5 w-3.5" />
+                  Generar QR
+                </button>
+                <button
+                  onClick={handleReboot}
+                  disabled={rebootLoading || !hasCredentials}
+                  title={!hasCredentials ? 'Sin credenciales MQTT' : undefined}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <RotateCcw className={`h-3.5 w-3.5 ${rebootLoading ? 'animate-spin' : ''}`} />
+                  {rebootLoading ? 'Reiniciando...' : 'Reiniciar'}
+                </button>
+              </div>
+
+            </div>
+          )}
+        </aside>
+
+        </div>{/* flex items-start */}
       </main>
 
       {/* QR */}

@@ -8,7 +8,6 @@ import {
   MachineTemplateResponse,
   MachineTemplatesResponse,
 } from '@/lib/interfaces/machine-template.interface';
-import type { CreateMachineTemplateFormData } from '@/lib/schemas/machine-template.schema';
 import { createMachineTemplateSchema } from '@/lib/schemas/machine-template.schema';
 import { authenticatedFetch } from '@/lib/utils/authenticatedFetch';
 import { handleActionError } from '@/lib/utils/actionError';
@@ -99,7 +98,7 @@ export async function getMachineTemplateAction(id: string | number): Promise<Mac
 
 export async function updateMachineTemplateAction(
   id: string | number,
-  payload: Omit<CreateMachineTemplateFormData, 'slots'>
+  payload: CreateMachineTemplate
 ): Promise<MachineTemplateResponse> {
   try {
     const { response } = await authenticatedFetch(`/machine-templates/${id}`, {
@@ -114,6 +113,25 @@ export async function updateMachineTemplateAction(
 
     const data = await response.json();
     return { success: true, template: MachineTemplateAdapter.apiToApp(data.data || data) };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+export async function deleteMachineTemplateAction(
+  id: string | number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { response } = await authenticatedFetch(`/machine-templates/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { success: false, error: errorData.message || `Error ${response.status}` };
+    }
+
+    return { success: true };
   } catch (error) {
     return handleActionError(error);
   }

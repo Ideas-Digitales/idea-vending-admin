@@ -95,7 +95,7 @@ export async function updateSlotAction(
 
     const updateSlotData = SlotAdapter.mapUpdateSlotData(validationResult.data);
 
-    const { response } = await authenticatedFetch(`/machines/${machineId}/slots/${slotId}`, {
+    const { response } = await authenticatedFetch(`/machines/${machineId}/slots/${slotId}?include=product`, {
       method: 'PATCH',
       body: JSON.stringify(updateSlotData),
     });

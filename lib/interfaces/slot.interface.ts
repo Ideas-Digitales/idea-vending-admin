@@ -16,6 +16,7 @@ export interface Slot {
   product?: {
     id: number | string;
     name: string;
+    image?: string | null;
   } | null;
   manage_stock?: boolean | null;
   capacity: number | null;
@@ -80,6 +81,7 @@ export interface SlotApiData {
     product_id?: number | string;
     name?: string;
     product_name?: string;
+    image?: string | null;
   } | null;
   manage_stock?: boolean | null;
   capacity: number | null;

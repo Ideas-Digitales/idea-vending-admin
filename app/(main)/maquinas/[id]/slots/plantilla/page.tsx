@@ -17,6 +17,7 @@ import { getSlotsAction } from '@/lib/actions/slots';
 import { applyMachineTemplateAction, getMachineTemplatesAction } from '@/lib/actions/machine-templates';
 import type { Producto } from '@/lib/interfaces/product.interface';
 import type { MachineTemplate } from '@/lib/interfaces/machine-template.interface';
+import { useUser } from '@/lib/stores/authStore';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -558,6 +559,8 @@ function SlotCompactView({ slots, columns, products, onAssign, onEdit }: {
 export default function PlantillaMaquinaPage() {
   const params    = useParams();
   const machineId = params.id as string;
+  const user      = useUser();
+  const isAdmin   = user?.role === 'admin';
 
   const [step, setStep]                       = useState<Step>(1);
   const [templates, setTemplates]             = useState<MachineTemplate[]>([]);
@@ -799,10 +802,12 @@ export default function PlantillaMaquinaPage() {
                   <h2 className="text-base sm:text-lg font-bold text-dark">Elige la plantilla de tu máquina</h2>
                   <p className="text-sm text-muted mt-0.5">Selecciona una plantilla para crear los slots de esta máquina.</p>
                 </div>
-                <Link href="/maquinas/plantillas/crear"
-                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                  <Plus className="h-3.5 w-3.5" /> Nueva
-                </Link>
+                {isAdmin && (
+                  <Link href="/maquinas/plantillas/crear"
+                    className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    <Plus className="h-3.5 w-3.5" /> Nueva
+                  </Link>
+                )}
               </div>
               {existingSlotsCount > 0 && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -812,10 +817,12 @@ export default function PlantillaMaquinaPage() {
               {templates.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center text-sm text-muted space-y-4">
                   <p>No hay plantillas disponibles todavía.</p>
-                  <Link href="/maquinas/plantillas/crear"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors">
-                    <Plus className="h-4 w-4" /> Crear primera plantilla
-                  </Link>
+                  {isAdmin && (
+                    <Link href="/maquinas/plantillas/crear"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors">
+                      <Plus className="h-4 w-4" /> Crear primera plantilla
+                    </Link>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">

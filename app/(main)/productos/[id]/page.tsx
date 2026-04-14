@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import {
   Package, Calendar, Building2, Edit,
   BarChart2, TrendingUp, TrendingDown,
+  Hash, Clock, ChevronLeft, ChevronRight, RefreshCw,
 } from 'lucide-react';
 import { SalesDualAxisChart, type SeriesType } from '@/components/metrics/MetricsCharts';
 import { useProductStore } from '@/lib/stores/productStore';
@@ -107,6 +108,7 @@ export default function ProductDetailPage() {
   } = useProductStore();
 
   const [enterpriseName, setEnterpriseName] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Métricas
   const [period, setPeriod]         = useState<Period>('month');
@@ -135,7 +137,6 @@ export default function ProductDetailPage() {
     });
   }, [product?.enterprise_id]);
 
-  // Carga métricas cuando cambia el período o se carga el producto
   useEffect(() => {
     if (!productId) return;
     setLoadingMetrics(true);
@@ -230,183 +231,284 @@ export default function ProductDetailPage() {
         }
       />
 
-      <main className="flex-1 p-4 sm:p-6 overflow-auto">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <div className="card p-5 flex justify-center">
-            {product.image ? (
-              <div className="w-36 aspect-[3/4] rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            ) : (
-              <div className="w-36 aspect-[3/4] rounded-2xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400">
-                <Package className="h-10 w-10" />
-              </div>
-            )}
-          </div>
+      <main className="flex-1 overflow-auto">
+        <div className="flex items-start">
+          <div className="flex-1 min-w-0 px-3 pt-3 pb-6">
+            <div className="space-y-4">
 
-          {/* ── MÉTRICAS DE VENTAS ── */}
-          <div className="card overflow-hidden">
-            {/* Header con selector de período y tipo de serie */}
-            <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <BarChart2 className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold text-dark">Métricas de ventas</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                {/* Per-series type toggles */}
-                <div className="flex items-center gap-3">
-                  {([
-                    { label: 'Monto',    color: 'bg-blue-400',    current: amountType, set: setAmountType },
-                    { label: 'Ventas',   color: 'bg-emerald-400', current: countType,  set: setCountType  },
-                  ] as { label: string; color: string; current: SeriesType; set: (v: SeriesType) => void }[]).map(({ label, color, current, set }) => (
-                    <div key={label} className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${color}`} />
-                      <span className="text-xs text-gray-500">{label}</span>
-                      <div className="flex items-center gap-0.5 bg-gray-100 rounded-md p-0.5">
-                        <button
-                          onClick={() => set('line')}
-                          title="Línea"
-                          className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${current === 'line' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                        >〜</button>
-                        <button
-                          onClick={() => set('bar')}
-                          title="Barras"
-                          className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${current === 'bar' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                        >▌</button>
+            {/* ── MÉTRICAS DE VENTAS ── */}
+            <div className="card overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <BarChart2 className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-dark">Métricas de ventas</h3>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    {([
+                      { label: 'Monto',  color: 'bg-blue-400',    current: amountType, set: setAmountType },
+                      { label: 'Ventas', color: 'bg-emerald-400', current: countType,  set: setCountType  },
+                    ] as { label: string; color: string; current: SeriesType; set: (v: SeriesType) => void }[]).map(({ label, color, current, set }) => (
+                      <div key={label} className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${color}`} />
+                        <span className="text-xs text-gray-500">{label}</span>
+                        <div className="flex items-center gap-0.5 bg-gray-100 rounded-md p-0.5">
+                          <button onClick={() => set('line')} title="Línea"
+                            className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${current === 'line' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                          >〜</button>
+                          <button onClick={() => set('bar')} title="Barras"
+                            className={`px-2 py-0.5 rounded text-xs font-semibold transition-all ${current === 'bar' ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                          >▌</button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-                {/* Period toggle */}
-                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                  {(['day', 'month', 'year'] as Period[]).map(p => (
-                    <button
-                      key={p}
-                      onClick={() => setPeriod(p)}
-                      className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                        period === p ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      {periodLabel[p]}
-                    </button>
-                  ))}
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                    {(['day', 'month', 'year'] as Period[]).map(p => (
+                      <button key={p} onClick={() => setPeriod(p)}
+                        className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${period === p ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                      >
+                        {periodLabel[p]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* KPI row */}
-            <div className="grid grid-cols-3 divide-x divide-gray-100 min-w-0">
-              {/* Ingresos */}
-              <div className="px-5 py-4">
-                <p className="text-xs text-muted mb-1">Ingresos</p>
-                {loadingMetrics
-                  ? <div className="h-7 w-28 bg-gray-100 rounded animate-pulse" />
-                  : <p className="text-xl font-bold text-dark truncate">{clp(totalAmount)}</p>
-                }
-                {!loadingMetrics && growthPct !== null && (
-                  <p className={`text-xs font-semibold mt-0.5 flex items-center gap-0.5 ${growthPct >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {growthPct >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {growthPct >= 0 ? '+' : ''}{growthPct}% vs período anterior
-                  </p>
+              {/* KPI row */}
+              <div className="grid grid-cols-3 divide-x divide-gray-100">
+                <div className="px-5 py-4">
+                  <p className="text-xs text-muted mb-1">Ingresos</p>
+                  {loadingMetrics
+                    ? <div className="h-7 w-28 bg-gray-100 rounded animate-pulse" />
+                    : <p className="text-xl font-bold text-dark truncate">{clp(totalAmount)}</p>
+                  }
+                  {!loadingMetrics && growthPct !== null && (
+                    <p className={`text-xs font-semibold mt-0.5 flex items-center gap-0.5 ${growthPct >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {growthPct >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      {growthPct >= 0 ? '+' : ''}{growthPct}% vs período anterior
+                    </p>
+                  )}
+                </div>
+                <div className="px-5 py-4">
+                  <p className="text-xs text-muted mb-1">Ventas</p>
+                  {loadingMetrics
+                    ? <div className="h-7 w-16 bg-gray-100 rounded animate-pulse" />
+                    : <p className="text-xl font-bold text-dark truncate">{totalCount.toLocaleString('es-CL')}</p>
+                  }
+                  <p className="text-xs text-muted mt-0.5">transacciones</p>
+                </div>
+                <div className="px-5 py-4">
+                  <p className="text-xs text-muted mb-1">Precio promedio</p>
+                  {loadingMetrics
+                    ? <div className="h-7 w-20 bg-gray-100 rounded animate-pulse" />
+                    : <p className="text-xl font-bold text-dark truncate">{clp(avgTicket)}</p>
+                  }
+                  <p className="text-xs text-muted mt-0.5">por venta</p>
+                </div>
+              </div>
+
+              {/* Gráfico */}
+              <div className="px-4 pb-4">
+                {loadingMetrics ? (
+                  <div className="h-60 bg-gray-50 rounded-xl animate-pulse" />
+                ) : chartData.every(d => d.amount === 0 && d.count === 0) ? (
+                  <div className="h-60 flex items-center justify-center text-sm text-muted bg-gray-50 rounded-xl">
+                    Sin ventas en este período
+                  </div>
+                ) : (
+                  <SalesDualAxisChart data={chartData} amountType={amountType} countType={countType} />
                 )}
               </div>
-              {/* Ventas */}
-              <div className="px-5 py-4">
-                <p className="text-xs text-muted mb-1">Ventas</p>
-                {loadingMetrics
-                  ? <div className="h-7 w-16 bg-gray-100 rounded animate-pulse" />
-                  : <p className="text-xl font-bold text-dark truncate">{totalCount.toLocaleString('es-CL')}</p>
-                }
-                <p className="text-xs text-muted mt-0.5">transacciones</p>
+            </div>
+
+            {/* ── BENTO: info visible solo en mobile (en desktop está en el sidebar) ── */}
+            <div className="lg:hidden grid grid-cols-2 gap-3">
+              <div className="card p-4 flex items-start gap-3">
+                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                  <Hash className="h-3.5 w-3.5 text-gray-500" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted mb-0.5">ID</p>
+                  <p className="text-sm font-mono font-semibold text-dark truncate">#{product.id}</p>
+                </div>
               </div>
-              {/* Ticket promedio */}
-              <div className="px-5 py-4">
-                <p className="text-xs text-muted mb-1">Precio promedio</p>
-                {loadingMetrics
-                  ? <div className="h-7 w-20 bg-gray-100 rounded animate-pulse" />
-                  : <p className="text-xl font-bold text-dark truncate">{clp(avgTicket)}</p>
-                }
-                <p className="text-xs text-muted mt-0.5">por venta</p>
+              <div className="card p-4 flex items-start gap-3">
+                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                  <Building2 className="h-3.5 w-3.5 text-gray-500" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted mb-0.5">Empresa</p>
+                  <p className="text-sm font-semibold text-dark truncate">{enterpriseName ?? '...'}</p>
+                </div>
+              </div>
+              <div className="card p-4 flex items-start gap-3">
+                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                  <Calendar className="h-3.5 w-3.5 text-gray-500" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted mb-0.5">Creado</p>
+                  <p className="text-xs font-medium text-dark">
+                    {product.created_at ? new Date(product.created_at).toLocaleDateString('es-CL', { dateStyle: 'medium' }) : '—'}
+                  </p>
+                </div>
+              </div>
+              <div className="card p-4 flex items-start gap-3">
+                <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                  <RefreshCw className="h-3.5 w-3.5 text-gray-500" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted mb-0.5">Actualizado</p>
+                  <p className="text-xs font-medium text-dark">
+                    {product.updated_at ? new Date(product.updated_at).toLocaleDateString('es-CL', { dateStyle: 'medium' }) : '—'}
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Gráfico */}
-            <div className="px-4 pb-4">
-              {loadingMetrics ? (
-                <div className="h-60 bg-gray-50 rounded-xl animate-pulse" />
-              ) : chartData.every(d => d.amount === 0 && d.count === 0) ? (
-                <div className="h-60 flex items-center justify-center text-sm text-muted bg-gray-50 rounded-xl">
-                  Sin ventas en este período
+          </div>
+        </div>
+
+          {/* ══════════════════════════════════════════════════════════════════
+              Sidebar derecho: imagen + info del producto (solo desktop)
+          ══════════════════════════════════════════════════════════════════ */}
+        <aside className={`hidden lg:flex flex-col bg-white border border-gray-200 rounded-2xl shrink-0 relative transition-all duration-300 ease-in-out overflow-hidden my-3 mr-3 shadow-md sticky top-3 self-start max-h-[calc(100vh-5rem)] ${sidebarCollapsed ? 'w-12' : 'w-64'}`}>
+
+          {sidebarCollapsed ? (
+            /* ── Colapsado ── */
+            <div className="relative flex flex-col items-center h-full min-h-[220px]">
+              {/* Fondo: imagen desenfocada o gradiente */}
+              {product.image ? (
+                <div className="absolute inset-0 overflow-hidden">
+                  <img src={product.image} alt="" className="w-full h-full object-cover scale-150 blur-md" />
+                  <div className="absolute inset-0 bg-[#3157b2]/60" />
                 </div>
               ) : (
-                <SalesDualAxisChart data={chartData} amountType={amountType} countType={countType} />
+                <div className="absolute inset-0 bg-gradient-to-b from-[#3157b2]/70 to-[#3157b2]/90" />
+              )}
+              {/* Toggle */}
+              <button
+                onClick={() => setSidebarCollapsed(v => !v)}
+                title="Expandir panel"
+                className="relative z-10 mt-3 w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm border border-white/40 shadow-sm flex items-center justify-center text-white hover:bg-white/30 transition-all"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+              <div className="flex-1" />
+              {/* Thumbnail anclado abajo */}
+              {product.image && (
+                <div className="relative z-10 mb-3">
+                  <div className="w-9 aspect-[3/4] rounded-xl overflow-hidden border-2 border-white shadow-md">
+                    <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                  </div>
+                </div>
               )}
             </div>
-          </div>
+          ) : (
+            /* ── Expandido ── */
+            <div className="flex-1 overflow-y-auto">
 
-          {/* ── INFORMACIÓN DEL PRODUCTO ── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            <div className="card p-6">
-              <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
-                <Package className="h-5 w-5 mr-2 text-primary" />
-                Información del Producto
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                  <p className="text-dark">{product.name}</p>
+              {/* Imagen del producto — full width, sin padding */}
+              <div className="relative">
+                {product.image ? (
+                  <div className="aspect-[3/4] w-full">
+                    <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="aspect-[3/4] w-full flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-gray-50 to-gray-100">
+                    <Package className="h-10 w-10 text-gray-200" />
+                    <span className="text-xs text-gray-400">Sin imagen</span>
+                  </div>
+                )}
+                {/* Toggle — overlay top-left */}
+                <button
+                  onClick={() => setSidebarCollapsed(v => !v)}
+                  title="Colapsar panel"
+                  className="absolute top-2 left-2 z-10 w-6 h-6 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-primary hover:bg-white transition-all"
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+
+              {/* Nombre */}
+              <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-wide mb-1">Producto</p>
+                <h2 className="text-sm font-bold text-dark leading-snug break-words">{product.name}</h2>
+              </div>
+
+              {/* Info bento */}
+              <div className="p-3 space-y-2">
+
+                <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 flex items-start gap-2.5">
+                  <div className="w-6 h-6 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0 mt-0.5">
+                    <Hash className="h-3 w-3 text-gray-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-muted font-medium">ID interno</p>
+                    <p className="text-xs font-mono font-semibold text-dark">#{product.id}</p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ID Producto</label>
-                  <p className="text-dark font-mono">{product.id}</p>
+
+                <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 flex items-start gap-2.5">
+                  <div className="w-6 h-6 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0 mt-0.5">
+                    <Building2 className="h-3 w-3 text-gray-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-muted font-medium">Empresa</p>
+                    <p className="text-xs font-semibold text-dark break-words">
+                      {enterpriseName ?? <span className="text-gray-400 font-normal italic">Cargando...</span>}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <div className="card p-6">
-              <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
-                <Building2 className="h-5 w-5 mr-2 text-primary" />
-                Empresa
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la empresa</label>
-                  {enterpriseName
-                    ? <p className="text-dark">{enterpriseName}</p>
-                    : <p className="text-muted text-sm">Cargando...</p>
-                  }
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 flex items-start gap-2.5">
+                    <div className="w-6 h-6 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0 mt-0.5">
+                      <Calendar className="h-3 w-3 text-gray-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted font-medium">Creado</p>
+                      <p className="text-xs font-medium text-dark">
+                        {product.created_at
+                          ? new Date(product.created_at).toLocaleDateString('es-CL', { dateStyle: 'medium' })
+                          : '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 flex items-start gap-2.5">
+                    <div className="w-6 h-6 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0 mt-0.5">
+                      <RefreshCw className="h-3 w-3 text-gray-500" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted font-medium">Actualizado</p>
+                      <p className="text-xs font-medium text-dark">
+                        {product.updated_at
+                          ? new Date(product.updated_at).toLocaleDateString('es-CL', { dateStyle: 'medium' })
+                          : '—'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
 
-          {/* ── FECHAS ── */}
-          <div className="card p-6">
-            <h3 className="text-lg font-semibold text-dark mb-4 flex items-center">
-              <Calendar className="h-5 w-5 mr-2 text-primary" />
-              Información de Registro
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Creación</label>
-                <p className="text-dark">
-                  {product.created_at ? new Date(product.created_at).toLocaleString('es-ES') : 'No disponible'}
-                </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Última Actualización</label>
-                <p className="text-dark">
-                  {product.updated_at ? new Date(product.updated_at).toLocaleString('es-ES') : 'No disponible'}
-                </p>
-              </div>
-            </div>
-          </div>
 
-        </div>
+              {/* Editar */}
+              <div className="px-3 pb-4 mt-1">
+                <Link
+                  href={`/productos/${productId}/editar`}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border border-primary/30 text-primary hover:bg-primary/5 transition-colors"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                  Editar producto
+                </Link>
+              </div>
+
+            </div>
+          )}
+        </aside>
+
+        </div>{/* flex items-start */}
       </main>
     </>
   );
