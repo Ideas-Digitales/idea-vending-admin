@@ -9,6 +9,7 @@ import { notify } from '@/lib/adapters/notification.adapter';
 import type { CreateMachineFormData } from '@/lib/schemas/machine.schema';
 import EnterpriseSearchInput from '@/components/EnterpriseSearchInput';
 import { uploadMachineImage } from '@/lib/utils/imageUpload';
+import { ImageInput } from '@/components/ui-custom';
 
 interface Props {
   open: boolean;
@@ -31,7 +32,6 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [type, setType] = useState<CreateMachineFormData['type']>('MDB');
   const [manageStock, setManageStock] = useState(true);
   const [enterpriseId, setEnterpriseId] = useState(0);
@@ -42,7 +42,6 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
       setName('');
       setLocation('');
       setImageFile(null);
-      setImagePreview(null);
       setType('MDB');
       setManageStock(true);
       setEnterpriseId(0);
@@ -79,12 +78,6 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-    };
-  }, [imagePreview]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -113,31 +106,13 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
             </FieldHint>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Imagen referencial</label>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={e => {
-                const file = e.target.files?.[0] ?? null;
-                setImageFile(file);
-                if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-                setImagePreview(file ? URL.createObjectURL(file) : null);
-              }}
-              className="input-field"
-              disabled={saving}
-            />
-            <FieldHint>
-              Sube una foto o referencia visual de la máquina. Se usará solo como apoyo visual.
-            </FieldHint>
-            {imagePreview && (
-              <img
-                src={imagePreview}
-                alt="Vista previa de máquina"
-                className="mt-3 h-32 w-full rounded-xl border border-gray-200 object-cover"
-              />
-            )}
-          </div>
+          <ImageInput
+            label="Imagen referencial"
+            hint="Sube una foto o referencia visual de la máquina. Se usará solo como apoyo visual."
+            previewAlt="Vista previa de máquina"
+            disabled={saving}
+            onChange={setImageFile}
+          />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación *</label>
@@ -186,7 +161,7 @@ export function CreateMaquinaModal({ open, onOpenChange, onCreated }: Props) {
                 <span>
                   <span className="block text-sm font-medium text-gray-700">Controlar stock de esta máquina</span>
                   <span className="block mt-1 text-xs text-gray-500">
-                    Si lo desactivas, los slots heredarán “sin control de stock” salvo que un slot se configure explícitamente para controlarlo.
+                    Si lo desactivas, los slots heredarán "sin control de stock" salvo que un slot se configure explícitamente para controlarlo.
                   </span>
                 </span>
               </label>

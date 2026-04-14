@@ -10,6 +10,7 @@ import { useMqttProduct } from '@/lib/hooks/useMqttProduct';
 import { notify } from '@/lib/adapters/notification.adapter';
 import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 import { uploadProductImage } from '@/lib/utils/imageUpload';
+import { ImageInput } from '@/components/ui-custom';
 
 interface Props {
   open: boolean;
@@ -21,7 +22,6 @@ export function CreateProductoModal({ open, onOpenChange, onCreated }: Props) {
   const { publishProductOperation, isPublishing } = useMqttProduct();
   const [name, setName] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [enterpriseId, setEnterpriseId] = useState(0);
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [loadingEnterprises, setLoadingEnterprises] = useState(false);
@@ -31,7 +31,6 @@ export function CreateProductoModal({ open, onOpenChange, onCreated }: Props) {
     if (!open) {
       setName('');
       setImageFile(null);
-      setImagePreview(null);
       setEnterpriseId(0);
       return;
     }
@@ -71,12 +70,6 @@ export function CreateProductoModal({ open, onOpenChange, onCreated }: Props) {
 
   const busy = saving;
 
-  useEffect(() => {
-    return () => {
-      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-    };
-  }, [imagePreview]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -104,34 +97,12 @@ export function CreateProductoModal({ open, onOpenChange, onCreated }: Props) {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Imagen referencial
-            </label>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={e => {
-                const file = e.target.files?.[0] ?? null;
-                setImageFile(file);
-                if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-                setImagePreview(file ? URL.createObjectURL(file) : null);
-              }}
-              className="input-field"
-              disabled={busy}
-            />
-            {imagePreview ? (
-              <img
-                src={imagePreview}
-                alt="Vista previa de producto"
-                className="mt-3 h-28 w-full rounded-xl border border-gray-200 object-cover"
-              />
-            ) : (
-              <div className="mt-3 h-28 w-full rounded-xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400">
-                <Package className="h-8 w-8" />
-              </div>
-            )}
-          </div>
+          <ImageInput
+            label="Imagen referencial"
+            previewAlt="Vista previa de producto"
+            disabled={busy}
+            onChange={setImageFile}
+          />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

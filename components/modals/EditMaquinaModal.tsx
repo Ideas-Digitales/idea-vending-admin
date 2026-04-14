@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { getMachineAction, updateMachineAction } from '@/lib/actions/machines';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { uploadMachineImage } from '@/lib/utils/imageUpload';
+import { ImageInput } from '@/components/ui-custom';
 
 interface Props {
   open: boolean;
@@ -28,7 +29,7 @@ export function EditMaquinaModal({ open, onOpenChange, machineId, onSaved }: Pro
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
   const [manageStock, setManageStock] = useState(true);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -39,14 +40,14 @@ export function EditMaquinaModal({ open, onOpenChange, machineId, onSaved }: Pro
     setName('');
     setLocation('');
     setImageFile(null);
-    setImagePreview(null);
+    setCurrentImageUrl(null);
     setManageStock(true);
     getMachineAction(machineId)
       .then(res => {
         if (res.success && res.machine) {
           setName(res.machine.name);
           setLocation(res.machine.location);
-          setImagePreview(res.machine.image ?? null);
+          setCurrentImageUrl(res.machine.image ?? null);
           setManageStock(res.machine.manage_stock ?? true);
         } else {
           notify.error('No se pudo cargar la máquina');
@@ -83,12 +84,6 @@ export function EditMaquinaModal({ open, onOpenChange, machineId, onSaved }: Pro
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-    };
-  }, [imagePreview]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -122,31 +117,14 @@ export function EditMaquinaModal({ open, onOpenChange, machineId, onSaved }: Pro
               </FieldHint>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Imagen referencial</label>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={e => {
-                  const file = e.target.files?.[0] ?? null;
-                  setImageFile(file);
-                  if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-                  setImagePreview(file ? URL.createObjectURL(file) : imagePreview);
-                }}
-                className="input-field"
-                disabled={saving}
-              />
-              <FieldHint>
-                Sube una imagen de referencia para identificar visualmente la máquina.
-              </FieldHint>
-              {imagePreview && (
-                <img
-                  src={imagePreview}
-                  alt="Vista previa de máquina"
-                  className="mt-3 h-32 w-full rounded-xl border border-gray-200 object-cover"
-                />
-              )}
-            </div>
+            <ImageInput
+              label="Imagen referencial"
+              hint="Sube una imagen de referencia para identificar visualmente la máquina."
+              previewAlt="Vista previa de máquina"
+              currentImageUrl={currentImageUrl}
+              disabled={saving}
+              onChange={setImageFile}
+            />
 
             <div>
               <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50/70 px-3 py-3">

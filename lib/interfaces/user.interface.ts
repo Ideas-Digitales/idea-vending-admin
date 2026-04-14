@@ -14,6 +14,7 @@ export interface User {
   permissions: string[];
   roles?: Array<{ name: string }>;
   enterprises?: Array<{ id: number; name: string }>;
+  owned_enterprises?: Array<{ id: number; name: string }>;
   mqtt_user?: MqttUser | null;
 }
 
@@ -31,6 +32,7 @@ export interface UserApiData {
   roles?: Array<{ name: string }>;
   permissions?: Array<{ name: string }> | string[];
   enterprises?: Array<{ id: number; name: string }>;
+  owned_enterprises?: Array<{ id: number; name: string }>;
   mqtt_user?: MqttUser | null;
 }
 

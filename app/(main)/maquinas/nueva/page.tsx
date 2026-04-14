@@ -6,7 +6,7 @@ import { Monitor, Loader2, Info } from "lucide-react";
 import { createMachineAction } from "@/lib/actions/machines";
 import { notify } from '@/lib/adapters/notification.adapter';
 import { type CreateMachineFormData } from "@/lib/schemas/machine.schema";
-import { PageHeader } from '@/components/ui-custom';
+import { PageHeader, ImageInput } from '@/components/ui-custom';
 import EnterpriseSearchInput from '@/components/EnterpriseSearchInput';
 import { uploadMachineImage } from '@/lib/utils/imageUpload';
 
@@ -23,7 +23,6 @@ export default function NuevaMaquinaPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     location: '',
@@ -79,12 +78,6 @@ export default function NuevaMaquinaPage() {
     }));
   };
 
-  useEffect(() => {
-    return () => {
-      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-    };
-  }, [imagePreview]);
-
   return (
     <>
       <PageHeader
@@ -113,30 +106,12 @@ export default function NuevaMaquinaPage() {
               </FieldHint>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-black mb-2">Imagen referencial</label>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] ?? null;
-                  setImageFile(file);
-                  if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-                  setImagePreview(file ? URL.createObjectURL(file) : null);
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black"
-              />
-              <FieldHint>
-                Sube una foto o referencia visual de la máquina para reconocerla más rápido.
-              </FieldHint>
-              {imagePreview && (
-                <img
-                  src={imagePreview}
-                  alt="Vista previa de máquina"
-                  className="mt-3 h-36 w-full rounded-xl border border-gray-200 object-cover"
-                />
-              )}
-            </div>
+            <ImageInput
+              label="Imagen referencial"
+              hint="Sube una foto o referencia visual de la máquina para reconocerla más rápido."
+              previewAlt="Vista previa de máquina"
+              onChange={setImageFile}
+            />
 
             <div>
               <label className="block text-sm font-medium text-black mb-2">Ubicación <span className="text-red-500">*</span></label>

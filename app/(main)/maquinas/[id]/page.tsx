@@ -31,7 +31,7 @@ import { useUser } from '@/lib/stores/authStore';
 import Link from 'next/link';
 import { HelpTooltip } from '@/components/help/HelpTooltip';
 import { TourRunner, type Step } from '@/components/help/TourRunner';
-import { uploadMachineImage } from '@/lib/utils/imageUpload';
+import { uploadMachineImage, validateImageFile } from '@/lib/utils/imageUpload';
 import {
   clp, getPeriodRange, getGroupBy, mapDualAxisData,
   PERIOD_LABELS, type Period,
@@ -691,6 +691,7 @@ export default function MaquinaDetallePage() {
   const [formData, setFormData]       = useState({ name: '', location: '', manage_stock: true, enterprise_id: 0 });
   const [imageFile, setImageFile]     = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError]   = useState<string | null>(null);
   const [saving, setSaving]           = useState(false);
   const [saveError, setSaveError]     = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -2007,17 +2008,24 @@ export default function MaquinaDetallePage() {
                               {imageFile ? imageFile.name : 'Seleccionar imagen'}
                               <input
                                 type="file"
-                                accept="image/png,image/jpeg,image/webp"
+                                accept="image/jpeg,image/png,image/webp"
                                 className="hidden"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0] ?? null;
+                                  if (!file) return;
+                                  const err = validateImageFile(file);
+                                  if (err) { setImageError(err); e.target.value = ''; return; }
+                                  setImageError(null);
                                   setImageFile(file);
                                   if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-                                  setImagePreview(file ? URL.createObjectURL(file) : machine?.image ?? null);
+                                  setImagePreview(URL.createObjectURL(file));
                                 }}
                               />
                             </label>
-                            <p className="text-xs text-muted">PNG, JPG o WEBP. Ayuda a identificar la máquina visualmente en listas y reportes.</p>
+                            {imageError
+                              ? <p className="text-xs text-red-500 font-medium">{imageError}</p>
+                              : <p className="text-xs text-muted">PNG, JPG o WEBP · máx. 5 MB. Ayuda a identificar la máquina visualmente en listas y reportes.</p>
+                            }
                           </div>
                         </div>
                       </div>

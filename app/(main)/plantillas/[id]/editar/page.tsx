@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Grid3x3, Loader2, Save, Minus, Plus,
-  ChevronDown, ChevronUp, Info, ImageIcon, Trash2,
+  ChevronDown, ChevronUp, Info, Trash2,
 } from 'lucide-react';
-import { PageHeader } from '@/components/ui-custom';
+import { PageHeader, ImageInput } from '@/components/ui-custom';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { useUser } from '@/lib/stores/authStore';
 import {
@@ -409,7 +409,7 @@ export default function EditarPlantillaPage() {
   const [isDeleting, setIsDeleting]       = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [imageFile, setImageFile]         = useState<File | null>(null);
-  const [imagePreview, setImagePreview]   = useState<string | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
   const [mobileTab, setMobileTab]         = useState<'config' | 'grid'>('config');
   const [scheme, setScheme]               = useState<LabelScheme | null>(null);
   const [showOptional, setShowOptional]   = useState(false);
@@ -440,7 +440,7 @@ export default function EditarPlantillaPage() {
           rows:        t.rows,
           slots:       sl,
         });
-        setImagePreview(t.image ?? null);
+        setCurrentImageUrl(t.image ?? null);
         if (t.brand || t.description || t.image) setShowOptional(true);
       } else {
         notify.error(res.error ?? 'No se pudo cargar la plantilla');
@@ -448,10 +448,6 @@ export default function EditarPlantillaPage() {
       setLoading(false);
     });
   }, [id]);
-
-  useEffect(() => {
-    return () => { if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview); };
-  }, [imagePreview]);
 
   // ── Dimension updates ────────────────────────────────────────────────────────
 
@@ -751,33 +747,12 @@ export default function EditarPlantillaPage() {
                         <input name="brand" value={formData.brand ?? ''} onChange={handleFieldChange}
                           className="input-field" placeholder="Ej: Crane" />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Imagen</label>
-                        <div className="mb-2 w-24 aspect-[3/4] rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
-                          {imagePreview ? (
-                            <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-300">
-                              <ImageIcon className="h-6 w-6" />
-                            </div>
-                          )}
-                        </div>
-                        <label className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors w-fit">
-                          <ImageIcon className="h-4 w-4 text-gray-500" />
-                          {imageFile ? imageFile.name : 'Seleccionar imagen'}
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0] ?? null;
-                              if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-                              setImageFile(file);
-                              setImagePreview(file ? URL.createObjectURL(file) : null);
-                            }}
-                          />
-                        </label>
-                      </div>
+                      <ImageInput
+                        label="Imagen"
+                        previewAlt="Vista previa de plantilla"
+                        currentImageUrl={currentImageUrl}
+                        onChange={setImageFile}
+                      />
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">Descripción</label>
                         <textarea name="description" value={formData.description ?? ''} onChange={handleFieldChange}

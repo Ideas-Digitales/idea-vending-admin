@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { getMachineAction } from '@/lib/actions/machines';
 import { Machine } from '@/lib/interfaces/machine.interface';
 import { Monitor, Save, X, CheckCircle, Info } from 'lucide-react';
-import { PageHeader } from '@/components/ui-custom';
+import { PageHeader, ImageInput } from '@/components/ui-custom';
 import EnterpriseSearchInput from '@/components/EnterpriseSearchInput';
 import { useUser } from '@/lib/stores/authStore';
 import Link from 'next/link';
@@ -32,7 +32,7 @@ export default function EditarMaquinaPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     status: 'offline',
@@ -57,7 +57,7 @@ export default function EditarMaquinaPage() {
             type: result.machine.type,
             enterprise_id: result.machine.enterprise_id,
           });
-          setImagePreview(result.machine.image ?? null);
+          setCurrentImageUrl(result.machine.image ?? null);
         } else {
           setError(result.error || 'Máquina no encontrada');
         }
@@ -123,12 +123,6 @@ export default function EditarMaquinaPage() {
       setSaving(false);
     }
   };
-
-  useEffect(() => {
-    return () => {
-      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-    };
-  }, [imagePreview]);
 
   if (loading) {
     return (
@@ -248,32 +242,14 @@ export default function EditarMaquinaPage() {
                 </FieldHint>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-black mb-2">
-                  Imagen referencial
-                </label>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    setImageFile(file);
-                    if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-                    setImagePreview(file ? URL.createObjectURL(file) : imagePreview);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-black"
-                />
-                <FieldHint>
-                  Sube una imagen de referencia para reconocer visualmente la máquina.
-                </FieldHint>
-                {imagePreview && (
-                  <img
-                    src={imagePreview}
-                    alt={`Vista previa de ${formData.name || 'máquina'}`}
-                    className="mt-3 h-40 w-full rounded-xl border border-gray-200 object-cover"
-                  />
-                )}
-              </div>
+              <ImageInput
+                label="Imagen referencial"
+                hint="Sube una imagen de referencia para reconocer visualmente la máquina."
+                previewAlt={`Vista previa de ${formData.name || 'máquina'}`}
+                currentImageUrl={currentImageUrl}
+                disabled={saving}
+                onChange={setImageFile}
+              />
 
               <div>
                 <label className="block text-sm font-medium text-black mb-2">

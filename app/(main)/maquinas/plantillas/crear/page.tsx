@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Grid3x3, Loader2, Save, Minus, Plus,
-  ChevronDown, ChevronUp, Info, ImageIcon,
+  ChevronDown, ChevronUp, Info,
 } from 'lucide-react';
-import { PageHeader } from '@/components/ui-custom';
+import { PageHeader, ImageInput } from '@/components/ui-custom';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { createMachineTemplateAction } from '@/lib/actions/machine-templates';
 import { useUser } from '@/lib/stores/authStore';
@@ -341,11 +341,7 @@ export default function CreateMachineTemplatePage() {
   }, [user, router]);
   const [isSubmitting, setIsSubmitting]   = useState(false);
   const [imageFile, setImageFile]         = useState<File | null>(null);
-  const [imagePreview, setImagePreview]   = useState<string | null>(null);
 
-  useEffect(() => {
-    return () => { if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview); };
-  }, [imagePreview]);
   const [mobileTab, setMobileTab]         = useState<'config' | 'grid'>('config');
   const [scheme, setScheme]               = useState<LabelScheme | null>(null);
   const [colNames, setColNames]           = useState<string[]>(() => initColNames(5));
@@ -629,29 +625,11 @@ export default function CreateMachineTemplatePage() {
                         <input name="brand" value={formData.brand ?? ''} onChange={handleFieldChange}
                           className="input-field" placeholder="Ej: Crane" />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Imagen</label>
-                        <div className="flex items-center gap-3">
-                          <label className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                            <ImageIcon className="h-4 w-4 text-gray-500" />
-                            {imageFile ? imageFile.name : 'Seleccionar imagen'}
-                            <input
-                              type="file"
-                              accept="image/png,image/jpeg,image/webp"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0] ?? null;
-                                if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-                                setImageFile(file);
-                                setImagePreview(file ? URL.createObjectURL(file) : null);
-                              }}
-                            />
-                          </label>
-                          {imagePreview && (
-                            <img src={imagePreview} alt="Preview" className="h-10 w-10 object-cover rounded-md border border-gray-200" />
-                          )}
-                        </div>
-                      </div>
+                      <ImageInput
+                        label="Imagen"
+                        previewAlt="Vista previa de plantilla"
+                        onChange={setImageFile}
+                      />
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1.5">Descripción</label>
                         <textarea name="description" value={formData.description ?? ''} onChange={handleFieldChange}

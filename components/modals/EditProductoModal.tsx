@@ -9,6 +9,7 @@ import { useMqttProduct } from '@/lib/hooks/useMqttProduct';
 import { notify } from '@/lib/adapters/notification.adapter';
 import type { Producto } from '@/lib/interfaces/product.interface';
 import { uploadProductImage } from '@/lib/utils/imageUpload';
+import { ImageInput } from '@/components/ui-custom';
 
 interface Props {
   open: boolean;
@@ -22,7 +23,7 @@ export function EditProductoModal({ open, onOpenChange, productId, onSaved }: Pr
   const [product, setProduct] = useState<Producto | null>(null);
   const [name, setName] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -32,13 +33,13 @@ export function EditProductoModal({ open, onOpenChange, productId, onSaved }: Pr
     setProduct(null);
     setName('');
     setImageFile(null);
-    setImagePreview(null);
+    setCurrentImageUrl(null);
     getProductAction(productId)
       .then(res => {
         if (res.success && res.product) {
           setProduct(res.product);
           setName(res.product.name);
-          setImagePreview(res.product.image ?? null);
+          setCurrentImageUrl(res.product.image ?? null);
         } else {
           notify.error('No se pudo cargar el producto');
           onOpenChange(false);
@@ -85,12 +86,6 @@ export function EditProductoModal({ open, onOpenChange, productId, onSaved }: Pr
 
   const busy = saving;
 
-  useEffect(() => {
-    return () => {
-      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-    };
-  }, [imagePreview]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -107,34 +102,13 @@ export function EditProductoModal({ open, onOpenChange, productId, onSaved }: Pr
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Imagen referencial
-              </label>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={e => {
-                  const file = e.target.files?.[0] ?? null;
-                  setImageFile(file);
-                  if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-                  setImagePreview(file ? URL.createObjectURL(file) : product?.image ?? null);
-                }}
-                className="input-field"
-                disabled={busy}
-              />
-              {imagePreview ? (
-                <img
-                  src={imagePreview}
-                  alt="Vista previa de producto"
-                  className="mt-3 h-28 w-full rounded-xl border border-gray-200 object-cover"
-                />
-              ) : (
-                <div className="mt-3 h-28 w-full rounded-xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400">
-                  <Package className="h-8 w-8" />
-                </div>
-              )}
-            </div>
+            <ImageInput
+              label="Imagen referencial"
+              previewAlt="Vista previa de producto"
+              currentImageUrl={currentImageUrl}
+              disabled={busy}
+              onChange={setImageFile}
+            />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

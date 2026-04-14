@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { User, Mail, Calendar, Shield, Edit, Building2 } from 'lucide-react';
+import { User, Mail, Calendar, Shield, Edit, Building2, ShieldCheck } from 'lucide-react';
 import { useUserStore } from '@/lib/stores/userStore';
 import { PageHeader } from '@/components/ui-custom';
 import Link from 'next/link';
@@ -92,7 +92,12 @@ export default function UserDetailPage() {
   }
 
   const isCustomerUser = user.role === 'customer' || user.roles?.some((role) => role.name?.toLowerCase().includes('customer'));
-  const userEnterprises = user.enterprises ?? [];
+  const ownedIds = new Set((user.owned_enterprises ?? []).map(e => e.id));
+  const associatedEnterprises = (user.enterprises ?? []).filter(e => !ownedIds.has(e.id));
+  const userEnterprises = [
+    ...(user.owned_enterprises ?? []).map(e => ({ ...e, isOwner: true })),
+    ...associatedEnterprises.map(e => ({ ...e, isOwner: false })),
+  ];
 
   return (
     <>
@@ -185,9 +190,20 @@ export default function UserDetailPage() {
                     {userEnterprises.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
                         {userEnterprises.map((enterprise, index) => (
-                          <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-50 text-purple-800 border border-purple-200">
-                            <Building2 className="h-3.5 w-3.5 mr-1" />
-                            {enterprise.name} <span className="text-xs text-gray-500 ml-1">(ID: {enterprise.id})</span>
+                          <span
+                            key={index}
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${
+                              enterprise.isOwner
+                                ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                : 'bg-purple-50 text-purple-800 border-purple-200'
+                            }`}
+                          >
+                            {enterprise.isOwner
+                              ? <ShieldCheck className="h-3.5 w-3.5 mr-1 shrink-0" />
+                              : <Building2 className="h-3.5 w-3.5 mr-1 shrink-0" />
+                            }
+                            {enterprise.name}
+                            <span className="text-xs opacity-60 ml-1">(ID: {enterprise.id})</span>
                           </span>
                         ))}
                       </div>

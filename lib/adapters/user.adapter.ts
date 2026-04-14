@@ -30,6 +30,7 @@ export class UserAdapter {
         ? apiUser.roles
         : this.rolesFromSingleRole(apiUser.role),
       enterprises: apiUser.enterprises || undefined,
+      owned_enterprises: apiUser.owned_enterprises || undefined,
     };
   }
 

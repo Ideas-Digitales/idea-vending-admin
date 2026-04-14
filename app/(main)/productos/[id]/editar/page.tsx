@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Package, Save, Loader2, Edit } from 'lucide-react';
-import { PageHeader } from '@/components/ui-custom';
+import { PageHeader, ImageInput } from '@/components/ui-custom';
 import Link from 'next/link';
 import { useProductStore } from '@/lib/stores/productStore';
 import { notify } from '@/lib/adapters/notification.adapter';
@@ -29,7 +29,7 @@ export default function EditProductPage() {
   } = useProductStore();
   const { publishProductOperation, isPublishing } = useMqttProduct();
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<UpdateProductFormData>({
     name: '',
@@ -47,7 +47,7 @@ export default function EditProductPage() {
   useEffect(() => {
     if (product) {
       setFormData({ name: product.name });
-      setImagePreview(product.image ?? null);
+      setCurrentImageUrl(product.image ?? null);
     }
   }, [product]);
 
@@ -58,12 +58,6 @@ export default function EditProductPage() {
       clearUpdateError();
     };
   }, [clearSelectedProduct, clearProductError, clearUpdateError]);
-
-  useEffect(() => {
-    return () => {
-      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-    };
-  }, [imagePreview]);
 
   useEffect(() => {
     if (updateError) {
@@ -185,34 +179,13 @@ export default function EditProductPage() {
             </h3>
 
             <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Imagen referencial
-                </label>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    setImageFile(file);
-                    if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
-                    setImagePreview(file ? URL.createObjectURL(file) : product?.image ?? null);
-                  }}
-                  className="input-field"
-                  disabled={isUpdating || isPublishing}
-                />
-                {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt={formData.name || product.name}
-                    className="mt-3 h-36 w-full rounded-xl border border-gray-200 object-cover"
-                  />
-                ) : (
-                  <div className="mt-3 h-36 w-full rounded-xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400">
-                    <Package className="h-10 w-10" />
-                  </div>
-                )}
-              </div>
+              <ImageInput
+                label="Imagen referencial"
+                previewAlt={formData.name || product.name}
+                currentImageUrl={currentImageUrl}
+                disabled={isUpdating || isPublishing}
+                onChange={setImageFile}
+              />
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
