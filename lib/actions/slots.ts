@@ -10,6 +10,7 @@ import {
 import { createSlotSchema, updateSlotSchema } from '../schemas/slot.schema';
 import { authenticatedFetch } from '../utils/authenticatedFetch';
 import { handleActionError } from '../utils/actionError';
+import { httpErrorMessage } from '../utils/httpError';
 
 /**
  * Obtiene todos los slots de una máquina
@@ -22,11 +23,7 @@ export async function getSlotsAction(machineId: string | number): Promise<SlotsL
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        error: errorData.message || `Error ${response.status}: ${response.statusText}`,
-      };
+      return { success: false, error: httpErrorMessage(response.status) };
     }
 
     const data = await response.json();
@@ -61,11 +58,7 @@ export async function createSlotAction(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        error: errorData.message || `Error ${response.status}: ${response.statusText}`,
-      };
+      return { success: false, error: httpErrorMessage(response.status) };
     }
 
     const data = await response.json();
@@ -101,11 +94,7 @@ export async function updateSlotAction(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        error: errorData.message || `Error ${response.status}: ${response.statusText}`,
-      };
+      return { success: false, error: httpErrorMessage(response.status) };
     }
 
     const data = await response.json();
@@ -131,11 +120,7 @@ export async function deleteSlotAction(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        error: errorData.message || `Error ${response.status}: ${response.statusText}`,
-      };
+      return { success: false, error: httpErrorMessage(response.status) };
     }
 
     return { success: true };

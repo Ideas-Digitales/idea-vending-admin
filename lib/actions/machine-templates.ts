@@ -4,7 +4,6 @@ import {
   ApplyMachineTemplatePayload,
   ApplyMachineTemplateResult,
   CreateMachineTemplate,
-  MachineTemplate,
   MachineTemplateResponse,
   MachineTemplatesResponse,
 } from '@/lib/interfaces/machine-template.interface';
@@ -12,6 +11,7 @@ import { createMachineTemplateSchema } from '@/lib/schemas/machine-template.sche
 import { authenticatedFetch } from '@/lib/utils/authenticatedFetch';
 import { handleActionError } from '@/lib/utils/actionError';
 import { MachineTemplateAdapter } from '@/lib/adapters/machine-template.adapter';
+import { httpErrorMessage } from '@/lib/utils/httpError';
 
 export async function getMachineTemplatesAction(): Promise<MachineTemplatesResponse> {
   try {
@@ -21,11 +21,7 @@ export async function getMachineTemplatesAction(): Promise<MachineTemplatesRespo
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        error: errorData.message || `Error ${response.status}: ${response.statusText}`,
-      };
+      return { success: false, error: httpErrorMessage(response.status) };
     }
 
     const data = await response.json();
@@ -58,11 +54,7 @@ export async function createMachineTemplateAction(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        error: errorData.message || `Error ${response.status}: ${response.statusText}`,
-      };
+      return { success: false, error: httpErrorMessage(response.status) };
     }
 
     const data = await response.json();
@@ -85,8 +77,7 @@ export async function getMachineTemplateAction(id: string | number): Promise<Mac
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return { success: false, error: errorData.message || `Error ${response.status}` };
+      return { success: false, error: httpErrorMessage(response.status) };
     }
 
     const data = await response.json();
@@ -107,8 +98,7 @@ export async function updateMachineTemplateAction(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return { success: false, error: errorData.message || `Error ${response.status}` };
+      return { success: false, error: httpErrorMessage(response.status) };
     }
 
     const data = await response.json();
@@ -127,8 +117,7 @@ export async function deleteMachineTemplateAction(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return { success: false, error: errorData.message || `Error ${response.status}` };
+      return { success: false, error: httpErrorMessage(response.status) };
     }
 
     return { success: true };
@@ -148,11 +137,7 @@ export async function applyMachineTemplateAction(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        error: errorData.message || `Error ${response.status}: ${response.statusText}`,
-      };
+      return { success: false, error: httpErrorMessage(response.status) };
     }
 
     const data = await response.json();

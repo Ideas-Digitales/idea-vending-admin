@@ -1,46 +1,26 @@
 'use client';
 
+type ImageResource = 'machines' | 'products' | 'machine-templates';
+
 export async function uploadEntityImage(
-  entity: 'maquinas' | 'productos' | 'plantillas',
+  resource: ImageResource,
   id: number | string,
   file: File,
 ): Promise<void> {
   const formData = new FormData();
   formData.append('image', file);
 
-  const response = await fetch(`/${entity}/${id}/image`, {
+  const response = await fetch(`/api/images/${resource}/${id}`, {
     method: 'POST',
     body: formData,
   });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || `No se pudo subir la imagen.`);
+    throw new Error(errorData.error || errorData.message || 'No se pudo subir la imagen.');
   }
 }
 
-export const uploadMachineImage = (id: number | string, file: File) =>
-  uploadEntityImage('maquinas', id, file);
-
-export const uploadProductImage = (id: number | string, file: File) =>
-  uploadEntityImage('productos', id, file);
-
-export const uploadTemplateImage = async (
-  id: number | string,
-  file: File,
-  fromRoute: 'maquinas' | 'plantillas' = 'plantillas',
-): Promise<void> => {
-  const formData = new FormData();
-  formData.append('image', file);
-
-  const path = fromRoute === 'plantillas'
-    ? `/plantillas/${id}/image`
-    : `/maquinas/plantillas/${id}/image`;
-
-  const response = await fetch(path, { method: 'POST', body: formData });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || `No se pudo subir la imagen.`);
-  }
-};
+export const uploadMachineImage   = (id: number | string, file: File) => uploadEntityImage('machines', id, file);
+export const uploadProductImage   = (id: number | string, file: File) => uploadEntityImage('products', id, file);
+export const uploadTemplateImage  = (id: number | string, file: File) => uploadEntityImage('machine-templates', id, file);

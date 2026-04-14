@@ -515,7 +515,7 @@ export default function CreateMachineTemplatePage() {
 
     if (response.success) {
       if (imageFile && response.template?.id) {
-        await uploadTemplateImage(response.template.id, imageFile, 'plantillas').catch(() => {
+        await uploadTemplateImage(response.template.id, imageFile).catch(() => {
           notify.warning('Plantilla creada, pero no se pudo subir la imagen.');
         });
       }
