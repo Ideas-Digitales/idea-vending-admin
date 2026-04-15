@@ -39,6 +39,7 @@ import {
 import { SalesDualAxisChart, KpiSkeleton, type SeriesType } from '@/components/metrics/MetricsCharts';
 import MachineProductsPanel from '@/components/metrics/MachineProductsPanel';
 import PaymentDetailModal from '@/app/(main)/pagos/PaymentDetailModal';
+import { EditProductoModal } from '@/components/modals/EditProductoModal';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -483,6 +484,7 @@ export default function MaquinaDetallePage() {
   const [quickCreateName, setQuickCreateName]     = useState('');
   const [quickCreateError, setQuickCreateError]   = useState<string | null>(null);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+  const [editProductModalId, setEditProductModalId] = useState<number | null>(null);
 
   const handleQuickCreateProduct = async () => {
     const name = quickCreateName.trim();
@@ -496,6 +498,7 @@ export default function MaquinaDetallePage() {
       setProducts(prev => [result.product!, ...prev]);
       setQuickCreateName('');
       setShowQuickCreate(false);
+      setEditProductModalId(result.product.id);
     } else {
       setQuickCreateError(result.error ?? 'No fue posible crear el producto');
     }
@@ -1022,46 +1025,46 @@ export default function MaquinaDetallePage() {
 
                             {/* Formulario de creación rápida */}
                             {showQuickCreate && (
-                              <div className="mb-2 space-y-1.5">
-                                <div className="flex gap-1">
-                                  <input
-                                    autoFocus
-                                    type="text"
-                                    value={quickCreateName}
-                                    onChange={(e) => { setQuickCreateName(e.target.value); setQuickCreateError(null); }}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') handleQuickCreateProduct();
-                                      if (e.key === 'Escape') { setShowQuickCreate(false); setQuickCreateName(''); }
-                                    }}
-                                    placeholder="Nombre del producto…"
-                                    maxLength={100}
-                                    className={`flex-1 px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:border-primary bg-white transition-colors ${
-                                      quickCreateError ? 'border-red-400' : 'border-primary/40'
-                                    }`}
-                                  />
-                                  <button
-                                    onClick={handleQuickCreateProduct}
-                                    disabled={isCreatingProduct || quickCreateName.trim().length < 2}
-                                    className="px-2 py-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-40 transition-colors shrink-0"
-                                    title="Guardar"
-                                  >
-                                    {isCreatingProduct
-                                      ? <Loader2 className="h-3 w-3 animate-spin" />
-                                      : <Check className="h-3 w-3" />}
-                                  </button>
-                                  <button
-                                    onClick={() => { setShowQuickCreate(false); setQuickCreateName(''); setQuickCreateError(null); }}
-                                    className="px-1.5 py-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors shrink-0"
-                                    title="Cancelar"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </div>
+                              <div className="mb-2 rounded-lg border border-primary/20 bg-primary/3 p-2.5 space-y-2">
+                                <p className="text-[10px] font-semibold text-primary uppercase tracking-wide">Nuevo producto</p>
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  value={quickCreateName}
+                                  onChange={(e) => { setQuickCreateName(e.target.value); setQuickCreateError(null); }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleQuickCreateProduct();
+                                    if (e.key === 'Escape') { setShowQuickCreate(false); setQuickCreateName(''); }
+                                  }}
+                                  placeholder="Nombre del producto…"
+                                  maxLength={100}
+                                  className={`w-full px-2.5 py-1.5 text-xs border rounded-lg focus:outline-none focus:border-primary bg-white transition-colors ${
+                                    quickCreateError ? 'border-red-400' : 'border-primary/30'
+                                  }`}
+                                />
                                 {quickCreateError && (
                                   <p className="text-[10px] text-red-500 flex items-center gap-1">
                                     <AlertCircle className="h-2.5 w-2.5 shrink-0" />{quickCreateError}
                                   </p>
                                 )}
+                                <div className="flex gap-1.5 justify-end">
+                                  <button
+                                    onClick={() => { setShowQuickCreate(false); setQuickCreateName(''); setQuickCreateError(null); }}
+                                    className="px-2.5 py-1 text-[10px] font-medium rounded-md text-gray-500 hover:bg-gray-100 transition-colors"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    onClick={handleQuickCreateProduct}
+                                    disabled={isCreatingProduct || quickCreateName.trim().length < 2}
+                                    className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold rounded-md bg-primary text-white hover:bg-primary/90 disabled:opacity-40 transition-colors"
+                                  >
+                                    {isCreatingProduct
+                                      ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                      : <Check className="h-2.5 w-2.5" />}
+                                    Crear
+                                  </button>
+                                </div>
                               </div>
                             )}
 
@@ -1104,15 +1107,30 @@ export default function MaquinaDetallePage() {
                                 return (
                                   <div
                                     key={product.id}
-                                    draggable
-                                    onDragStart={() => { setDragProduct(product); setIsDraggingProduct(true); }}
-                                    onDragEnd={() => { setDragProduct(null); setIsDraggingProduct(false); setDragOverSlotId(null); }}
-                                    className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border cursor-grab active:cursor-grabbing select-none transition-all ${
+                                    className={`group flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border transition-all ${
                                       isBeingDragged ? 'opacity-40 border-primary/30' : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'
                                     }`}
                                   >
-                                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                                    <span className="text-xs text-dark truncate flex-1">{product.name}</span>
+                                    <div
+                                      draggable
+                                      onDragStart={() => { setDragProduct(product); setIsDraggingProduct(true); }}
+                                      onDragEnd={() => { setDragProduct(null); setIsDraggingProduct(false); setDragOverSlotId(null); }}
+                                      className="flex items-center gap-2 flex-1 min-w-0 cursor-grab active:cursor-grabbing select-none"
+                                    >
+                                      {product.image ? (
+                                        <img src={product.image} alt={product.name} className="w-5 h-5 rounded object-cover shrink-0 border border-gray-100" />
+                                      ) : (
+                                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                      )}
+                                      <span className="text-xs text-dark truncate flex-1">{product.name}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => setEditProductModalId(product.id)}
+                                      className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-gray-400 hover:text-primary hover:bg-primary/8 transition-all shrink-0"
+                                      title="Editar producto"
+                                    >
+                                      <Edit className="h-3 w-3" />
+                                    </button>
                                     <GripVertical className="h-3 w-3 text-gray-300 shrink-0" />
                                   </div>
                                 );
@@ -2487,6 +2505,20 @@ export default function MaquinaDetallePage() {
         machineDetails={machine ?? null}
         machineDetailsLoading={false}
         machineDetailsError={null}
+      />
+
+      <EditProductoModal
+        open={editProductModalId !== null}
+        onOpenChange={(open) => { if (!open) setEditProductModalId(null); }}
+        productId={editProductModalId}
+        onSaved={() => {
+          setEditProductModalId(null);
+          setProducts(prev => prev.map(p =>
+            p.id === editProductModalId ? { ...p } : p
+          ));
+          getProductsAction({ enterpriseId: machine?.enterprise_id })
+            .then(res => { if (res.success && res.products) setProducts(res.products); });
+        }}
       />
     </>
   );

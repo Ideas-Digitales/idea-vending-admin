@@ -114,9 +114,15 @@ function TemplateCard({ template, selected, onSelect }: {
     >
       {/* ── Mobile: horizontal compact row ── */}
       <div className="flex items-center gap-3 p-4 sm:hidden">
-        <div className="w-9 h-9 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
-          <Icon className="h-4 w-4 text-primary" />
-        </div>
+        {template.image ? (
+          <div className="w-9 aspect-[3/4] rounded-xl overflow-hidden border border-gray-100 bg-gray-50 shrink-0">
+            <img src={template.image} alt={template.name} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="w-9 h-9 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
+            <Icon className="h-4 w-4 text-primary" />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-dark truncate">{template.name}</p>
           <p className="text-xs text-muted">
@@ -135,9 +141,15 @@ function TemplateCard({ template, selected, onSelect }: {
       {/* ── Desktop: vertical card ── */}
       <div className="hidden sm:block p-5">
         <div className="flex items-start gap-3 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
-            <Icon className="h-5 w-5 text-primary" />
-          </div>
+          {template.image ? (
+            <div className="w-10 aspect-[3/4] rounded-xl overflow-hidden border border-gray-100 bg-gray-50 shrink-0">
+              <img src={template.image} alt={template.name} className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
+              <Icon className="h-5 w-5 text-primary" />
+            </div>
+          )}
           <div className="min-w-0">
             <p className="text-sm font-bold text-dark leading-tight">{template.name}</p>
             <p className="text-xs text-muted mt-0.5">{template.brand ?? 'Sin marca'}</p>
@@ -186,9 +198,15 @@ function ProductPanel({ template, products, search, setSearch, dragData, onDragS
     <div className="flex flex-col h-full">
       {/* Template info */}
       <div className="p-4 shrink-0 flex flex-col items-center gap-2.5 border-b border-gray-100">
-        <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
-          <Icon className="h-7 w-7 text-gray-400" />
-        </div>
+        {template.image ? (
+          <div className="w-14 aspect-[3/4] rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
+            <img src={template.image} alt={template.name} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
+            <Icon className="h-7 w-7 text-gray-400" />
+          </div>
+        )}
         <div className="text-center">
           <p className="text-sm font-semibold text-dark leading-tight">{template.name}</p>
           <p className="text-xs text-gray-400 mt-0.5">

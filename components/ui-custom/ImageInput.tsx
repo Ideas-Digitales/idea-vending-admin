@@ -90,11 +90,13 @@ export default function ImageInput({
       )}
 
       {preview && (
-        <img
-          src={preview}
-          alt={previewAlt}
-          className="mt-2 h-32 w-full rounded-xl border border-gray-200 object-cover"
-        />
+        <div className="mt-2 mx-auto w-full max-w-[160px] aspect-[3/4] rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+          <img
+            src={preview}
+            alt={previewAlt}
+            className="w-full h-full object-cover"
+          />
+        </div>
       )}
     </div>
   );
