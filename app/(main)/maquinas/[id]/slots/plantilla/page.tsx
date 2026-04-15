@@ -141,9 +141,9 @@ function TemplateCard({ template, selected, onSelect }: {
       {/* ── Desktop: image banner + content ── */}
       <div className="hidden sm:block">
         {/* Image banner */}
-        <div className="h-44 bg-gray-50">
+        <div className="w-full aspect-[3/4] bg-gray-50">
           {template.image ? (
-            <img src={template.image} alt={template.name} className="w-full h-full object-cover object-top" />
+            <img src={template.image} alt={template.name} className="w-full h-full object-contain" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <Icon className="h-14 w-14 text-primary/20" />
@@ -201,11 +201,11 @@ function ProductPanel({ template, products, search, setSearch, dragData, onDragS
       {/* Template info */}
       <div className="shrink-0 border-b border-gray-100">
         {template.image ? (
-          <div className="w-full h-40 overflow-hidden bg-gray-50">
-            <img src={template.image} alt={template.name} className="w-full h-full object-cover object-top" />
+          <div className="w-full aspect-[3/4] overflow-hidden bg-gray-50">
+            <img src={template.image} alt={template.name} className="w-full h-full object-contain" />
           </div>
         ) : (
-          <div className="w-full h-20 flex items-center justify-center bg-gray-50">
+          <div className="w-full aspect-[3/4] flex items-center justify-center bg-gray-50">
             <Icon className="h-10 w-10 text-gray-300" />
           </div>
         )}
