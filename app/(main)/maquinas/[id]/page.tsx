@@ -1125,7 +1125,7 @@ export default function MaquinaDetallePage() {
                                       <span className="text-xs text-dark truncate flex-1">{product.name}</span>
                                     </div>
                                     <button
-                                      onClick={() => setEditProductModalId(product.id)}
+                                      onClick={() => setEditProductModalId(Number(product.id))}
                                       className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-gray-400 hover:text-primary hover:bg-primary/8 transition-all shrink-0"
                                       title="Editar producto"
                                     >
