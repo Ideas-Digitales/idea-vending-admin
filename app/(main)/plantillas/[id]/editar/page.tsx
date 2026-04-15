@@ -583,7 +583,6 @@ export default function EditarPlantillaPage() {
     const response = await updateMachineTemplateAction(id, {
       name:        formData.name.trim(),
       brand:       formData.brand?.trim()       || null,
-      image:       formData.image?.trim()       || null,
       description: formData.description?.trim() || null,
       columns:     formData.columns,
       rows:        formData.rows,
