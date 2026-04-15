@@ -498,7 +498,6 @@ export default function MaquinaDetallePage() {
       setProducts(prev => [result.product!, ...prev]);
       setQuickCreateName('');
       setShowQuickCreate(false);
-      setEditProductModalId(Number(result.product.id));
     } else {
       setQuickCreateError(result.error ?? 'No fue posible crear el producto');
     }

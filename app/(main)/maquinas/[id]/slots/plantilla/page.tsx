@@ -108,24 +108,24 @@ function TemplateCard({ template, selected, onSelect }: {
   const slotCount = template.slot_count ?? template.columns * template.rows;
   return (
     <button onClick={onSelect}
-      className={`relative text-left w-full rounded-2xl border-2 transition-all hover:shadow-md ${
+      className={`relative text-left w-full rounded-2xl border-2 overflow-hidden transition-all hover:shadow-md ${
         selected ? 'border-primary bg-primary/4 shadow-md shadow-primary/10' : 'border-gray-100 bg-white hover:border-primary/30'
       }`}
     >
       {/* ── Mobile: horizontal compact row ── */}
-      <div className="flex items-center gap-3 p-4 sm:hidden">
+      <div className="flex items-center gap-3 p-3 sm:hidden">
         {template.image ? (
-          <div className="w-9 aspect-[3/4] rounded-xl overflow-hidden border border-gray-100 bg-gray-50 shrink-0">
-            <img src={template.image} alt={template.name} className="w-full h-full object-cover" />
+          <div className="w-16 aspect-[3/4] rounded-lg overflow-hidden bg-gray-50 shrink-0">
+            <img src={template.image} alt={template.name} className="w-full h-full object-cover object-top" />
           </div>
         ) : (
-          <div className="w-9 h-9 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
-            <Icon className="h-4 w-4 text-primary" />
+          <div className="w-12 h-12 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
+            <Icon className="h-5 w-5 text-primary" />
           </div>
         )}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-dark truncate">{template.name}</p>
-          <p className="text-xs text-muted">
+          <p className="text-xs text-muted mt-0.5">
             {template.brand ?? 'Sin marca'} · {template.columns}×{template.rows} · {slotCount} slots
           </p>
         </div>
@@ -138,36 +138,38 @@ function TemplateCard({ template, selected, onSelect }: {
         </div>
       </div>
 
-      {/* ── Desktop: vertical card ── */}
-      <div className="hidden sm:block p-5">
-        <div className="flex items-start gap-3 mb-3">
+      {/* ── Desktop: image banner + content ── */}
+      <div className="hidden sm:block">
+        {/* Image banner */}
+        <div className="h-44 bg-gray-50">
           {template.image ? (
-            <div className="w-10 aspect-[3/4] rounded-xl overflow-hidden border border-gray-100 bg-gray-50 shrink-0">
-              <img src={template.image} alt={template.name} className="w-full h-full object-cover" />
-            </div>
+            <img src={template.image} alt={template.name} className="w-full h-full object-cover object-top" />
           ) : (
-            <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
-              <Icon className="h-5 w-5 text-primary" />
+            <div className="w-full h-full flex items-center justify-center">
+              <Icon className="h-14 w-14 text-primary/20" />
             </div>
           )}
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-dark leading-tight">{template.name}</p>
-            <p className="text-xs text-muted mt-0.5">{template.brand ?? 'Sin marca'}</p>
+        </div>
+        {/* Content */}
+        <div className={`p-4 ${selected ? '' : 'bg-white'}`}>
+          <p className="text-sm font-bold text-dark leading-tight">{template.name}</p>
+          <p className="text-xs text-muted mt-0.5">{template.brand ?? 'Sin marca'}</p>
+          {template.description && (
+            <p className="text-xs text-gray-500 mt-2 leading-relaxed line-clamp-2">
+              {template.description}
+            </p>
+          )}
+          <div className="flex items-end justify-between gap-2 mt-3">
+            <span className="text-xs text-muted">
+              {template.columns} cols × {template.rows} filas ·{' '}
+              <strong className="text-dark">{slotCount} slots</strong>
+            </span>
+            <MiniGrid columns={template.columns} rows={template.rows} color={selected ? '#3157b2' : '#6b7280'} />
           </div>
         </div>
-        <p className="text-xs text-gray-500 mb-4 leading-relaxed line-clamp-2">
-          {template.description || 'Sin descripción'}
-        </p>
-        <div className="flex items-end justify-between gap-2">
-          <span className="text-xs text-muted">
-            {template.columns} cols × {template.rows} filas ·{' '}
-            <strong className="text-dark">{slotCount} slots</strong>
-          </span>
-          <MiniGrid columns={template.columns} rows={template.rows} color={selected ? '#3157b2' : '#6b7280'} />
-        </div>
         {selected && (
-          <div className="absolute top-3 left-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-            <Check className="h-3 w-3 text-white" />
+          <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-md">
+            <Check className="h-3.5 w-3.5 text-white" />
           </div>
         )}
       </div>
@@ -197,23 +199,25 @@ function ProductPanel({ template, products, search, setSearch, dragData, onDragS
   return (
     <div className="flex flex-col h-full">
       {/* Template info */}
-      <div className="p-4 shrink-0 flex flex-col items-center gap-2.5 border-b border-gray-100">
+      <div className="shrink-0 border-b border-gray-100">
         {template.image ? (
-          <div className="w-14 aspect-[3/4] rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
-            <img src={template.image} alt={template.name} className="w-full h-full object-cover" />
+          <div className="w-full h-40 overflow-hidden bg-gray-50">
+            <img src={template.image} alt={template.name} className="w-full h-full object-cover object-top" />
           </div>
         ) : (
-          <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
-            <Icon className="h-7 w-7 text-gray-400" />
+          <div className="w-full h-20 flex items-center justify-center bg-gray-50">
+            <Icon className="h-10 w-10 text-gray-300" />
           </div>
         )}
-        <div className="text-center">
-          <p className="text-sm font-semibold text-dark leading-tight">{template.name}</p>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {template.columns}×{template.rows} · {template.slot_count ?? template.columns * template.rows} slots
-          </p>
+        <div className="p-3 flex flex-col items-center gap-2">
+          <div className="text-center">
+            <p className="text-sm font-semibold text-dark leading-tight">{template.name}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {template.columns}×{template.rows} · {template.slot_count ?? template.columns * template.rows} slots
+            </p>
+          </div>
+          <MiniGrid columns={Math.min(template.columns, 10)} rows={Math.min(template.rows, 8)} />
         </div>
-        <MiniGrid columns={Math.min(template.columns, 10)} rows={Math.min(template.rows, 8)} />
       </div>
 
       {/* Products list */}
