@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { getMachineAction, updateMachineAction } from '@/lib/actions/machines';
 import { aggregatePaymentsAction, getPaymentsAction } from '@/lib/actions/payments';
-import { getProductsAction, createProductAction } from '@/lib/actions/products';
+import { getProductsAction, createProductAction, getProductAction } from '@/lib/actions/products';
 import { Machine } from '@/lib/interfaces/machine.interface';
 import type { Payment } from '@/lib/interfaces/payment.interface';
 import { useSlotStore } from '@/lib/stores/slotStore';
@@ -2511,12 +2511,23 @@ export default function MaquinaDetallePage() {
         onOpenChange={(open) => { if (!open) setEditProductModalId(null); }}
         productId={editProductModalId}
         onSaved={() => {
+          const savedId = editProductModalId;
           setEditProductModalId(null);
-          setProducts(prev => prev.map(p =>
-            p.id === editProductModalId ? { ...p } : p
-          ));
-          getProductsAction({ enterpriseId: machine?.enterprise_id })
-            .then(res => { if (res.success && res.products) setProducts(res.products); });
+          if (savedId === null) return;
+          getProductAction(savedId).then(res => {
+            if (!res.success || !res.product) return;
+            const updated = res.product;
+            // Actualizar panel de productos
+            setProducts(prev => prev.map(p => Number(p.id) === savedId ? updated : p));
+            // Propagar imagen a todos los slots que usan este producto
+            useSlotStore.setState(state => ({
+              slots: state.slots.map(slot =>
+                slot.product_id === savedId
+                  ? { ...slot, product: { ...slot.product!, ...updated } }
+                  : slot
+              ),
+            }));
+          });
         }}
       />
     </>
