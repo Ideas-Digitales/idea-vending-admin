@@ -27,6 +27,7 @@ interface SlotState {
   updateSlot: (machineId: number, slotId: number, slotData: UpdateSlot) => Promise<Slot | null>;
   deleteSlot: (machineId: number, slotId: number) => Promise<boolean>;
   setSelectedSlot: (slot: Slot | null) => void;
+  patchProductInSlots: (productId: number, patch: Partial<NonNullable<Slot['product']>>) => void;
   clearErrors: () => void;
   clearSlots: () => void;
 }
@@ -209,6 +210,17 @@ export const useSlotStore = create<SlotState>((set, get) => ({
   // Establecer slot seleccionado
   setSelectedSlot: (slot: Slot | null) => {
     set({ selectedSlot: slot });
+  },
+
+  // Parchar los datos de un producto en todos los slots que lo tienen asignado
+  patchProductInSlots: (productId: number, patch: Partial<NonNullable<Slot['product']>>) => {
+    set(state => ({
+      slots: state.slots.map(slot =>
+        Number(slot.product_id) === productId && slot.product
+          ? { ...slot, product: { ...slot.product, ...patch } }
+          : slot
+      ),
+    }));
   },
 
   // Limpiar errores

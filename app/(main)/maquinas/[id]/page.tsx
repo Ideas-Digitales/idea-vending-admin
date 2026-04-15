@@ -452,7 +452,7 @@ export default function MaquinaDetallePage() {
   // ── Slots (tab Productos) ─────────────────────────────────────────────────
   const {
     slots, isLoading: slotsLoading, error: slotsError,
-    fetchSlots, updateSlot, deleteSlot, clearErrors: clearSlotErrors, clearSlots,
+    fetchSlots, updateSlot, deleteSlot, clearErrors: clearSlotErrors, clearSlots, patchProductInSlots,
   } = useSlotStore();
   const { publishSlotOperation, isPublishing } = useMqttSlot();
 
@@ -2520,13 +2520,7 @@ export default function MaquinaDetallePage() {
             // Actualizar panel de productos
             setProducts(prev => prev.map(p => Number(p.id) === savedId ? updated : p));
             // Propagar imagen a todos los slots que usan este producto
-            useSlotStore.setState(state => ({
-              slots: state.slots.map(slot =>
-                slot.product_id === savedId
-                  ? { ...slot, product: { ...slot.product!, ...updated } }
-                  : slot
-              ),
-            }));
+            patchProductInSlots(savedId, { image: updated.image ?? null, name: updated.name });
           });
         }}
       />
