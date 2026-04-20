@@ -610,6 +610,8 @@ export default function PlantillaMaquinaPage() {
   // Product panel
   const [productSearch, setProductSearch] = useState('');
   const [showProductPanel, setShowProductPanel] = useState(false);
+  // Template search (step 1)
+  const [templateSearch, setTemplateSearch] = useState('');
 
   // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -639,6 +641,14 @@ export default function PlantillaMaquinaPage() {
     loadData();
     return () => { cancelled = true; };
   }, [machineId]);
+
+  const filteredTemplates = useMemo(() => {
+    if (!templateSearch.trim()) return templates;
+    const q = templateSearch.toLowerCase();
+    return templates.filter(
+      (t) => t.name.toLowerCase().includes(q) || (t.brand ?? '').toLowerCase().includes(q)
+    );
+  }, [templates, templateSearch]);
 
   const effectiveCols = selectedTemplate?.columns ?? 0;
   const effectiveRows = selectedTemplate?.rows ?? 0;
@@ -847,10 +857,35 @@ export default function PlantillaMaquinaPage() {
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                  {templates.map((t) => (
-                    <TemplateCard key={t.id} template={t} selected={selectedTemplate?.id === t.id} onSelect={() => handleSelectTemplate(t)} />
-                  ))}
+                <div className="space-y-4">
+                  {/* Search */}
+                  <div className="relative max-w-xs">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Buscar por modelo o marca..."
+                      value={templateSearch}
+                      onChange={(e) => setTemplateSearch(e.target.value)}
+                      className="w-full pl-9 pr-8 py-2 text-sm bg-white border border-gray-200 rounded-xl placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+                    />
+                    {templateSearch && (
+                      <button onClick={() => setTemplateSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {filteredTemplates.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center text-sm text-muted">
+                      Sin resultados para <strong>"{templateSearch}"</strong>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                      {filteredTemplates.map((t) => (
+                        <TemplateCard key={t.id} template={t} selected={selectedTemplate?.id === t.id} onSelect={() => handleSelectTemplate(t)} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               <div className="pt-1">

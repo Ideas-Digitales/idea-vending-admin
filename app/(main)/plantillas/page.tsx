@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { LayoutTemplate, Plus, Edit, Loader2, Grid3x3, ImageIcon } from 'lucide-react';
+import { LayoutTemplate, Plus, Edit, Loader2, Grid3x3, ImageIcon, Search, X } from 'lucide-react';
 import { PageHeader } from '@/components/ui-custom';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { getMachineTemplatesAction } from '@/lib/actions/machine-templates';
@@ -101,6 +101,7 @@ export default function PlantillasPage() {
   const router = useRouter();
   const [templates, setTemplates] = useState<MachineTemplate[]>([]);
   const [loading, setLoading]     = useState(true);
+  const [search, setSearch]       = useState('');
 
   useEffect(() => {
     if (user && user.role !== 'admin') { router.replace('/dashboard'); return; }
@@ -111,6 +112,14 @@ export default function PlantillasPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return templates;
+    const q = search.toLowerCase();
+    return templates.filter(
+      (t) => t.name.toLowerCase().includes(q) || (t.brand ?? '').toLowerCase().includes(q)
+    );
+  }, [templates, search]);
 
   return (
     <>
@@ -142,10 +151,36 @@ export default function PlantillasPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {templates.map((t) => (
-              <TemplateCard key={t.id} template={t} />
-            ))}
+          <div className="space-y-4">
+            {/* Search */}
+            <div className="relative max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar por modelo o marca..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 text-sm bg-white border border-gray-200 rounded-xl placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                <Search className="h-8 w-8 mb-2" />
+                <p className="text-sm text-gray-500">Sin resultados para <strong>"{search}"</strong></p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                {filtered.map((t) => (
+                  <TemplateCard key={t.id} template={t} />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>

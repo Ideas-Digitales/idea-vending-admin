@@ -30,10 +30,11 @@ export default function CreateUserForm({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
 
-  const roleLabelMap: Record<'admin' | 'customer' | 'technician', string> = {
+  const roleLabelMap: Record<'admin' | 'customer' | 'technician' | 'operador', string> = {
     admin: 'Administrador',
     customer: 'Cliente',
     technician: 'Técnico',
+    operador: 'Operador',
   };
 
   const statusLabelMap: Record<'active' | 'inactive', string> = {
@@ -42,25 +43,18 @@ export default function CreateUserForm({
   };
 
   // Mapear roles de la interfaz User a los roles del schema
-  const mapUserRoleToSchemaRole = (userRole: string): 'admin' | 'customer' | 'technician' => {
+  const mapUserRoleToSchemaRole = (userRole: string): 'admin' | 'customer' | 'technician' | 'operador' => {
     const normalizedRole = (userRole || '').toLowerCase();
 
-    if (normalizedRole.includes('admin')) {
-      return 'admin';
-    }
-
-    if (normalizedRole.includes('customer') || normalizedRole.includes('client')) {
-      return 'customer';
-    }
-
-    if (normalizedRole.includes('technician') || normalizedRole.includes('tech') || normalizedRole.includes('support')) {
-      return 'technician';
-    }
+    if (normalizedRole.includes('admin')) return 'admin';
+    if (normalizedRole.includes('customer') || normalizedRole.includes('client')) return 'customer';
+    if (normalizedRole.includes('operador') || normalizedRole.includes('operator')) return 'operador';
+    if (normalizedRole.includes('technician') || normalizedRole.includes('tech') || normalizedRole.includes('support')) return 'technician';
 
     return 'technician';
   };
 
-  const resolveInitialRole = (user?: UserType): 'admin' | 'customer' | 'technician' => {
+  const resolveInitialRole = (user?: UserType): 'admin' | 'customer' | 'technician' | 'operador' => {
     if (!user) return 'admin';
 
     if (user.role) {
@@ -166,7 +160,7 @@ export default function CreateUserForm({
   };
 
   const isLimitedEdit = mode === 'edit' && !canEditAllFields;
-  const roleValue = watch('role') as 'admin' | 'customer' | 'technician' | undefined;
+  const roleValue = watch('role') as 'admin' | 'customer' | 'technician' | 'operador' | undefined;
   const statusValue = watch('status') as 'active' | 'inactive' | undefined;
   const passwordValue = (watch('password') as string | undefined) || '';
   const confirmPasswordValue = (watch('confirmPassword') as string | undefined) || '';
@@ -273,6 +267,7 @@ export default function CreateUserForm({
                 >
                   <option value="admin">Administrador</option>
                   <option value="customer">Cliente</option>
+                  <option value="operador">Operador</option>
                   {mode === 'edit' && <option value="technician">Técnico</option>}
                 </select>
                 {errors.role && (
@@ -301,8 +296,8 @@ export default function CreateUserForm({
                 )}
               </div>
 
-              {/* Empresa — solo al crear un cliente (en edición se gestiona desde la ficha) */}
-              {roleValue === 'customer' && mode === 'create' && (
+              {/* Empresa — solo al crear un cliente u operador (en edición se gestiona desde la ficha) */}
+              {(roleValue === 'customer' || roleValue === 'operador') && mode === 'create' && (
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-black mb-2">
                     Empresa{' '}

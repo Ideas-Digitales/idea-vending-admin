@@ -17,6 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useMachineStore } from '@/lib/stores/machineStore';
+import { useUser } from '@/lib/stores/authStore';
 import { notify } from '@/lib/adapters/notification.adapter';
 import { MachineAdapter } from '@/lib/adapters/machine.adapter';
 import type { Machine } from '@/lib/interfaces/machine.interface';
@@ -120,6 +121,10 @@ function StockIndicator({ summary, loading }: { summary?: StockSummary; loading?
 export default function MaquinasInfiniteClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const user = useUser();
+  const canCreate = user?.role === 'admin' || (user?.permissions ?? []).includes('machines.create');
+  const canEdit   = user?.role === 'admin' || (user?.permissions ?? []).includes('machines.update');
+  const canDelete = user?.role === 'admin' || (user?.permissions ?? []).includes('machines.delete');
 
   const statusParamValue = useMemo<MachineStatusFilter>(() => {
     const param = searchParams?.get('status');
@@ -399,31 +404,35 @@ export default function MaquinasInfiniteClient() {
             </TooltipTrigger>
             <TooltipContent>Ver pagos</TooltipContent>
           </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setEditModal({ open: true, machineId: m.id })}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-blue-600 hover:bg-gray-100 transition-colors"
-              >
-                <Edit className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Editar</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-red-600 hover:bg-gray-100"
-                disabled={isDeleting}
-                onClick={() => setDeleteDialog({ isOpen: true, machineId: m.id, machineName: m.name })}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Eliminar</TooltipContent>
-          </Tooltip>
+          {canEdit && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setEditModal({ open: true, machineId: m.id })}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-blue-600 hover:bg-gray-100 transition-colors"
+                >
+                  <Edit className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Editar</TooltipContent>
+            </Tooltip>
+          )}
+          {canDelete && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-red-600 hover:bg-gray-100"
+                  disabled={isDeleting}
+                  onClick={() => setDeleteDialog({ isOpen: true, machineId: m.id, machineName: m.name })}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Eliminar</TooltipContent>
+            </Tooltip>
+          )}
         </div>
       ),
       className: 'text-right',
@@ -439,12 +448,14 @@ export default function MaquinasInfiniteClient() {
       permissionMatch="any"
       tourSteps={MACHINES_TOUR_STEPS}
       actions={
-        <div data-tour="machines-create">
-          <Button onClick={() => setCreateModal(true)} className="btn-primary flex items-center gap-2 font-semibold shadow-sm">
-            <Plus className="h-4 w-4" />
-            <span>Nueva Máquina</span>
-          </Button>
-        </div>
+        canCreate ? (
+          <div data-tour="machines-create">
+            <Button onClick={() => setCreateModal(true)} className="btn-primary flex items-center gap-2 font-semibold shadow-sm">
+              <Plus className="h-4 w-4" />
+              <span>Nueva Máquina</span>
+            </Button>
+          </div>
+        ) : undefined
       }
     >
       {/* ── Panel de métricas colapsable ── */}
@@ -527,7 +538,7 @@ export default function MaquinasInfiniteClient() {
               <p className="text-xs text-muted mt-1">
                 {hasFilters ? 'No coincide con los filtros aplicados.' : 'Aún no hay máquinas registradas.'}
               </p>
-              {!hasFilters && (
+              {!hasFilters && canCreate && (
                 <button onClick={() => setCreateModal(true)} className="btn-primary mt-4 text-sm">Crear primera máquina</button>
               )}
             </div>
@@ -616,21 +627,25 @@ export default function MaquinasInfiniteClient() {
                       >
                         <CreditCard className="h-4 w-4" />
                       </Link>
-                      <button
-                        onClick={() => setEditModal({ open: true, machineId: m.id })}
-                        title="Editar"
-                        className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        disabled={isDeleting}
-                        onClick={() => setDeleteDialog({ isOpen: true, machineId: m.id, machineName: m.name })}
-                        title="Eliminar"
-                        className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => setEditModal({ open: true, machineId: m.id })}
+                          title="Editar"
+                          className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          disabled={isDeleting}
+                          onClick={() => setDeleteDialog({ isOpen: true, machineId: m.id, machineName: m.name })}
+                          title="Eliminar"
+                          className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                     </div> {/* end inner padding div */}
                   </div>
@@ -655,7 +670,7 @@ export default function MaquinasInfiniteClient() {
                   : 'Aún no hay máquinas registradas en el sistema.'
               }
               emptyAction={
-                !hasFilters ? (
+                !hasFilters && canCreate ? (
                   <button onClick={() => setCreateModal(true)} className="btn-primary">Crear primera máquina</button>
                 ) : undefined
               }
