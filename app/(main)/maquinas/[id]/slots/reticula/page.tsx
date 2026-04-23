@@ -5,27 +5,25 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, ArrowRight, Check, ChevronRight, Search, Grid3x3, AlignJustify,
-  Layers, Plus, Package, X, CheckCircle2, Loader2, Factory, Server, Box,
-  ShoppingCart, LayoutTemplate, Coffee, GripVertical, type LucideIcon,
+  Layers, Plus, X, CheckCircle2, Loader2, Monitor, GripVertical,
 } from 'lucide-react';
-import { Monitor } from 'lucide-react';
 import { PageHeader } from '@/components/ui-custom';
 import SlotInspectorPanel from '@/components/slots/SlotInspectorPanel';
 import { getMachineAction } from '@/lib/actions/machines';
 import { getProductsAction } from '@/lib/actions/products';
 import { getSlotsAction } from '@/lib/actions/slots';
-import { applyMachineTemplateAction, getMachineTemplatesAction } from '@/lib/actions/machine-templates';
+import { applyGridAction } from '@/lib/actions/machine-templates';
+import { deriveSlotSpan } from '@/lib/utils/slotSpan';
 import type { Producto } from '@/lib/interfaces/product.interface';
-import type { MachineTemplate } from '@/lib/interfaces/machine-template.interface';
-import { useUser } from '@/lib/stores/authStore';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type ViewMode = 'machine' | 'list' | 'compact';
+type SlotSize = 'x1' | 'x2' | 'x3';
 type Step = 1 | 2 | 3;
 type DragData =
   | { type: 'product'; product: Producto }
-  | { type: 'slot';    slotId: string; product: Producto };
+  | { type: 'slot'; slotId: string; product: Producto };
 
 interface GeneratedSlot {
   id: string;
@@ -43,144 +41,74 @@ interface GeneratedSlot {
   height: number | null;
 }
 
-// ── Constants & helpers ───────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-const TEMPLATE_ICONS: Record<string, LucideIcon> = {
-  crane: Factory, jofemar: Server, bianchi: Box,
-  sielaff: ShoppingCart, ivs: LayoutTemplate, 'n&w': Coffee,
-};
+function columnLetter(index: number): string {
+  let letter = '';
+  let i = index;
+  do {
+    letter = String.fromCharCode(65 + (i % 26)) + letter;
+    i = Math.floor(i / 26) - 1;
+  } while (i >= 0);
+  return letter;
+}
 
-function getTemplateIcon(template: MachineTemplate): LucideIcon {
-  const key = `${template.brand ?? ''} ${template.name}`.toLowerCase();
-  const match = Object.entries(TEMPLATE_ICONS).find(([brand]) => key.includes(brand));
-  return match?.[1] ?? Package;
+type LabelMode = 'letters' | 'numbers';
+
+function generateGrid(rows: number, columns: number, labelMode: LabelMode, bulkCapacity: number | null): GeneratedSlot[] {
+  const slots: GeneratedSlot[] = [];
+  let mdbCode = 1;
+  for (let col = 0; col < columns; col++) {
+    const colLetter = columnLetter(col);
+    for (let row = 1; row <= rows; row++) {
+      const code = mdbCode++;
+      slots.push({
+        id: `${colLetter}${row}`,
+        label: labelMode === 'numbers' ? String(code) : `${colLetter}${row}`,
+        column: colLetter,
+        row,
+        mdb_code: code,
+        product_id: null,
+        product: null,
+        capacity: bulkCapacity,
+        current_stock: null,
+        x: null, y: null, width: null, height: null,
+      });
+    }
+  }
+  return slots;
 }
 
 function getProductColor(productId: number | string): string {
-  const palette = ['#3157b2','#d97706','#16a34a','#dc2626','#7c3aed','#0891b2','#ea580c','#4f46e5'];
-  const n = typeof productId === 'number' ? productId : Number(String(productId).replace(/\D/g,'')) || 0;
+  const palette = ['#3157b2', '#d97706', '#16a34a', '#dc2626', '#7c3aed', '#0891b2', '#ea580c', '#4f46e5'];
+  const n = typeof productId === 'number' ? productId : Number(String(productId).replace(/\D/g, '')) || 0;
   return palette[Math.abs(n) % palette.length];
 }
 
-function mapTemplateToSlots(template: MachineTemplate, products: Producto[]): GeneratedSlot[] {
-  const productMap = new Map(products.map((p) => [Number(p.id), p]));
-  return (template.slots ?? [])
-    .map((slot) => ({
-      id: `${slot.column ?? 'X'}${slot.row ?? slot.mdb_code}`,
-      label: slot.label,
-      column: slot.column ?? '',
-      row: slot.row ?? 0,
-      mdb_code: slot.mdb_code,
-      product_id: null,
-      product: null,
-      capacity: slot.default_capacity ?? null,
-      current_stock: 0,
-      x: slot.x ?? null,
-      y: slot.y ?? null,
-      width: slot.width ?? null,
-      height: slot.height ?? null,
-    }))
-    .sort((a, b) => a.mdb_code - b.mdb_code)
-    .map((slot) => ({
-      ...slot,
-      product: slot.product_id ? (productMap.get(slot.product_id) ?? null) : null,
-    }));
-}
+// ── GridPreview ───────────────────────────────────────────────────────────────
 
-// ── MiniGrid ──────────────────────────────────────────────────────────────────
-
-function MiniGrid({ columns, rows, color = '#3157b2' }: { columns: number; rows: number; color?: string }) {
+function GridPreview({ rows, columns }: { rows: number; columns: number }) {
+  const clampedCols = Math.min(columns, 12);
+  const clampedRows = Math.min(rows, 8);
   return (
-    <div className="inline-grid gap-[3px]" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
-      {Array.from({ length: columns * rows }).map((_, i) => (
-        <div key={i} className="rounded-[2px]" style={{ width: 8, height: 8, backgroundColor: color, opacity: 0.3 }} />
+    <div className="inline-grid gap-[4px]" style={{ gridTemplateColumns: `repeat(${clampedCols}, 1fr)` }}>
+      {Array.from({ length: clampedCols * clampedRows }).map((_, i) => (
+        <div key={i} className="rounded-[3px] bg-primary/25" style={{ width: 14, height: 14 }} />
       ))}
+      {(rows > clampedRows || columns > clampedCols) && (
+        <div className="col-span-full text-[10px] text-gray-400 mt-1 text-center">
+          {rows * columns} slots en total
+        </div>
+      )}
     </div>
   );
 }
 
-// ── TemplateCard ──────────────────────────────────────────────────────────────
+// ── ProductPanel ──────────────────────────────────────────────────────────────
 
-function TemplateCard({ template, selected, onSelect }: {
-  template: MachineTemplate; selected: boolean; onSelect: () => void;
-}) {
-  const Icon = getTemplateIcon(template);
-  const slotCount = template.slot_count ?? template.columns * template.rows;
-  return (
-    <button onClick={onSelect}
-      className={`relative text-left w-full rounded-2xl border-2 overflow-hidden transition-all hover:shadow-md ${
-        selected ? 'border-primary bg-primary/4 shadow-md shadow-primary/10' : 'border-gray-100 bg-white hover:border-primary/30'
-      }`}
-    >
-      {/* ── Mobile: horizontal compact row ── */}
-      <div className="flex items-center gap-3 p-3 sm:hidden">
-        {template.image ? (
-          <div className="w-16 aspect-[3/4] rounded-lg overflow-hidden bg-gray-50 shrink-0">
-            <img src={template.image} alt={template.name} className="w-full h-full object-cover object-top" />
-          </div>
-        ) : (
-          <div className="w-12 h-12 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
-            <Icon className="h-5 w-5 text-primary" />
-          </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-dark truncate">{template.name}</p>
-          <p className="text-xs text-muted mt-0.5">
-            {template.brand ?? 'Sin marca'} · {template.columns}×{template.rows} · {slotCount} slots
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <MiniGrid columns={Math.min(template.columns, 5)} rows={Math.min(template.rows, 3)} color={selected ? '#3157b2' : '#9ca3af'} />
-          {selected
-            ? <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center"><Check className="h-3 w-3 text-white" /></div>
-            : <div className="w-5 h-5 rounded-full border-2 border-gray-200" />
-          }
-        </div>
-      </div>
-
-      {/* ── Desktop: image banner + content ── */}
-      <div className="hidden sm:block">
-        {/* Image banner */}
-        <div className="w-full aspect-[3/4] bg-gray-50">
-          {template.image ? (
-            <img src={template.image} alt={template.name} className="w-full h-full object-contain" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Icon className="h-14 w-14 text-primary/20" />
-            </div>
-          )}
-        </div>
-        {/* Content */}
-        <div className={`p-4 ${selected ? '' : 'bg-white'}`}>
-          <p className="text-sm font-bold text-dark leading-tight">{template.name}</p>
-          <p className="text-xs text-muted mt-0.5">{template.brand ?? 'Sin marca'}</p>
-          {template.description && (
-            <p className="text-xs text-gray-500 mt-2 leading-relaxed line-clamp-2">
-              {template.description}
-            </p>
-          )}
-          <div className="flex items-end justify-between gap-2 mt-3">
-            <span className="text-xs text-muted">
-              {template.columns} cols × {template.rows} filas ·{' '}
-              <strong className="text-dark">{slotCount} slots</strong>
-            </span>
-            <MiniGrid columns={template.columns} rows={template.rows} color={selected ? '#3157b2' : '#6b7280'} />
-          </div>
-        </div>
-        {selected && (
-          <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-md">
-            <Check className="h-3.5 w-3.5 text-white" />
-          </div>
-        )}
-      </div>
-    </button>
-  );
-}
-
-// ── ProductPanel (left sidebar) ───────────────────────────────────────────────
-
-function ProductPanel({ template, products, search, setSearch, dragData, onDragStart, onDragEnd }: {
-  template: MachineTemplate;
+function ProductPanel({ rows, columns, products, search, setSearch, dragData, onDragStart, onDragEnd }: {
+  rows: number;
+  columns: number;
   products: Producto[];
   search: string;
   setSearch: (s: string) => void;
@@ -188,8 +116,6 @@ function ProductPanel({ template, products, search, setSearch, dragData, onDragS
   onDragStart: (product: Producto) => void;
   onDragEnd: () => void;
 }) {
-  const Icon = getTemplateIcon(template);
-
   const filtered = useMemo(() => {
     if (!search.trim()) return products;
     const q = search.toLowerCase();
@@ -198,25 +124,12 @@ function ProductPanel({ template, products, search, setSearch, dragData, onDragS
 
   return (
     <div className="flex flex-col h-full">
-      {/* Template info */}
-      <div className="shrink-0 border-b border-gray-100">
-        {template.image ? (
-          <div className="w-full aspect-[3/4] overflow-hidden bg-gray-50">
-            <img src={template.image} alt={template.name} className="w-full h-full object-contain" />
-          </div>
-        ) : (
-          <div className="w-full aspect-[3/4] flex items-center justify-center bg-gray-50">
-            <Icon className="h-10 w-10 text-gray-300" />
-          </div>
-        )}
-        <div className="p-3 flex flex-col items-center gap-2">
-          <div className="text-center">
-            <p className="text-sm font-semibold text-dark leading-tight">{template.name}</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {template.columns}×{template.rows} · {template.slot_count ?? template.columns * template.rows} slots
-            </p>
-          </div>
-          <MiniGrid columns={Math.min(template.columns, 10)} rows={Math.min(template.rows, 8)} />
+      {/* Grid summary */}
+      <div className="shrink-0 border-b border-gray-100 p-4 flex flex-col items-center gap-3">
+        <GridPreview rows={rows} columns={columns} />
+        <div className="text-center">
+          <p className="text-sm font-semibold text-dark">{columns} × {rows}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{columns * rows} slots</p>
         </div>
       </div>
 
@@ -241,7 +154,7 @@ function ProductPanel({ template, products, search, setSearch, dragData, onDragS
         <div className="flex-1 overflow-y-auto space-y-0.5 pr-0.5">
           {filtered.length === 0 ? (
             <p className="text-xs text-gray-400 text-center py-8">
-              {search ? `Sin resultados` : 'Sin productos'}
+              {search ? 'Sin resultados' : 'Sin productos'}
             </p>
           ) : (
             filtered.map((product) => {
@@ -251,8 +164,7 @@ function ProductPanel({ template, products, search, setSearch, dragData, onDragS
                   draggable
                   onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; onDragStart(product); }}
                   onDragEnd={onDragEnd}
-                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg
-                    bg-white border cursor-grab active:cursor-grabbing select-none transition-all
+                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border cursor-grab active:cursor-grabbing select-none transition-all
                     ${isBeingDragged ? 'opacity-40 border-primary/30' : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}
                 >
                   <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: getProductColor(product.id) }} />
@@ -272,17 +184,15 @@ function ProductPanel({ template, products, search, setSearch, dragData, onDragS
   );
 }
 
-// ── Helpers de span ───────────────────────────────────────────────────────────
-
-function deriveSpan(width: number | null, totalCols: number): number {
-  if (!width || totalCols === 0) return 1;
-  const cellW = 100 / totalCols;
-  return Math.max(1, Math.min(totalCols, Math.round(width / cellW)));
-}
-
 // ── MachineGridView ───────────────────────────────────────────────────────────
 
-function MachineGridView({ slots, columns, rows, products, activeSlot, setActiveSlot, onAssign, onEdit, dragData, dragOverSlot, onDrop, onDragOver, onDragLeave, onSlotDragStart, onDragEnd }: {
+const SLOT_SIZE_CONFIG: Record<SlotSize, { minWidth: number; minHeight: number }> = {
+  x1: { minWidth: 80,  minHeight: 80  },
+  x2: { minWidth: 120, minHeight: 120 },
+  x3: { minWidth: 170, minHeight: 170 },
+};
+
+function MachineGridView({ slots, columns, rows, products, activeSlot, setActiveSlot, onAssign, onEdit, dragData, dragOverSlot, onDrop, onDragOver, onDragLeave, onSlotDragStart, onDragEnd, slotSize }: {
   slots: GeneratedSlot[];
   columns: string[];
   rows: number;
@@ -298,6 +208,7 @@ function MachineGridView({ slots, columns, rows, products, activeSlot, setActive
   onDragLeave: () => void;
   onSlotDragStart: (slotId: string, product: Producto) => void;
   onDragEnd: () => void;
+  slotSize: SlotSize;
 }) {
   const slotMap = useMemo(() => {
     const map: Record<string, GeneratedSlot> = {};
@@ -306,36 +217,35 @@ function MachineGridView({ slots, columns, rows, products, activeSlot, setActive
   }, [slots]);
 
   const isDragging = !!dragData;
+  const { minWidth, minHeight } = SLOT_SIZE_CONFIG[slotSize];
+  const colTemplate = `28px repeat(${columns.length}, minmax(${minWidth}px, 1fr))`;
 
   return (
     <div className="p-4 sm:p-5 overflow-auto h-full">
       <div className="inline-block min-w-full">
-        {/* Column headers */}
-        <div className="grid mb-1.5" style={{ gridTemplateColumns: `28px repeat(${columns.length}, minmax(90px, 1fr))` }}>
+        <div className="grid mb-1.5" style={{ gridTemplateColumns: colTemplate }}>
           <div />
           {columns.map((col) => (
             <div key={col} className="text-center text-xs font-bold text-primary py-1">{col}</div>
           ))}
         </div>
 
-        {/* Rows */}
         {Array.from({ length: rows }, (_, index) => index + 1).map((row) => {
           const coveredCols = new Set<number>();
           return (
-            <div key={row} className="grid mb-1.5" style={{ gridTemplateColumns: `28px repeat(${columns.length}, minmax(90px, 1fr))` }}>
+            <div key={row} className="grid mb-1.5" style={{ gridTemplateColumns: colTemplate }}>
               <div className="flex items-center justify-center text-xs font-bold text-gray-400 pr-1">{row}</div>
-              {columns.map((col, ci) => {
-                if (coveredCols.has(ci)) return null;
-
+              {columns.map((col, colIdx) => {
+                if (coveredCols.has(colIdx)) return null;
                 const slot = slotMap[`${col}${row}`];
                 if (!slot) return <div key={col} />;
 
-                const span         = deriveSpan(slot.width, columns.length);
-                const isActive     = activeSlot === slot.id;
+                const span = Math.min(deriveSlotSpan(slot.width, columns.length), columns.length - colIdx);
+                for (let i = colIdx + 1; i < colIdx + span; i++) coveredCols.add(i);
+
+                const isActive = activeSlot === slot.id;
                 const isDropTarget = dragOverSlot === slot.id && isDragging;
                 const productColor = slot.product ? getProductColor(slot.product.id) : null;
-
-                for (let s = 1; s < span; s++) coveredCols.add(ci + s);
 
                 return (
                   <div key={col} className="px-0.5 relative"
@@ -351,8 +261,13 @@ function MachineGridView({ slots, columns, rows, products, activeSlot, setActive
                       }}
                       onDragEnd={onDragEnd}
                       onClick={() => setActiveSlot(isActive ? null : slot.id)}
-                      className={`w-full rounded-xl border-2 flex flex-col items-center justify-between
-                        gap-1 py-2.5 px-2 min-h-[90px] transition-all group
+                      style={{
+                        minHeight,
+                        ...(slot.product && productColor && !isDropTarget && !isActive
+                          ? { borderColor: `${productColor}55`, backgroundColor: `${productColor}0d` }
+                          : {}),
+                      }}
+                      className={`w-full rounded-xl border-2 flex flex-col items-center justify-between gap-1 py-2.5 px-2 transition-all group
                         ${isActive
                           ? 'border-primary bg-primary/4 shadow-md'
                           : isDropTarget
@@ -363,16 +278,8 @@ function MachineGridView({ slots, columns, rows, products, activeSlot, setActive
                                 ? 'border-dashed border-primary/30 bg-primary/3 hover:border-primary/50'
                                 : 'border-dashed border-gray-200/80 bg-white hover:border-primary/30 hover:shadow-sm'
                         }`}
-                      style={slot.product && productColor && !isDropTarget && !isActive
-                        ? { borderColor: `${productColor}55`, backgroundColor: `${productColor}0d` }
-                        : {}}
                     >
-                      {/* Label */}
-                      <span className="text-sm font-bold text-[#203c84] text-center leading-tight px-1">
-                        {slot.label}
-                      </span>
-
-                      {/* Producto */}
+                      <span className="text-sm font-bold text-[#203c84] text-center leading-tight px-1">{slot.label}</span>
                       {slot.product ? (
                         <div className="flex items-center gap-1 w-full justify-center px-1">
                           <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: productColor ?? '#3157b2' }} />
@@ -383,8 +290,6 @@ function MachineGridView({ slots, columns, rows, products, activeSlot, setActive
                           {isDropTarget ? '+ soltar aquí' : '+ asignar'}
                         </span>
                       )}
-
-                      {/* Pills: MDB + Cap */}
                       <div className="flex items-center gap-1 justify-center w-full">
                         <div className="flex items-center gap-0.5 bg-gray-50/80 rounded-md px-1.5 py-0.5">
                           <span className="text-[8px] font-bold text-gray-300 uppercase tracking-widest leading-none select-none">MDB</span>
@@ -402,8 +307,8 @@ function MachineGridView({ slots, columns, rows, products, activeSlot, setActive
                         slot={slot}
                         products={products}
                         totalColumns={columns.length}
-                        availableColumns={columns.length - ci}
-                        onEditField={(field, value) => onEdit(slot.id, field, value)}
+                        availableColumns={columns.length - colIdx}
+                        onEditField={(field, value) => onEdit(slot.id, field as 'label' | 'mdb_code' | 'capacity' | 'width', value)}
                         onAssign={(product) => onAssign(slot.id, product)}
                         onClose={() => setActiveSlot(null)}
                       />
@@ -479,7 +384,7 @@ function SlotListView({ slots, products, totalColumns, onAssign, onEdit }: {
                       slot={slot}
                       products={products}
                       totalColumns={totalColumns}
-                      onEditField={(field, value) => onEdit(slot.id, field, value)}
+                      onEditField={(field, value) => onEdit(slot.id, field as 'label' | 'mdb_code' | 'capacity' | 'width', value)}
                       onAssign={(product) => { onAssign(slot.id, product); setActiveSlot(null); }}
                       onClose={() => setActiveSlot(null)}
                     />
@@ -496,12 +401,19 @@ function SlotListView({ slots, products, totalColumns, onAssign, onEdit }: {
 
 // ── SlotCompactView ───────────────────────────────────────────────────────────
 
-function SlotCompactView({ slots, columns, products, onAssign, onEdit }: {
+const COMPACT_SIZE: Record<SlotSize, string> = {
+  x1: 'min-w-[100px]',
+  x2: 'min-w-[140px]',
+  x3: 'min-w-[190px]',
+};
+
+function SlotCompactView({ slots, columns, products, onAssign, onEdit, slotSize }: {
   slots: GeneratedSlot[];
   columns: string[];
   products: Producto[];
   onAssign: (id: string, product: Producto | null) => void;
   onEdit: (id: string, field: 'label' | 'mdb_code' | 'capacity' | 'width', value: string | number | null) => void;
+  slotSize: SlotSize;
 }) {
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
   const byColumn = useMemo(() => {
@@ -514,7 +426,7 @@ function SlotCompactView({ slots, columns, products, onAssign, onEdit }: {
   return (
     <div className="p-4 sm:p-5 flex flex-wrap gap-3 overflow-auto h-full content-start">
       {columns.map((column) => (
-        <div key={column} className="min-w-[110px]">
+        <div key={column} className={COMPACT_SIZE[slotSize]}>
           <div className="text-xs font-bold text-primary mb-2 flex items-center gap-1.5">
             <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center text-[11px]">{column}</div>
             Col. {column}
@@ -527,10 +439,8 @@ function SlotCompactView({ slots, columns, products, onAssign, onEdit }: {
                   <button
                     onClick={() => setActiveSlot(activeSlot === slot.id ? null : slot.id)}
                     className={`w-full rounded-xl border-2 flex flex-col items-center gap-1 py-2 px-2 transition-all hover:shadow-sm ${
-                      activeSlot === slot.id
-                        ? 'border-primary bg-primary/4'
-                        : slot.product
-                          ? 'border-gray-200/80 bg-white hover:border-primary/40'
+                      activeSlot === slot.id ? 'border-primary bg-primary/4'
+                        : slot.product ? 'border-gray-200/80 bg-white hover:border-primary/40'
                           : 'border-dashed border-gray-200/80 bg-white hover:border-primary/30'
                     }`}
                     style={slot.product && productColor && activeSlot !== slot.id
@@ -563,7 +473,7 @@ function SlotCompactView({ slots, columns, products, onAssign, onEdit }: {
                       products={products}
                       totalColumns={columns.length}
                       availableColumns={columns.length - columns.indexOf(column)}
-                      onEditField={(field, value) => onEdit(slot.id, field, value)}
+                      onEditField={(field, value) => onEdit(slot.id, field as 'label' | 'mdb_code' | 'capacity' | 'width', value)}
                       onAssign={(product) => { onAssign(slot.id, product); setActiveSlot(null); }}
                       onClose={() => setActiveSlot(null)}
                     />
@@ -580,47 +490,46 @@ function SlotCompactView({ slots, columns, products, onAssign, onEdit }: {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function PlantillaMaquinaPage() {
+export default function ReticulaMaquinaPage() {
   const params    = useParams();
   const machineId = params.id as string;
-  const user      = useUser();
-  const isAdmin   = user?.role === 'admin';
 
-  const [step, setStep]                       = useState<Step>(1);
-  const [templates, setTemplates]             = useState<MachineTemplate[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<MachineTemplate | null>(null);
-  const [products, setProducts]               = useState<Producto[]>([]);
-  const [slots, setSlots]                     = useState<GeneratedSlot[]>([]);
-  const [activeSlot, setActiveSlot]           = useState<string | null>(null);
-  const [viewMode, setViewMode]               = useState<ViewMode>('machine');
-  const [machineName, setMachineName]         = useState('');
+  const [step, setStep]                             = useState<Step>(1);
+  const [rows, setRows]                             = useState(5);
+  const [columns, setColumns]                       = useState(4);
+  const [labelMode, setLabelMode]                   = useState<LabelMode>('letters');
+  const [bulkCapacity, setBulkCapacity]             = useState<number | null>(null);
+  const [slots, setSlots]                           = useState<GeneratedSlot[]>([]);
+  const [products, setProducts]                     = useState<Producto[]>([]);
+  const [activeSlot, setActiveSlot]                 = useState<string | null>(null);
+  const [viewMode, setViewMode]                     = useState<ViewMode>('machine');
+  const [slotSize, setSlotSize]                     = useState<SlotSize>('x1');
+  const [machineName, setMachineName]               = useState('');
   const [machineEnterpriseId, setMachineEnterpriseId] = useState<number | null>(null);
   const [existingSlotsCount, setExistingSlotsCount] = useState(0);
-  const [loading, setLoading]                 = useState(true);
-  const [error, setError]                     = useState<string | null>(null);
-  const [applyResult, setApplyResult]         = useState<{ slots_created: number; products_assigned: number } | null>(null);
-  const [isPending, startTransition]          = useTransition();
+  const [loading, setLoading]                       = useState(true);
+  const [error, setError]                           = useState<string | null>(null);
+  const [applyResult, setApplyResult]               = useState<{ slots_created: number; products_assigned: number } | null>(null);
+  const [isPending, startTransition]                = useTransition();
 
-  // Default to list view on mobile (grid view works best on desktop)
   useEffect(() => {
     if (window.innerWidth < 1024) setViewMode('list');
   }, []);
 
-  // Drag-and-drop
-  const [dragData, setDragData]       = useState<DragData | null>(null);
-  const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
-  // Product panel
+  const [dragData, setDragData]           = useState<DragData | null>(null);
+  const [dragOverSlot, setDragOverSlot]   = useState<string | null>(null);
   const [productSearch, setProductSearch] = useState('');
   const [showProductPanel, setShowProductPanel] = useState(false);
 
-  // ── Data loading ──────────────────────────────────────────────────────────
+  // ── Data loading ────────────────────────────────────────────────────────────
 
   useEffect(() => {
     let cancelled = false;
     async function loadData() {
       setLoading(true); setError(null);
-      const [machineRes, templatesRes, slotsRes] = await Promise.all([
-        getMachineAction(machineId, { include: 'enterprise' }), getMachineTemplatesAction(), getSlotsAction(machineId),
+      const [machineRes, slotsRes] = await Promise.all([
+        getMachineAction(machineId, { include: 'enterprise' }),
+        getSlotsAction(machineId),
       ]);
       if (cancelled) return;
       if (!machineRes.success || !machineRes.machine) {
@@ -629,10 +538,6 @@ export default function PlantillaMaquinaPage() {
       setMachineName(machineRes.machine.name);
       setMachineEnterpriseId(machineRes.machine.enterprise_id);
       setExistingSlotsCount(slotsRes.success && slotsRes.slots ? slotsRes.slots.length : 0);
-      if (!templatesRes.success || !templatesRes.templates) {
-        setError(templatesRes.error || 'No fue posible cargar las plantillas.'); setLoading(false); return;
-      }
-      setTemplates(templatesRes.templates);
       const productsRes = await getProductsAction({ page: 1, limit: 200, enterpriseId: machineRes.machine.enterprise_id });
       if (cancelled) return;
       setProducts(productsRes.success && productsRes.products ? productsRes.products : []);
@@ -642,23 +547,16 @@ export default function PlantillaMaquinaPage() {
     return () => { cancelled = true; };
   }, [machineId]);
 
-  const effectiveCols = selectedTemplate?.columns ?? 0;
-  const effectiveRows = selectedTemplate?.rows ?? 0;
-  const columns = useMemo(() => {
-    const set = new Set(slots.map((s) => s.column).filter(Boolean));
-    if (set.size > 0) return Array.from(set).sort((a, b) => {
-      const na = Number(a), nb = Number(b);
-      return (!isNaN(na) && !isNaN(nb)) ? na - nb : a.localeCompare(b);
-    });
-    return 'ABCDEFGHIJ'.slice(0, effectiveCols).split('');
-  }, [effectiveCols, slots]);
+  const columnLetters = useMemo(
+    () => Array.from({ length: columns }, (_, i) => columnLetter(i)),
+    [columns]
+  );
   const assignedCount = slots.filter((s) => s.product_id !== null).length;
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
+  // ── Handlers ────────────────────────────────────────────────────────────────
 
-  function handleSelectTemplate(template: MachineTemplate) {
-    setSelectedTemplate(template);
-    setSlots(mapTemplateToSlots(template, products));
+  function handleGenerateGrid() {
+    setSlots(generateGrid(rows, columns, labelMode, bulkCapacity));
     setActiveSlot(null);
   }
 
@@ -674,45 +572,37 @@ export default function PlantillaMaquinaPage() {
     setSlots((cur) => cur.map((s) => s.id === slotId ? { ...s, [field]: value } : s));
   }
 
-  // Drag-and-drop handlers
-  function handleProductDragStart(product: Producto) {
-    setDragData({ type: 'product', product });
-  }
-
-  function handleSlotDragStart(slotId: string, product: Producto) {
-    setDragData({ type: 'slot', slotId, product });
-  }
-
-  function handleDragEnd() {
-    setDragData(null);
-    setDragOverSlot(null);
-  }
+  function handleProductDragStart(product: Producto) { setDragData({ type: 'product', product }); }
+  function handleSlotDragStart(slotId: string, product: Producto) { setDragData({ type: 'slot', slotId, product }); }
+  function handleDragEnd() { setDragData(null); setDragOverSlot(null); }
 
   function handleDrop(targetSlotId: string) {
     if (!dragData) return;
-
     if (dragData.type === 'product') {
       handleAssign(targetSlotId, dragData.product);
     } else if (dragData.type === 'slot' && dragData.slotId !== targetSlotId) {
       const sourceProduct = dragData.product;
-      const targetSlot    = slots.find((s) => s.id === targetSlotId);
+      const targetSlot = slots.find((s) => s.id === targetSlotId);
       const targetProduct = targetSlot?.product ?? null;
       setSlots((cur) => cur.map((s) => {
         if (s.id === dragData.slotId) return { ...s, product_id: targetProduct ? Number(targetProduct.id) : null, product: targetProduct };
-        if (s.id === targetSlotId)    return { ...s, product_id: Number(sourceProduct.id), product: sourceProduct };
+        if (s.id === targetSlotId) return { ...s, product_id: Number(sourceProduct.id), product: sourceProduct };
         return s;
       }));
     }
-
-    setDragData(null);
-    setDragOverSlot(null);
+    setDragData(null); setDragOverSlot(null);
   }
 
-  function handleApplyTemplate() {
-    if (!selectedTemplate) return;
+  function handleGoToStep2() {
+    handleGenerateGrid();
+    setStep(2);
+  }
+
+  function handleApplyGrid() {
     startTransition(async () => {
-      const response = await applyMachineTemplateAction(machineId, {
-        template_id: selectedTemplate.id,
+      const response = await applyGridAction(machineId, {
+        rows,
+        columns,
         replace_existing_slots: true,
         slots: slots.map((s) => ({
           label: s.label, column: s.column, row: s.row, mdb_code: s.mdb_code,
@@ -721,51 +611,53 @@ export default function PlantillaMaquinaPage() {
         })),
       });
       if (!response.success || !response.data) {
-        setError(response.error || 'No fue posible aplicar la plantilla.'); return;
+        setError(response.error || 'No fue posible aplicar la cuadrícula.'); return;
       }
       setApplyResult({ slots_created: response.data.slots_created, products_assigned: response.data.products_assigned });
     });
   }
 
-  // ── Loading / success states ──────────────────────────────────────────────
+  // ── Loading ─────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
       <>
-        <PageHeader icon={Monitor} title="Aplicar plantilla" subtitle={machineName || `Máquina #${machineId}`} backHref={`/maquinas/${machineId}?tab=inventario`} variant="white" />
+        <PageHeader icon={Monitor} title="Cuadrícula rápida" subtitle={machineName || `Máquina #${machineId}`} backHref={`/maquinas/${machineId}?tab=inventario`} variant="white" />
         <main className="flex-1 flex items-center justify-center p-6">
           <div className="inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-muted">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando plantillas y productos...
+            Cargando...
           </div>
         </main>
       </>
     );
   }
 
+  // ── Success ─────────────────────────────────────────────────────────────────
+
   if (applyResult) {
     return (
       <>
-        <PageHeader icon={Monitor} title="Aplicar plantilla" subtitle={machineName || `Máquina #${machineId}`} backHref={`/maquinas/${machineId}?tab=inventario`} variant="white" />
+        <PageHeader icon={Monitor} title="Cuadrícula rápida" subtitle={machineName || `Máquina #${machineId}`} backHref={`/maquinas/${machineId}?tab=inventario`} variant="white" />
         <main className="flex-1 flex items-center justify-center p-6">
           <div className="max-w-sm w-full text-center space-y-5">
             <div className="w-20 h-20 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mx-auto">
               <CheckCircle2 className="h-10 w-10 text-emerald-500" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-dark">Plantilla aplicada</h2>
+              <h2 className="text-xl font-bold text-dark">Cuadrícula aplicada</h2>
               <p className="text-sm text-muted mt-1">
                 Se crearon <strong>{applyResult.slots_created} slots</strong> y se asignaron <strong>{applyResult.products_assigned}</strong> productos.
               </p>
             </div>
             <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 text-left space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted">Plantilla</span>
-                <span className="font-medium text-dark">{selectedTemplate?.name}</span>
+                <span className="text-muted">Cuadrícula</span>
+                <span className="font-medium text-dark">{columns} cols × {rows} filas</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted">Distribución</span>
-                <span className="font-medium text-dark">{effectiveCols} cols × {effectiveRows} filas</span>
+                <span className="text-muted">Total slots</span>
+                <span className="font-medium text-dark">{applyResult.slots_created}</span>
               </div>
             </div>
             <Link href={`/maquinas/${machineId}?tab=inventario`}
@@ -778,11 +670,11 @@ export default function PlantillaMaquinaPage() {
     );
   }
 
-  // ── Main render ───────────────────────────────────────────────────────────
+  // ── Main render ─────────────────────────────────────────────────────────────
 
   return (
     <>
-      <PageHeader icon={Monitor} title="Aplicar plantilla" subtitle={machineName || `Máquina #${machineId}`} backHref={`/maquinas/${machineId}?tab=inventario`} variant="white" />
+      <PageHeader icon={Monitor} title="Cuadrícula rápida" subtitle={machineName || `Máquina #${machineId}`} backHref={`/maquinas/${machineId}?tab=inventario`} variant="white" />
 
       <main className={`flex-1 flex flex-col ${step === 2 ? 'overflow-hidden' : 'overflow-auto'}`}>
 
@@ -791,8 +683,8 @@ export default function PlantillaMaquinaPage() {
           <div className="px-4 sm:px-6 py-3">
             <div className="flex items-center gap-1.5">
               {([
-                { n: 1 as Step, label: 'Seleccionar plantilla' },
-                { n: 2 as Step, label: 'Configurar slots' },
+                { n: 1 as Step, label: 'Configurar cuadrícula' },
+                { n: 2 as Step, label: 'Asignar productos' },
                 { n: 3 as Step, label: 'Confirmar' },
               ] as const).map((item, index) => (
                 <div key={item.n} className="flex items-center gap-1.5">
@@ -820,73 +712,143 @@ export default function PlantillaMaquinaPage() {
         {/* ── Step 1 ── */}
         {step === 1 && (
           <div className="flex-1 p-4 sm:p-6 overflow-auto">
-            <div className="max-w-5xl mx-auto space-y-4 sm:space-y-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-base sm:text-lg font-bold text-dark">Elige la plantilla de tu máquina</h2>
-                  <p className="text-sm text-muted mt-0.5">Selecciona una plantilla para crear los slots de esta máquina.</p>
-                </div>
-                {isAdmin && (
-                  <Link href="/maquinas/plantillas/crear"
-                    className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                    <Plus className="h-3.5 w-3.5" /> Nueva
-                  </Link>
-                )}
+            <div className="max-w-lg mx-auto space-y-6">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-dark">Configura tu cuadrícula</h2>
+                <p className="text-sm text-muted mt-0.5">Define cuántas filas y columnas tendrá la máquina. Se generarán los slots automáticamente.</p>
               </div>
+
               {existingSlotsCount > 0 && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Esta máquina ya tiene <strong>{existingSlotsCount} slots</strong>. Al aplicar una plantilla se reemplazarán por los nuevos slots generados.
+                  Esta máquina ya tiene <strong>{existingSlotsCount} slots</strong>. Al aplicar la cuadrícula se reemplazarán por los nuevos slots generados.
                 </div>
               )}
-              {templates.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center text-sm text-muted space-y-4">
-                  <p>No hay plantillas disponibles todavía.</p>
-                  {isAdmin && (
-                    <Link href="/maquinas/plantillas/crear"
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors">
-                      <Plus className="h-4 w-4" /> Crear primera plantilla
-                    </Link>
-                  )}
+
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Columnas</label>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setColumns((c) => Math.max(1, c - 1))}
+                        className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors font-bold text-lg leading-none">−</button>
+                      <span className="text-2xl font-bold text-dark w-10 text-center tabular-nums">{columns}</span>
+                      <button onClick={() => setColumns((c) => Math.min(50, c + 1))}
+                        className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors font-bold text-lg leading-none">+</button>
+                    </div>
+                    <input type="range" min={1} max={20} value={columns} onChange={(e) => setColumns(Number(e.target.value))}
+                      className="w-full accent-primary" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Filas</label>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setRows((r) => Math.max(1, r - 1))}
+                        className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors font-bold text-lg leading-none">−</button>
+                      <span className="text-2xl font-bold text-dark w-10 text-center tabular-nums">{rows}</span>
+                      <button onClick={() => setRows((r) => Math.min(50, r + 1))}
+                        className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors font-bold text-lg leading-none">+</button>
+                    </div>
+                    <input type="range" min={1} max={20} value={rows} onChange={(e) => setRows(Number(e.target.value))}
+                      className="w-full accent-primary" />
+                  </div>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                  {templates.map((t) => (
-                    <TemplateCard key={t.id} template={t} selected={selectedTemplate?.id === t.id} onSelect={() => handleSelectTemplate(t)} />
-                  ))}
+
+                {/* Live preview */}
+                <div className="flex flex-col items-center gap-3 py-4 border-t border-gray-50">
+                  <GridPreview rows={rows} columns={columns} />
+                  <div className="flex items-center gap-4 text-sm text-muted">
+                    <span>{columns} columnas × {rows} filas</span>
+                    <span className="font-bold text-dark">{columns * rows} slots en total</span>
+                  </div>
+                  {/* Sample labels preview */}
+                  <div className="flex flex-wrap gap-1 justify-center max-w-xs">
+                    {labelMode === 'letters'
+                      ? columnLetters.slice(0, 8).map((col) => (
+                          <span key={col} className="text-[10px] font-mono font-bold text-primary bg-primary/8 px-1.5 py-0.5 rounded">{col}1</span>
+                        ))
+                      : Array.from({ length: Math.min(8, columns * rows) }, (_, i) => (
+                          <span key={i} className="text-[10px] font-mono font-bold text-primary bg-primary/8 px-1.5 py-0.5 rounded">{i + 1}</span>
+                        ))
+                    }
+                    {columns * rows > 8 && <span className="text-[10px] text-gray-400">+{columns * rows - 8} más</span>}
+                  </div>
                 </div>
-              )}
-              <div className="pt-1">
-                <button onClick={() => setStep(2)} disabled={!selectedTemplate}
-                  className="w-full sm:w-auto sm:ml-auto sm:flex inline-flex items-center justify-center gap-2 px-6 py-3 sm:py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm">
-                  Continuar <ArrowRight className="h-4 w-4" />
-                </button>
+
+                {/* Label mode + bulk capacity */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-50">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Nombre de slots</label>
+                    <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+                      <button
+                        onClick={() => setLabelMode('letters')}
+                        className={`flex-1 py-2 text-xs font-semibold transition-colors ${labelMode === 'letters' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                      >
+                        Letras (A1, B2…)
+                      </button>
+                      <button
+                        onClick={() => setLabelMode('numbers')}
+                        className={`flex-1 py-2 text-xs font-semibold transition-colors ${labelMode === 'numbers' ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+                      >
+                        Números (1, 2…)
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-gray-400">
+                      {labelMode === 'letters'
+                        ? 'Los slots se nombrarán por columna y fila: A1, A2, B1…'
+                        : 'Los slots se numerarán consecutivamente: 1, 2, 3…'}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Capacidad de todos los slots</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="Sin definir"
+                        value={bulkCapacity ?? ''}
+                        onChange={(e) => setBulkCapacity(e.target.value === '' ? null : Number(e.target.value))}
+                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-primary transition-colors placeholder-gray-300"
+                      />
+                      {bulkCapacity !== null && (
+                        <button onClick={() => setBulkCapacity(null)} className="text-gray-300 hover:text-gray-500 transition-colors">
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-400">Se aplicará a todos los slots. Puedes ajustarla individualmente en el paso siguiente.</p>
+                  </div>
+                </div>
               </div>
+
+              <button onClick={handleGoToStep2}
+                className="w-full sm:w-auto sm:ml-auto sm:flex inline-flex items-center justify-center gap-2 px-6 py-3 sm:py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm">
+                Continuar <ArrowRight className="h-4 w-4" />
+              </button>
             </div>
           </div>
         )}
 
-        {/* ── Step 2: two-panel layout ── */}
-        {step === 2 && selectedTemplate && (
+        {/* ── Step 2 ── */}
+        {step === 2 && (
           <div className="flex-1 flex overflow-hidden relative">
 
-            {/* Left panel: template image + products */}
-            {/* On mobile: full-screen overlay when showProductPanel=true; on desktop: always visible sidebar */}
+            {/* Left panel */}
             <div className={`
               ${showProductPanel ? 'flex' : 'hidden'} lg:flex
               absolute inset-0 lg:relative lg:inset-auto z-30 lg:z-auto
               w-full lg:w-56 xl:w-64
               border-r border-gray-100 shrink-0 flex-col overflow-hidden bg-white
             `}>
-              {/* Mobile close bar */}
               <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
                 <span className="text-sm font-semibold text-dark">Productos</span>
-                <button onClick={() => setShowProductPanel(false)} className="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                <button onClick={() => setShowProductPanel(false)} className="p-1 text-gray-400 hover:text-gray-600">
                   <X className="h-5 w-5" />
                 </button>
               </div>
               <ProductPanel
-                key={selectedTemplate.id}
-                template={selectedTemplate}
+                rows={rows}
+                columns={columns}
                 products={products}
                 search={productSearch}
                 setSearch={setProductSearch}
@@ -896,52 +858,58 @@ export default function PlantillaMaquinaPage() {
               />
             </div>
 
-            {/* Right panel: slot grid */}
+            {/* Right panel */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-
-              {/* Subheader */}
               <div className="px-3 sm:px-6 py-3 border-b border-gray-100 flex items-center justify-between gap-2 shrink-0 bg-white">
                 <div className="flex items-center gap-2 min-w-0">
-                  {/* Mobile: toggle product panel */}
-                  <button
-                    onClick={() => setShowProductPanel(true)}
-                    className="lg:hidden inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors shrink-0"
-                  >
-                    <Package className="h-3.5 w-3.5" />
+                  <button onClick={() => setShowProductPanel(true)}
+                    className="lg:hidden inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors shrink-0">
+                    <Grid3x3 className="h-3.5 w-3.5" />
                     Productos
                   </button>
                   <div className="min-w-0">
-                    <span className="text-sm font-bold text-dark truncate block sm:inline">{selectedTemplate.name}</span>
-                    <span className="sm:ml-2 text-xs text-muted tabular-nums">
-                      {effectiveCols}×{effectiveRows} · {slots.length} slots
-                    </span>
+                    <span className="text-sm font-bold text-dark">{columns} cols × {rows} filas</span>
+                    <span className="sm:ml-2 text-xs text-muted tabular-nums"> · {slots.length} slots</span>
                     {assignedCount > 0 && (
                       <span className="ml-1.5 text-xs text-primary font-medium">· {assignedCount} asignados</span>
                     )}
                   </div>
                 </div>
 
-                {/* View mode */}
-                <div className="flex items-center rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm shrink-0">
-                  {([
-                    { mode: 'machine' as ViewMode, icon: Grid3x3,      label: 'Grilla'    },
-                    { mode: 'list'    as ViewMode, icon: AlignJustify, label: 'Lista'     },
-                    { mode: 'compact' as ViewMode, icon: Layers,       label: 'Compacta'  },
-                  ] as const).map(({ mode, icon: Icon, label }) => (
-                    <button key={mode} onClick={() => setViewMode(mode)}
-                      className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-xs font-semibold transition-colors ${viewMode === mode ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
-                      <Icon className="h-3.5 w-3.5" />
-                      <span className="hidden sm:block">{label}</span>
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Size selector — only for grid and compact views */}
+                  {viewMode !== 'list' && (
+                    <div className="flex items-center rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+                      {(['x1', 'x2', 'x3'] as SlotSize[]).map((size) => (
+                        <button key={size} onClick={() => setSlotSize(size)}
+                          className={`px-2.5 py-2 text-xs font-bold transition-colors ${slotSize === size ? 'bg-primary text-white' : 'text-gray-400 hover:bg-gray-50'}`}>
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* View mode */}
+                  <div className="flex items-center rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+                    {([
+                      { mode: 'machine' as ViewMode, icon: Grid3x3,      label: 'Grilla'   },
+                      { mode: 'list'    as ViewMode, icon: AlignJustify, label: 'Lista'    },
+                      { mode: 'compact' as ViewMode, icon: Layers,       label: 'Compacta' },
+                    ] as const).map(({ mode, icon: Icon, label }) => (
+                      <button key={mode} onClick={() => setViewMode(mode)}
+                        className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-xs font-semibold transition-colors ${viewMode === mode ? 'bg-primary text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+                        <Icon className="h-3.5 w-3.5" />
+                        <span className="hidden sm:block">{label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Grid / list / compact */}
               <div className="flex-1 overflow-hidden">
                 {viewMode === 'machine' && (
                   <MachineGridView
-                    slots={slots} columns={columns} rows={effectiveRows} products={products}
+                    slots={slots} columns={columnLetters} rows={rows} products={products}
                     activeSlot={activeSlot} setActiveSlot={setActiveSlot}
                     onAssign={handleAssign} onEdit={handleSlotEdit}
                     dragData={dragData} dragOverSlot={dragOverSlot}
@@ -950,19 +918,19 @@ export default function PlantillaMaquinaPage() {
                     onDragLeave={() => setDragOverSlot(null)}
                     onSlotDragStart={handleSlotDragStart}
                     onDragEnd={handleDragEnd}
+                    slotSize={slotSize}
                   />
                 )}
                 {viewMode === 'list' && (
-                  <SlotListView slots={slots} products={products} totalColumns={columns.length} onAssign={handleAssign} onEdit={handleSlotEdit} />
+                  <SlotListView slots={slots} products={products} totalColumns={columns} onAssign={handleAssign} onEdit={handleSlotEdit} />
                 )}
                 {viewMode === 'compact' && (
-                  <SlotCompactView slots={slots} columns={columns} products={products} onAssign={handleAssign} onEdit={handleSlotEdit} />
+                  <SlotCompactView slots={slots} columns={columnLetters} products={products} onAssign={handleAssign} onEdit={handleSlotEdit} slotSize={slotSize} />
                 )}
               </div>
 
-              {/* Bottom navigation */}
               <div className="px-4 py-3 border-t border-gray-100 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 bg-white">
-                <span className="text-xs text-muted hidden sm:block sm:mr-auto">La asignación es opcional y se aplica al crear los slots.</span>
+                <span className="text-xs text-muted hidden sm:block sm:mr-auto">La asignación de productos es opcional.</span>
                 <div className="flex gap-2">
                   <button onClick={() => setStep(1)}
                     className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors">
@@ -984,28 +952,28 @@ export default function PlantillaMaquinaPage() {
             <div className="max-w-lg mx-auto space-y-5">
               <div>
                 <h2 className="text-lg font-bold text-dark">Confirmar creación de slots</h2>
-                <p className="text-sm text-muted mt-1">Se crearán slots reales en esta máquina usando la plantilla seleccionada.</p>
+                <p className="text-sm text-muted mt-1">Se crearán slots reales en esta máquina a partir de la cuadrícula configurada.</p>
               </div>
 
               <div className="rounded-2xl border border-gray-100 bg-white shadow-sm divide-y divide-gray-50">
                 <div className="px-5 py-4 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center">
-                    {(() => { const Icon = selectedTemplate ? getTemplateIcon(selectedTemplate) : Package; return <Icon className="h-5 w-5 text-primary" />; })()}
+                    <Grid3x3 className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-dark">{selectedTemplate?.name}</p>
-                    <p className="text-xs text-muted">{selectedTemplate?.brand ?? 'Sin marca'}</p>
+                    <p className="text-sm font-bold text-dark">Cuadrícula {columns} × {rows}</p>
+                    <p className="text-xs text-muted">Generada manualmente</p>
                   </div>
                 </div>
 
                 <div className="px-5 py-4 grid grid-cols-2 gap-4">
                   {[
-                    { label: 'Columnas',       value: effectiveCols },
-                    { label: 'Filas',          value: effectiveRows },
-                    { label: 'Total slots',    value: slots.length  },
-                    { label: 'Con producto',   value: assignedCount },
-                    { label: 'Con capacidad',  value: slots.filter(s => s.capacity !== null).length },
-                    { label: 'Sin capacidad',  value: slots.filter(s => s.capacity === null).length },
+                    { label: 'Columnas',      value: columns },
+                    { label: 'Filas',         value: rows },
+                    { label: 'Total slots',   value: slots.length },
+                    { label: 'Con producto',  value: assignedCount },
+                    { label: 'Con capacidad', value: slots.filter((s) => s.capacity !== null).length },
+                    { label: 'Sin capacidad', value: slots.filter((s) => s.capacity === null).length },
                   ].map(({ label, value }) => (
                     <div key={label}>
                       <p className="text-xs text-muted">{label}</p>
@@ -1017,7 +985,7 @@ export default function PlantillaMaquinaPage() {
                 <div className="px-5 py-4 bg-amber-50/70">
                   <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide mb-2">Impacto sobre la máquina</p>
                   <p className="text-sm text-amber-800">
-                    Se crearán <strong>{slots.length} slots</strong> nuevos en <strong>{machineName || `la máquina #${machineId}`}</strong>
+                    Se crearán <strong>{slots.length} slots</strong> en <strong>{machineName || `la máquina #${machineId}`}</strong>
                     {existingSlotsCount > 0
                       ? <> y se reemplazarán los <strong>{existingSlotsCount} slots</strong> actuales.</>
                       : <>. La máquina todavía no tiene slots cargados.</>}
@@ -1051,10 +1019,10 @@ export default function PlantillaMaquinaPage() {
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors">
                   <ArrowLeft className="h-4 w-4" /> Anterior
                 </button>
-                <button onClick={handleApplyTemplate} disabled={isPending || !selectedTemplate}
+                <button onClick={handleApplyGrid} disabled={isPending}
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 sm:py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50">
                   {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                  Aplicar plantilla
+                  Aplicar cuadrícula
                 </button>
               </div>
             </div>

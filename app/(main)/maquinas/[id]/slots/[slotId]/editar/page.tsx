@@ -39,7 +39,7 @@ export default function EditSlotPage() {
   const router = useRouter();
   const machineId = params.id as string;
   const slotId    = params.slotId as string;
-  const backHref  = `/maquinas/${machineId}?tab=productos`;
+  const backHref  = `/maquinas/${machineId}?tab=inventario`;
 
   const { slots, updateSlot, isUpdating, updateError, fetchSlots, clearErrors } = useSlotStore();
   const { selectedMachine, fetchMachine } = useMachineStore();

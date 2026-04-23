@@ -52,7 +52,7 @@ export default function CreateSlotPage() {
   const params    = useParams();
   const router    = useRouter();
   const machineId = params.id as string;
-  const backHref  = `/maquinas/${machineId}?tab=productos`;
+  const backHref  = `/maquinas/${machineId}?tab=inventario`;
 
   const { createSlot, isCreating, createError, clearErrors } = useSlotStore();
   const { selectedMachine, fetchMachine }                    = useMachineStore();

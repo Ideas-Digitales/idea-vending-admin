@@ -22,10 +22,8 @@ export function useMqttProduct() {
   const publishProductOperation = useCallback(
     async (action: ProductOperationAction, product: ProductMqttPayload) => {
       if (!user?.mqtt_user) {
-        const message = 'El usuario autenticado no tiene credenciales MQTT.';
-        setLastError(message);
-        notify.error(message);
-        throw new Error(message);
+        notify.error('No hay credenciales MQTT disponibles.');
+        return;
       }
 
       const normalizedProduct: ProductOperationPayload = {

@@ -18,10 +18,8 @@ export function useMqttReboot() {
   const rebootMachine = useCallback(
     async (machineId: number | string, options?: UseMqttRebootOptions) => {
       if (!user?.mqtt_user) {
-        const message = 'El usuario autenticado no tiene credenciales MQTT.';
-        setLastError(message);
-        notify.error(message);
-        throw new Error(message);
+        notify.error('No hay credenciales MQTT disponibles.');
+        return;
       }
 
       setIsLoading(true);

@@ -126,6 +126,32 @@ export async function deleteMachineTemplateAction(
   }
 }
 
+export async function applyGridAction(
+  machineId: string | number,
+  payload: {
+    rows: number;
+    columns: number;
+    replace_existing_slots?: boolean;
+    slots?: ApplyMachineTemplatePayload['slots'];
+  }
+): Promise<ApplyMachineTemplateResult> {
+  try {
+    const { response } = await authenticatedFetch(`/machines/${machineId}/apply-grid`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      return { success: false, error: httpErrorMessage(response.status) };
+    }
+
+    const data = await response.json();
+    return { success: true, data: data.data };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
 export async function applyMachineTemplateAction(
   machineId: string | number,
   payload: ApplyMachineTemplatePayload

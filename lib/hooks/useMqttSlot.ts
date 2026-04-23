@@ -24,17 +24,11 @@ export function useMqttSlot() {
   const publishSlotOperation = useCallback(
     async ({ action, machineId, slotId, slotData }: PublishSlotOperationParams) => {
       if (!user?.mqtt_user) {
-        const message = 'El usuario autenticado no tiene credenciales MQTT.';
-        setLastError(message);
-        notify.error(message);
-        throw new Error(message);
+        return;
       }
 
       if (!machineId || !slotId) {
-        const message = 'Los parámetros machineId y slotId son obligatorios para MQTT.';
-        setLastError(message);
-        notify.error(message);
-        throw new Error(message);
+        return;
       }
 
       setIsPublishing(true);
@@ -50,12 +44,9 @@ export function useMqttSlot() {
           credentials: user.mqtt_user,
         });
 
-        notify.update(toastId, 'Operación MQTT de slot enviada correctamente.', 'success');
+        notify.update(toastId, 'Slot sincronizado con la máquina.', 'success');
       } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : 'No se pudo enviar la operación MQTT del slot.';
+        const message = error instanceof Error ? error.message : 'Error MQTT';
         setLastError(message);
         notify.update(toastId, message, 'error');
         throw error;

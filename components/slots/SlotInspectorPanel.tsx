@@ -22,6 +22,7 @@ interface SlotInspectorPanelProps {
   slot: InspectorSlot;
   products: Producto[];
   totalColumns: number;
+  availableColumns?: number;
   onEditField: (field: 'label' | 'mdb_code' | 'capacity' | 'width', value: string | number | null) => void;
   onAssign: (product: Producto | null) => void;
   onClose: () => void;
@@ -38,6 +39,7 @@ export default function SlotInspectorPanel({
   slot,
   products,
   totalColumns,
+  availableColumns,
   onEditField,
   onAssign,
   onClose,
@@ -92,6 +94,7 @@ export default function SlotInspectorPanel({
   }, [products, search]);
 
   const currentSpan = deriveSlotSpan(slot.width, totalColumns);
+  const spanColumns = availableColumns ?? totalColumns;
   const inputCls = 'w-12 px-1.5 py-0.5 text-xs font-mono text-dark bg-white border border-gray-200 rounded focus:outline-none focus:border-primary text-center';
 
   return (
@@ -146,7 +149,7 @@ export default function SlotInspectorPanel({
                   <span className="text-[10px] font-medium text-gray-400">Tamaño</span>
                   <SlotSpanSelector
                     value={currentSpan}
-                    totalColumns={totalColumns}
+                    totalColumns={spanColumns}
                     compact
                     onChange={(span) => onEditField('width', slotSpanToWidth(span, totalColumns))}
                   />

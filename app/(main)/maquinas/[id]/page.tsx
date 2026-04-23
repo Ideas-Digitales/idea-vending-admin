@@ -275,7 +275,7 @@ function SlotCard({ slot, machine, products, totalColumns, productPickerSlotId, 
 }
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
-type Tab = 'pagos' | 'productos' | 'reposicion' | 'configuracion';
+type Tab = 'pagos' | 'inventario' | 'reposicion' | 'configuracion';
 type PaymentSortOption = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc';
 
 const CARD_TYPE_LABELS: Record<string, string> = { 'CR': 'Crédito', 'DB': 'Débito', 'P ': 'Prepago' };
@@ -468,6 +468,22 @@ export default function MaquinaDetallePage() {
   const [newStockValue, setNewStockValue]     = useState(0);
   const [isUpdatingStock, setIsUpdatingStock] = useState(false);
 
+  // ── Bulk capacity ─────────────────────────────────────────────────────────
+  const [bulkCapacityInput, setBulkCapacityInput] = useState('');
+  const [isBulkUpdating, setIsBulkUpdating]       = useState(false);
+  const [bulkCapacityDone, setBulkCapacityDone]   = useState(false);
+
+  async function handleBulkCapacity() {
+    const value = parseInt(bulkCapacityInput, 10);
+    if (isNaN(value) || value < 0 || slots.length === 0) return;
+    setIsBulkUpdating(true);
+    setBulkCapacityDone(false);
+    await Promise.all(slots.map((s) => updateSlot(Number(machineId), s.id, { capacity: value })));
+    setIsBulkUpdating(false);
+    setBulkCapacityDone(true);
+    setTimeout(() => setBulkCapacityDone(false), 2500);
+  }
+
   // ── Modal de slot (crear / editar) ────────────────────────────────────────
   const [slotModalOpen, setSlotModalOpen] = useState(false);
   const [slotToEdit, setSlotToEdit]       = useState<Slot | null>(null);
@@ -504,7 +520,7 @@ export default function MaquinaDetallePage() {
   };
 
   useEffect(() => {
-    if ((activeTab === 'productos' || activeTab === 'reposicion') && machineId && !slotsFetched) {
+    if ((activeTab === 'inventario' || activeTab === 'reposicion') && machineId && !slotsFetched) {
       fetchSlots(Number(machineId));
       setSlotsFetched(true);
     }
@@ -789,8 +805,8 @@ export default function MaquinaDetallePage() {
   const tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'pagos',         label: 'Pagos',         icon: <BarChart2 className="h-4 w-4" /> },
     {
-      id: 'productos',
-      label: 'Productos',
+      id: 'inventario',
+      label: 'Inventario',
       icon: <Package className="h-4 w-4" />,
       badge: slotsFetched && (criticalCount + lowCount) > 0 ? criticalCount + lowCount : undefined,
     },
@@ -812,7 +828,7 @@ export default function MaquinaDetallePage() {
 
       <main className="flex-1 overflow-auto">
         {/* ── Barra de acción — en desktop solo visible en tab productos ── */}
-        <div className={`border-b border-gray-100 bg-white ${activeTab !== 'productos' ? 'lg:hidden' : ''}`}>
+        <div className={`border-b border-gray-100 bg-white ${activeTab !== 'inventario' ? 'lg:hidden' : ''}`}>
           <div data-tour="machine-actions" className="px-4 sm:px-6 py-2 flex flex-wrap items-center gap-2">
             {/* Machine avatar — solo en mobile, en desktop está en el sidebar */}
             {(imagePreview || machine.image) && (
@@ -838,8 +854,15 @@ export default function MaquinaDetallePage() {
               </span>
             )}
             <div className="flex-1" />
-            {activeTab === 'productos' && (
+            {activeTab === 'inventario' && (
               <>
+                <Link
+                  href={`/maquinas/${machineId}/slots/reticula`}
+                  className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-primary/40 text-primary text-xs font-semibold bg-white hover:bg-primary/5 transition-colors"
+                >
+                  <Grid3x3 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Cuadrícula</span>
+                </Link>
                 <Link
                   href={`/maquinas/${machineId}/slots/plantilla`}
                   className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-primary/40 text-primary text-xs font-semibold bg-white hover:bg-primary/5 transition-colors"
@@ -911,7 +934,7 @@ export default function MaquinaDetallePage() {
             {/* ════════════════════════════════════════════════════════════════
                 Tab: Productos
             ════════════════════════════════════════════════════════════════ */}
-            {activeTab === 'productos' && (
+            {activeTab === 'inventario' && (
               <div className="space-y-4">
 
                 {/* Error */}
@@ -1166,7 +1189,7 @@ export default function MaquinaDetallePage() {
                           {gridStructure && (
                             <button
                               onClick={() => setSlotsViewMode('grid')}
-                              title="Retícula"
+                              title="Vista cuadrícula"
                               className={`p-1.5 transition-colors ${slotsViewMode === 'grid' ? 'bg-primary text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}
                             >
                               <Grid3x3 className="h-3.5 w-3.5" />
@@ -1196,6 +1219,36 @@ export default function MaquinaDetallePage() {
                         </button>
                       </div>
                     </div>
+
+                    {/* ── Bulk capacity ── */}
+                    {slots.length > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs text-muted shrink-0">Capacidad masiva:</span>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="Ej. 10"
+                            value={bulkCapacityInput}
+                            onChange={(e) => { setBulkCapacityInput(e.target.value); setBulkCapacityDone(false); }}
+                            onKeyDown={(e) => e.key === 'Enter' && handleBulkCapacity()}
+                            className="w-20 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors placeholder-gray-300"
+                          />
+                          <button
+                            onClick={handleBulkCapacity}
+                            disabled={isBulkUpdating || bulkCapacityInput === '' || slots.length === 0}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border border-primary/40 text-primary bg-white hover:bg-primary/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {isBulkUpdating
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : bulkCapacityDone
+                                ? <Check className="h-3 w-3 text-emerald-500" />
+                                : null}
+                            {isBulkUpdating ? 'Aplicando…' : bulkCapacityDone ? 'Listo' : `Aplicar a ${slots.length} slots`}
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* ── Vista tabla ── */}
                     {slotsViewMode === 'table' && (
