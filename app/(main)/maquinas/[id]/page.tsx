@@ -22,7 +22,7 @@ import {
   Plus, Edit, Trash2, AlertTriangle, CheckCircle, XCircle, Loader2, RefreshCw,
   Save, X, Info, LayoutGrid, LayoutList, ClipboardList, Printer, Clipboard,
   AlertCircle, Lightbulb, Building2, Tag, Hash, Clock, Settings, Search, Grid3x3, GripVertical,
-  ImageIcon,
+  ImageIcon, Share2,
 } from 'lucide-react';
 import { useMqttReboot } from '@/lib/hooks/useMqttReboot';
 import { PageHeader, ConfirmActionDialog } from '@/components/ui-custom';
@@ -43,6 +43,7 @@ import { EditProductoModal } from '@/components/modals/EditProductoModal';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import { ResourceSharingPanel } from '@/components/resource-sharing/ResourceSharingPanel';
 
 const MachineQRLabel = dynamic(() => import('@/components/MachineQRLabel'), { ssr: false });
 
@@ -275,7 +276,7 @@ function SlotCard({ slot, machine, products, totalColumns, productPickerSlotId, 
 }
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
-type Tab = 'pagos' | 'inventario' | 'reposicion' | 'configuracion';
+type Tab = 'pagos' | 'inventario' | 'reposicion' | 'configuracion' | 'acceso';
 type PaymentSortOption = 'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc';
 
 const CARD_TYPE_LABELS: Record<string, string> = { 'CR': 'Crédito', 'DB': 'Débito', 'P ': 'Prepago' };
@@ -528,15 +529,15 @@ export default function MaquinaDetallePage() {
 
   useEffect(() => () => { clearSlots(); clearSlotErrors(); }, [clearSlots, clearSlotErrors]);
 
-  // Fetch products once machine (with enterprise_id) is loaded
+  // Fetch products once machine is loaded — no enterprise filter so shared products are included
   useEffect(() => {
-    if (!machine?.enterprise_id) return;
+    if (!machine) return;
     setIsLoadingProducts(true);
-    getProductsAction({ page: 1, limit: 200, enterpriseId: machine.enterprise_id })
+    getProductsAction({ page: 1, limit: 200 })
       .then(res => { if (res.success && res.products) setProducts(res.products); })
       .catch(() => {})
       .finally(() => setIsLoadingProducts(false));
-  }, [machine?.enterprise_id]);
+  }, [machine?.id]);
 
   // Ordenar slots por urgencia
   const sortedSlots = useMemo(() =>
@@ -812,6 +813,7 @@ export default function MaquinaDetallePage() {
     },
     { id: 'reposicion',    label: 'Reposición',    icon: <ClipboardList className="h-4 w-4" /> },
     { id: 'configuracion', label: 'Configuración', icon: <Settings className="h-4 w-4" /> },
+    { id: 'acceso',        label: 'Acceso',        icon: <Share2 className="h-4 w-4" /> },
   ];
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -2315,6 +2317,16 @@ export default function MaquinaDetallePage() {
                   )}
                 </div>
               </div>
+            )}
+
+            {/* ════════════════════════════════════════════════════════════════
+                Tab: Acceso
+            ════════════════════════════════════════════════════════════════ */}
+            {activeTab === 'acceso' && (
+              <ResourceSharingPanel
+                resourceType="App\Models\VendingMachine"
+                resourceId={Number(machineId)}
+              />
             )}
 
           </div>

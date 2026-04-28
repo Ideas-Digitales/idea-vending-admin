@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import {
   Package, Calendar, Building2, Edit,
   BarChart2, TrendingUp, TrendingDown,
-  Hash, Clock, ChevronLeft, ChevronRight, RefreshCw,
+  Hash, Clock, ChevronLeft, ChevronRight, RefreshCw, Share2,
 } from 'lucide-react';
 import { SalesDualAxisChart, type SeriesType } from '@/components/metrics/MetricsCharts';
 import { useProductStore } from '@/lib/stores/productStore';
@@ -13,9 +13,11 @@ import { getEnterpriseAction } from '@/lib/actions/enterprise';
 import { aggregatePaymentsAction } from '@/lib/actions/payments';
 import { PageHeader } from '@/components/ui-custom';
 import Link from 'next/link';
+import { ResourceSharingPanel } from '@/components/resource-sharing/ResourceSharingPanel';
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 type Period = 'day' | 'month' | 'year';
+type Tab = 'metricas' | 'acceso';
 
 // ── Date helpers ─────────────────────────────────────────────────────────────
 function toIso(d: Date): string {
@@ -96,7 +98,16 @@ function clp(n: number) { return `$${n.toLocaleString('es-CL')}`; }
 // ── Componente principal ─────────────────────────────────────────────────────
 export default function ProductDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const productId = params.id as string;
+
+  const activeTab = (searchParams.get('tab') as Tab | null) ?? 'metricas';
+  const setTab = useCallback((tab: Tab) => {
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.set('tab', tab);
+    router.replace(`?${sp.toString()}`, { scroll: false });
+  }, [router, searchParams]);
 
   const {
     selectedProduct: product,
@@ -232,6 +243,32 @@ export default function ProductDetailPage() {
       />
 
       <main className="flex-1 overflow-auto">
+        {/* ── Tabs ── */}
+        <div className="border-b border-gray-200 bg-white">
+          <div className="px-4 sm:px-6 overflow-x-auto overflow-y-hidden">
+            <nav className="flex gap-0 -mb-px">
+              {([
+                { id: 'metricas' as Tab, label: 'Métricas',  icon: <BarChart2 className="h-4 w-4" /> },
+                { id: 'acceso'   as Tab, label: 'Acceso',    icon: <Share2   className="h-4 w-4" /> },
+              ]).map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted hover:text-dark hover:border-gray-300'
+                  }`}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+
+        {activeTab === 'metricas' && (
         <div className="flex items-start">
           <div className="flex-1 min-w-0 px-3 pt-3 pb-6">
             <div className="space-y-4">
@@ -508,7 +545,17 @@ export default function ProductDetailPage() {
           )}
         </aside>
 
-        </div>{/* flex items-start */}
+        </div>
+        )}{/* metricas tab */}
+
+        {activeTab === 'acceso' && (
+          <div className="px-4 sm:px-6 py-6 max-w-2xl">
+            <ResourceSharingPanel
+              resourceType="App\Models\Product"
+              resourceId={Number(productId)}
+            />
+          </div>
+        )}
       </main>
     </>
   );

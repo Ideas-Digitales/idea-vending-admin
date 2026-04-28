@@ -4,10 +4,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Package, Plus, Edit, Trash2, Eye, AlertCircle,
-  LayoutGrid, LayoutList, ChevronDown, BarChart2,
+  LayoutGrid, LayoutList, ChevronDown, BarChart2, Share2,
 } from 'lucide-react';
 import { EditProductoModal } from '@/components/modals/EditProductoModal';
 import { CreateProductoModal } from '@/components/modals/CreateProductoModal';
+import { ScopeSharingModal } from '@/components/resource-sharing/ScopeSharingModal';
 import { PageLayout, DataTable, FilterBar, ConfirmActionDialog, UnifiedPagination } from '@/components/ui-custom';
 import type { ColumnDef } from '@/components/ui-custom';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,7 @@ export default function ProductosInfiniteClient() {
     open: false, productId: null,
   });
   const [createModal, setCreateModal]     = useState(false);
+  const [sharingModal, setSharingModal]   = useState(false);
   const [enterpriseMap, setEnterpriseMap] = useState<Record<number, string>>({});
   const [viewMode, setViewMode]           = useState<'card' | 'table'>('table');
   const [metricsOpen, setMetricsOpen]     = useState(false);
@@ -256,12 +258,18 @@ export default function ProductosInfiniteClient() {
       requiredPermissions={['products.read.all', 'products.read.enterprise_owned']}
       permissionMatch="any"
       actions={
-        canCreate ? (
-          <button onClick={() => setCreateModal(true)} className="btn-primary flex items-center space-x-2">
-            <Plus className="h-4 w-4" />
-            <span>Nuevo Producto</span>
-          </button>
-        ) : undefined
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setSharingModal(true)} className="flex items-center gap-2">
+            <Share2 className="h-4 w-4" />
+            <span>Compartir</span>
+          </Button>
+          {canCreate && (
+            <button onClick={() => setCreateModal(true)} className="btn-primary flex items-center space-x-2">
+              <Plus className="h-4 w-4" />
+              <span>Nuevo Producto</span>
+            </button>
+          )}
+        </div>
       }
     >
       {/* ── Panel de métricas colapsable ── */}
@@ -406,6 +414,12 @@ export default function ProductosInfiniteClient() {
           />
         </div>
       )}
+
+      <ScopeSharingModal
+        open={sharingModal}
+        onOpenChange={setSharingModal}
+        resourceType="App\Models\Product"
+      />
 
       <CreateProductoModal
         open={createModal}

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Monitor, Plus, Edit, Trash2, Eye, Loader2, AlertCircle, MapPin,
-  LayoutGrid, LayoutList, AlertTriangle, ChevronDown, BarChart2, CreditCard,
+  LayoutGrid, LayoutList, AlertTriangle, ChevronDown, BarChart2, CreditCard, Share2,
 } from 'lucide-react';
 import { EditMaquinaModal } from '@/components/modals/EditMaquinaModal';
 import { CreateMaquinaModal } from '@/components/modals/CreateMaquinaModal';
@@ -29,6 +29,7 @@ import {
   PeriodSelector, EnterpriseMetricsSelector, MaquinasMetricsPanel,
 } from '@/components/metrics';
 import EnterpriseSearchInput from '@/components/EnterpriseSearchInput';
+import { ScopeSharingModal } from '@/components/resource-sharing/ScopeSharingModal';
 import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 
 const MACHINES_TOUR_STEPS: Step[] = [
@@ -147,7 +148,8 @@ export default function MaquinasInfiniteClient() {
   const [editModal, setEditModal] = useState<{ open: boolean; machineId: number | string | null }>({
     open: false, machineId: null,
   });
-  const [createModal, setCreateModal] = useState(false);
+  const [createModal, setCreateModal]     = useState(false);
+  const [sharingModal, setSharingModal]   = useState(false);
 
   // Stock + slot layout lazy loading
   const [stockMap, setStockMap]       = useState<Record<number, StockSummary>>({});
@@ -439,7 +441,11 @@ export default function MaquinasInfiniteClient() {
       permissionMatch="any"
       tourSteps={MACHINES_TOUR_STEPS}
       actions={
-        <div data-tour="machines-create">
+        <div className="flex items-center gap-2" data-tour="machines-create">
+          <Button variant="outline" onClick={() => setSharingModal(true)} className="flex items-center gap-2">
+            <Share2 className="h-4 w-4" />
+            <span>Compartir</span>
+          </Button>
           <Button onClick={() => setCreateModal(true)} className="btn-primary flex items-center gap-2 font-semibold shadow-sm">
             <Plus className="h-4 w-4" />
             <span>Nueva Máquina</span>
@@ -679,6 +685,12 @@ export default function MaquinasInfiniteClient() {
           />
         </div>
       )}
+
+      <ScopeSharingModal
+        open={sharingModal}
+        onOpenChange={setSharingModal}
+        resourceType="App\Models\VendingMachine"
+      />
 
       <CreateMaquinaModal
         open={createModal}
