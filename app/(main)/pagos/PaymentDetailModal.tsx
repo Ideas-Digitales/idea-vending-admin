@@ -6,16 +6,17 @@ import {
   CreditCard,
   Hash,
   Tag,
-  Calendar,
   MapPin,
   Building2,
   PhoneCall,
   Terminal,
   Receipt,
   Info,
+  Package,
 } from 'lucide-react';
 import type { Payment } from '@/lib/interfaces/payment.interface';
 import type { Machine } from '@/lib/interfaces/machine.interface';
+import type { Slot } from '@/lib/interfaces/slot.interface';
 
 interface PaymentDetailModalProps {
   payment: Payment | null;
@@ -25,6 +26,8 @@ interface PaymentDetailModalProps {
   machineDetails?: Machine | null;
   machineDetailsLoading?: boolean;
   machineDetailsError?: string | null;
+  slot?: Slot | null;
+  slotLoading?: boolean;
 }
 
 function formatCurrency(value?: number | null): string {
@@ -63,6 +66,8 @@ const PaymentDetailModal = memo(function PaymentDetailModal({
   machineDetails,
   machineDetailsLoading,
   machineDetailsError,
+  slot,
+  slotLoading,
 }: PaymentDetailModalProps) {
   const paymentStatus = payment?.successful ? 'Exitoso' : 'Rechazado';
   const paymentStatusColor = payment?.successful ? statusColors.success : statusColors.failed;
@@ -127,6 +132,29 @@ const PaymentDetailModal = memo(function PaymentDetailModal({
                 value={enterpriseName ?? (payment.enterprise_id ? `ID ${payment.enterprise_id}` : 'No especificada')}
                 icon={Building2}
               />
+            </div>
+          </section>
+
+          <section className={SECTION_CLASS}>
+            <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              Producto vendido
+            </h3>
+            <div className="grid gap-4 md:grid-cols-2">
+              <InfoRow label="Producto" value={payment.product ?? '—'} icon={Tag} />
+              {slotLoading ? (
+                <InfoRow label="Slot" value="Obteniendo información…" />
+              ) : slot ? (
+                <>
+                  <InfoRow label="Slot" value={slot.label} />
+                  <InfoRow label="Código MDB" value={String(slot.mdb_code)} icon={Hash} />
+                  {slot.current_stock !== null && slot.capacity !== null && (
+                    <InfoRow label="Stock actual" value={`${slot.current_stock} / ${slot.capacity}`} />
+                  )}
+                </>
+              ) : (
+                <InfoRow label="Slot" value="Sin información de slot" />
+              )}
             </div>
           </section>
 

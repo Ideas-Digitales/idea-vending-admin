@@ -34,6 +34,8 @@ import { useRealtimePayments, type RealtimePaymentStatus } from '@/lib/hooks/use
 import { getEnterprisesAction } from '@/lib/actions/enterprise';
 import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 import { getMachinesAction, getMachineAction } from '@/lib/actions/machines';
+import { getSlotByProductAction } from '@/lib/actions/slots';
+import type { Slot } from '@/lib/interfaces/slot.interface';
 import PaymentDetailModal from './PaymentDetailModal';
 
 const createDefaultFilters = (): PaymentFilters => ({
@@ -237,6 +239,8 @@ export default function PagosInfiniteClient() {
   const [selectedMachineDetails, setSelectedMachineDetails] = useState<Machine | null>(null);
   const [selectedMachineLoading, setSelectedMachineLoading] = useState(false);
   const [selectedMachineError, setSelectedMachineError] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [selectedSlotLoading, setSelectedSlotLoading] = useState(false);
 
   const realtimeMachineId = filters.machine_id ?? undefined;
   const realtimeEnterpriseId = filters.enterprise_id ?? undefined;
@@ -672,6 +676,8 @@ export default function PagosInfiniteClient() {
     setSelectedMachineDetails(null);
     setSelectedMachineError(null);
     setSelectedMachineLoading(false);
+    setSelectedSlot(null);
+    setSelectedSlotLoading(false);
   }, []);
 
   useEffect(() => {
@@ -718,6 +724,34 @@ export default function PagosInfiniteClient() {
       isMounted = false;
     };
   }, [selectedPayment?.machine_id, selectedPayment]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchSlot = async () => {
+      if (!selectedPayment?.machine_id || !selectedPayment?.product_id) {
+        setSelectedSlot(null);
+        setSelectedSlotLoading(false);
+        return;
+      }
+
+      setSelectedSlotLoading(true);
+      const result = await getSlotByProductAction(selectedPayment.machine_id, selectedPayment.product_id);
+      if (!isMounted) return;
+
+      setSelectedSlot(result.success && result.slot ? result.slot : null);
+      setSelectedSlotLoading(false);
+    };
+
+    if (selectedPayment) {
+      fetchSlot();
+    } else {
+      setSelectedSlot(null);
+      setSelectedSlotLoading(false);
+    }
+
+    return () => { isMounted = false; };
+  }, [selectedPayment?.machine_id, selectedPayment?.product_id, selectedPayment]);
 
   return (
     <>
@@ -1265,6 +1299,8 @@ export default function PagosInfiniteClient() {
         machineDetails={selectedMachineDetails}
         machineDetailsLoading={selectedMachineLoading}
         machineDetailsError={selectedMachineError}
+        slot={selectedSlot}
+        slotLoading={selectedSlotLoading}
       />
     </>
   );
