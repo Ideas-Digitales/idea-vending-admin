@@ -142,9 +142,7 @@ const PaymentDetailModal = memo(function PaymentDetailModal({
             </h3>
             <div className="grid gap-4 md:grid-cols-2">
               <InfoRow label="Producto" value={payment.product ?? '—'} icon={Tag} />
-              {slotLoading ? (
-                <InfoRow label="Slot" value="Obteniendo información…" />
-              ) : slot ? (
+              {slot ? (
                 <>
                   <InfoRow label="Slot" value={slot.label} />
                   <InfoRow label="Código MDB" value={String(slot.mdb_code)} icon={Hash} />
@@ -152,6 +150,10 @@ const PaymentDetailModal = memo(function PaymentDetailModal({
                     <InfoRow label="Stock actual" value={`${slot.current_stock} / ${slot.capacity}`} />
                   )}
                 </>
+              ) : slotLoading ? (
+                <InfoRow label="Slot" value="Obteniendo información…" />
+              ) : payment.meta?.mdb_code != null ? (
+                <InfoRow label="Código MDB" value={String(payment.meta.mdb_code)} icon={Hash} />
               ) : (
                 <InfoRow label="Slot" value="Sin información de slot" />
               )}

@@ -13,6 +13,35 @@ import { handleActionError } from '../utils/actionError';
 import { httpErrorMessage } from '../utils/httpError';
 
 /**
+ * Busca el slot de una máquina por su código MDB
+ */
+export async function getSlotByMdbCodeAction(
+  machineId: string | number,
+  mdbCode: number,
+): Promise<SlotResponse> {
+  try {
+    const { response } = await authenticatedFetch(`/machines/${machineId}/slots/search?include=product&limit=1`, {
+      method: 'POST',
+      body: JSON.stringify({
+        filters: [{ field: 'mdb_code', operator: '=', value: mdbCode }],
+      }),
+    });
+
+    if (!response.ok) {
+      return { success: false, error: httpErrorMessage(response.status) };
+    }
+
+    const data = await response.json();
+    const slotsArray = data.data ?? [];
+    if (!slotsArray.length) return { success: false, error: 'Slot no encontrado' };
+
+    return { success: true, slot: SlotAdapter.apiToApp(slotsArray[0]) };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
+/**
  * Busca el slot de una máquina que tenga asignado un producto específico
  */
 export async function getSlotByProductAction(

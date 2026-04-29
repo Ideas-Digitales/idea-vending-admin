@@ -34,7 +34,7 @@ import { useRealtimePayments, type RealtimePaymentStatus } from '@/lib/hooks/use
 import { getEnterprisesAction } from '@/lib/actions/enterprise';
 import type { Enterprise } from '@/lib/interfaces/enterprise.interface';
 import { getMachinesAction, getMachineAction } from '@/lib/actions/machines';
-import { getSlotByProductAction } from '@/lib/actions/slots';
+import { getSlotByMdbCodeAction, getSlotByProductAction } from '@/lib/actions/slots';
 import type { Slot } from '@/lib/interfaces/slot.interface';
 import PaymentDetailModal from './PaymentDetailModal';
 
@@ -729,14 +729,20 @@ export default function PagosInfiniteClient() {
     let isMounted = true;
 
     const fetchSlot = async () => {
-      if (!selectedPayment?.machine_id || !selectedPayment?.product_id) {
+      const machineId  = selectedPayment?.machine_id;
+      const mdbCode    = selectedPayment?.meta?.mdb_code ?? null;
+      const productId  = selectedPayment?.product_id ?? null;
+
+      if (!machineId || (!mdbCode && !productId)) {
         setSelectedSlot(null);
         setSelectedSlotLoading(false);
         return;
       }
 
       setSelectedSlotLoading(true);
-      const result = await getSlotByProductAction(selectedPayment.machine_id, selectedPayment.product_id);
+      const result = mdbCode
+        ? await getSlotByMdbCodeAction(machineId, mdbCode)
+        : await getSlotByProductAction(machineId, productId!);
       if (!isMounted) return;
 
       setSelectedSlot(result.success && result.slot ? result.slot : null);
@@ -751,7 +757,7 @@ export default function PagosInfiniteClient() {
     }
 
     return () => { isMounted = false; };
-  }, [selectedPayment?.machine_id, selectedPayment?.product_id, selectedPayment]);
+  }, [selectedPayment?.machine_id, selectedPayment?.meta?.mdb_code, selectedPayment?.product_id, selectedPayment]);
 
   return (
     <>

@@ -23,7 +23,7 @@ export interface Payment {
   machine_id: number | null;
   enterprise_id: number | null;
   sale_status: SaleStatus | null;
-  meta: Record<string, unknown> | null;
+  meta: { mdb_code?: number | null; [key: string]: unknown } | null;
   created_at: string;
   updated_at: string;
   machine_name: string | null;
