@@ -50,7 +50,9 @@ jobs:
 
       - name: Deploy QA (preview)
         if: github.ref == 'refs/heads/qa'
-        run: vercel deploy --prebuilt --target=preview --token=${{ secrets.VERCEL_TOKEN }}
+        run: |
+          DEPLOYMENT_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          vercel alias set $DEPLOYMENT_URL qa.appsocomarca.cl --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy Production
         if: github.ref == 'refs/heads/main'
