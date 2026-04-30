@@ -19,7 +19,7 @@ export const createUserSchema = z.object({
     .max(15, 'El RUT no puede exceder 15 caracteres')
     .refine(isValidRut, 'RUT inválido (ej: 12345678-9)'),
   
-  role: z.enum(['admin', 'customer', 'technician']),
+  role: z.enum(['admin', 'customer', 'technician', 'operador', 'monitor']),
   
   status: z.enum(['active', 'inactive']),
   
@@ -59,7 +59,7 @@ export const editUserSchema = z.object({
     .max(15, 'El RUT no puede exceder 15 caracteres')
     .refine(isValidRut, 'RUT inválido (ej: 12345678-9)'),
   
-  role: z.enum(['admin', 'customer', 'technician']),
+  role: z.enum(['admin', 'customer', 'technician', 'operador', 'monitor']),
   
   status: z.enum(['active', 'inactive']),
 

@@ -8,7 +8,7 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   rut: string;
-  role: 'admin' | 'customer' | 'technician';
+  role: 'admin' | 'customer' | 'technician' | 'operador' | 'monitor';
   status: 'active' | 'inactive' | 'No status';
   lastLogin: string;
   permissions: string[];

@@ -30,10 +30,12 @@ export default function CreateUserForm({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [copiedPassword, setCopiedPassword] = useState(false);
 
-  const roleLabelMap: Record<'admin' | 'customer' | 'technician', string> = {
+  const roleLabelMap: Record<'admin' | 'customer' | 'technician' | 'operador' | 'monitor', string> = {
     admin: 'Administrador',
     customer: 'Cliente',
     technician: 'Técnico',
+    operador: 'Operador',
+    monitor: 'Monitor',
   };
 
   const statusLabelMap: Record<'active' | 'inactive', string> = {
@@ -41,38 +43,21 @@ export default function CreateUserForm({
     inactive: 'Inactivo',
   };
 
-  // Mapear roles de la interfaz User a los roles del schema
-  const mapUserRoleToSchemaRole = (userRole: string): 'admin' | 'customer' | 'technician' => {
-    const normalizedRole = (userRole || '').toLowerCase();
+  type SchemaRole = 'admin' | 'customer' | 'technician' | 'operador';
 
-    if (normalizedRole.includes('admin')) {
-      return 'admin';
-    }
+  const KNOWN_ROLES: SchemaRole[] = ['admin', 'customer', 'technician', 'operador'];
 
-    if (normalizedRole.includes('customer') || normalizedRole.includes('client')) {
-      return 'customer';
-    }
-
-    if (normalizedRole.includes('technician') || normalizedRole.includes('tech') || normalizedRole.includes('support')) {
-      return 'technician';
-    }
-
-    return 'technician';
+  const mapUserRoleToSchemaRole = (userRole: string): SchemaRole => {
+    const normalized = (userRole || '').toLowerCase();
+    const match = KNOWN_ROLES.find(r => normalized.includes(r));
+    return match ?? 'admin';
   };
 
-  const resolveInitialRole = (user?: UserType): 'admin' | 'customer' | 'technician' => {
+  const resolveInitialRole = (user?: UserType): SchemaRole => {
     if (!user) return 'admin';
-
-    if (user.role) {
-      return mapUserRoleToSchemaRole(user.role);
-    }
-
+    if (user.role) return mapUserRoleToSchemaRole(user.role);
     const roleFromCollection = user.roles?.find((entry) => typeof entry?.name === 'string' && entry.name.trim().length > 0);
-
-    if (roleFromCollection) {
-      return mapUserRoleToSchemaRole(roleFromCollection.name);
-    }
-
+    if (roleFromCollection) return mapUserRoleToSchemaRole(roleFromCollection.name);
     return 'admin';
   };
 
@@ -92,7 +77,7 @@ export default function CreateUserForm({
       email: initialData?.email || '',
       rut: formatRutInput(initialData?.rut || ''),
       role: initialData ? resolveInitialRole(initialData) : 'admin',
-      status: (initialData?.status === 'active' || initialData?.status === 'inactive') ? initialData.status : 'inactive', // Cambiar default a 'inactive' para modo crear
+      status: (initialData?.status === 'active' || initialData?.status === 'inactive') ? initialData.status : 'active',
       password: '',
       confirmPassword: '',
       enterprise_id: undefined,
@@ -166,7 +151,7 @@ export default function CreateUserForm({
   };
 
   const isLimitedEdit = mode === 'edit' && !canEditAllFields;
-  const roleValue = watch('role') as 'admin' | 'customer' | 'technician' | undefined;
+  const roleValue = watch('role') as SchemaRole | undefined;
   const statusValue = watch('status') as 'active' | 'inactive' | undefined;
   const passwordValue = (watch('password') as string | undefined) || '';
   const confirmPasswordValue = (watch('confirmPassword') as string | undefined) || '';
@@ -273,7 +258,9 @@ export default function CreateUserForm({
                 >
                   <option value="admin">Administrador</option>
                   <option value="customer">Cliente</option>
-                  {mode === 'edit' && <option value="technician">Técnico</option>}
+                  <option value="technician">Técnico</option>
+                  <option value="operador">Operador</option>
+                  <option value="monitor">Monitor</option>
                 </select>
                 {errors.role && (
                   <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>

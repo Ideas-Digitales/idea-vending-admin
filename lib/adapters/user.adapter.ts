@@ -87,6 +87,10 @@ export class UserAdapter {
       return 'customer';
     } else if (role.includes('technician') || role.includes('tech') || role.includes('support')) {
       return 'technician';
+    } else if (role.includes('operador') || role.includes('operator')) {
+      return 'operador';
+    } else if (role.includes('monitor')) {
+      return 'monitor';
     } else {
       return 'technician';
     }

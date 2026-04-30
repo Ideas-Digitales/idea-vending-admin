@@ -19,12 +19,16 @@ const ROLE_OPTIONS = [
   { value: 'admin', label: 'Administrador' },
   { value: 'customer', label: 'Cliente' },
   { value: 'technician', label: 'Técnico' },
+  { value: 'operador', label: 'Operador' },
+  { value: 'monitor', label: 'Monitor' },
 ];
 
 function roleToStatusVariant(role: string): 'success' | 'warning' | 'info' | 'default' {
   if (role === 'admin') return 'warning';
   if (role === 'customer') return 'info';
   if (role === 'technician') return 'success';
+  if (role === 'operador') return 'success';
+  if (role === 'monitor') return 'info';
   return 'default';
 }
 

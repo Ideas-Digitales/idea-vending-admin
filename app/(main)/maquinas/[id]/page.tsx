@@ -93,7 +93,7 @@ function getProductColor(productId: number | string): string {
   return palette[Math.abs(n) % palette.length];
 }
 
-function SlotCard({ slot, machine, products, totalColumns, productPickerSlotId, setProductPickerSlotId, onProductChange, onFieldChange, onStockUpdate, onEdit, onDelete, isDragTarget, onDragOver, onDragLeave, onDrop }: {
+function SlotCard({ slot, machine, products, totalColumns, productPickerSlotId, setProductPickerSlotId, onProductChange, onFieldChange, onStockUpdate, onEdit, onDelete, isDragTarget, onDragOver, onDragLeave, onDrop, isSelected, onSelect }: {
   slot: Slot;
   machine?: Machine | null;
   products: Producto[];
@@ -102,13 +102,15 @@ function SlotCard({ slot, machine, products, totalColumns, productPickerSlotId, 
   setProductPickerSlotId: (id: number | null) => void;
   onProductChange: (slot: Slot, product: Producto | null) => void;
   onFieldChange: (slot: Slot, field: 'label' | 'mdb_code' | 'capacity' | 'width', value: string | number | null) => void;
-  onStockUpdate: (slot: Slot) => void;
-  onEdit: (slot: Slot) => void;
-  onDelete: (slot: Slot) => void;
+  onStockUpdate?: (slot: Slot) => void;
+  onEdit?: (slot: Slot) => void;
+  onDelete?: (slot: Slot) => void;
   isDragTarget?: boolean;
   onDragOver?: React.DragEventHandler;
   onDragLeave?: React.DragEventHandler;
   onDrop?: React.DragEventHandler;
+  isSelected?: boolean;
+  onSelect?: (selected: boolean) => void;
 }) {
   const tracksStock = slotTracksStock(slot, machine);
   const level       = slotStockLevel(slot, machine);
@@ -121,6 +123,8 @@ function SlotCard({ slot, machine, products, totalColumns, productPickerSlotId, 
 
   const borderCls = isDragTarget
     ? 'border-primary/60 bg-primary/5 shadow-sm ring-2 ring-primary/20'
+    : isSelected
+    ? 'border-emerald-400 bg-emerald-50/30 ring-1 ring-emerald-200'
     : level === 'critical'   ? 'border-red-200/80 bg-red-50/10' :
       level === 'low'        ? 'border-amber-200/80 bg-amber-50/10' :
       level === 'incomplete' ? 'border-blue-200/80 bg-white' :
@@ -138,30 +142,46 @@ function SlotCard({ slot, machine, products, totalColumns, productPickerSlotId, 
 
   return (
     <div
-      className={`group relative rounded-xl border-2 flex flex-col items-center gap-1.5 py-2.5 px-2 transition-all hover:shadow-sm ${borderCls}`}
+      className={`group relative rounded-xl border-2 flex flex-col items-center gap-1.5 py-2.5 px-2 transition-all hover:shadow-sm ${borderCls} ${onSelect ? 'cursor-pointer select-none' : ''}`}
+      onClick={onSelect ? () => onSelect(!isSelected) : undefined}
       onDragOver={(e) => { e.preventDefault(); onDragOver?.(e); }}
       onDragLeave={onDragLeave}
       onDrop={(e) => { e.preventDefault(); onDrop?.(e); }}
     >
-      {/* Acciones — overlay absoluto, solo visible en hover */}
-      <div className="absolute top-1 right-1 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10 bg-white/80 backdrop-blur-sm rounded-lg p-0.5 shadow-sm">
-        {tracksStock && (
-          <button onClick={() => onStockUpdate(slot)} title="Actualizar stock" className="p-0.5 rounded text-emerald-600 hover:bg-emerald-50 transition-colors">
-            <RefreshCw className="h-3 w-3" />
-          </button>
+      {/* Fila superior: checkbox (si hay modo selección) + badge + acciones */}
+      <div className="flex items-center w-full gap-1 min-h-[18px]">
+        {onSelect && (
+          <input
+            type="checkbox"
+            checked={isSelected ?? false}
+            onChange={e => onSelect(e.target.checked)}
+            onClick={e => e.stopPropagation()}
+            className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5 cursor-pointer shrink-0"
+          />
         )}
-        <button onClick={() => onEdit(slot)} title="Editar" className="p-0.5 rounded text-blue-500 hover:bg-blue-50 transition-colors">
-          <Edit className="h-3 w-3" />
-        </button>
-        <button onClick={() => onDelete(slot)} title="Eliminar" className="p-0.5 rounded text-red-400 hover:bg-red-50 transition-colors">
-          <Trash2 className="h-3 w-3" />
-        </button>
+        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${badgeCls}`}>
+          {STOCK_LABELS[level]}
+        </span>
+        {(onStockUpdate || onEdit || onDelete) && (
+          <div className="ml-auto flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+            {tracksStock && onStockUpdate && (
+              <button onClick={() => onStockUpdate(slot)} title="Actualizar stock" className="p-0.5 rounded text-emerald-600 hover:bg-emerald-50 transition-colors">
+                <RefreshCw className="h-3 w-3" />
+              </button>
+            )}
+            {onEdit && (
+              <button onClick={() => onEdit(slot)} title="Editar" className="p-0.5 rounded text-blue-500 hover:bg-blue-50 transition-colors">
+                <Edit className="h-3 w-3" />
+              </button>
+            )}
+            {onDelete && (
+              <button onClick={() => onDelete(slot)} title="Eliminar" className="p-0.5 rounded text-red-400 hover:bg-red-50 transition-colors">
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
-
-      {/* Badge de estado */}
-      <span className={`self-start text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${badgeCls}`}>
-        {STOCK_LABELS[level]}
-      </span>
 
       {/* Imagen del producto */}
       <div className="w-10 h-10 flex items-center justify-center">
@@ -182,7 +202,7 @@ function SlotCard({ slot, machine, products, totalColumns, productPickerSlotId, 
       </span>
 
       {/* Producto — chip con color igual al panel lateral */}
-      <div className="relative w-full">
+      <div className="relative w-full" onClick={e => e.stopPropagation()}>
         {isDragTarget ? (
           <div className="w-full flex items-center justify-center gap-1 px-1.5 py-0.5 rounded-lg border border-dashed border-primary/40 text-primary">
             <span className="text-[10px] font-medium">+ soltar aquí</span>
@@ -213,7 +233,7 @@ function SlotCard({ slot, machine, products, totalColumns, productPickerSlotId, 
                 onClose={() => setProductPickerSlotId(null)}
                 actions={
                   <>
-                    {tracksStock && (
+                    {tracksStock && onStockUpdate && (
                       <button
                         onClick={() => onStockUpdate(slot)}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
@@ -222,20 +242,24 @@ function SlotCard({ slot, machine, products, totalColumns, productPickerSlotId, 
                         Reponer
                       </button>
                     )}
-                    <button
-                      onClick={() => onEdit(slot)}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-                    >
-                      <Edit className="h-3.5 w-3.5" />
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => onDelete(slot)}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Eliminar
-                    </button>
+                    {onEdit && (
+                      <button
+                        onClick={() => onEdit(slot)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                        Editar
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        onClick={() => onDelete(slot)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Eliminar
+                      </button>
+                    )}
                   </>
                 }
               />
@@ -349,7 +373,8 @@ export default function MaquinaDetallePage() {
   const router       = useRouter();
   const machineId    = params.id as string;
   const user         = useUser();
-  const isAdmin      = user?.role === 'admin';
+  const isAdmin        = user?.role === 'admin';
+  const canUpdateSlots = isAdmin || (user?.permissions?.includes('slots.update') ?? false);
 
   const activeTab = (searchParams.get('tab') as Tab | null) ?? 'pagos';
   const setTab    = useCallback((tab: Tab) => {
@@ -469,10 +494,22 @@ export default function MaquinaDetallePage() {
   const [newStockValue, setNewStockValue]     = useState(0);
   const [isUpdatingStock, setIsUpdatingStock] = useState(false);
 
+  // ── Bulk replenishment ────────────────────────────────────────────────────
+  const [selectionMode, setSelectionMode]         = useState(false);
+  const [selectedReplenIds, setSelectedReplenIds] = useState<Set<number>>(new Set());
+  const [bulkReplenOpen, setBulkReplenOpen]       = useState(false);
+  const [bulkReplenQty, setBulkReplenQty]         = useState(0);
+  const [bulkReplenFill, setBulkReplenFill]       = useState(false);
+  const [isBulkReplenishing, setIsBulkReplenishing] = useState(false);
+
   // ── Bulk capacity ─────────────────────────────────────────────────────────
+  const [bulkCapacityOpen, setBulkCapacityOpen]   = useState(false);
   const [bulkCapacityInput, setBulkCapacityInput] = useState('');
   const [isBulkUpdating, setIsBulkUpdating]       = useState(false);
   const [bulkCapacityDone, setBulkCapacityDone]   = useState(false);
+
+  // ── Bulk replenishment progress ───────────────────────────────────────────
+  const [bulkReplenProgress, setBulkReplenProgress] = useState<{ done: number; total: number } | null>(null);
 
   async function handleBulkCapacity() {
     const value = parseInt(bulkCapacityInput, 10);
@@ -482,7 +519,11 @@ export default function MaquinaDetallePage() {
     await Promise.all(slots.map((s) => updateSlot(Number(machineId), s.id, { capacity: value })));
     setIsBulkUpdating(false);
     setBulkCapacityDone(true);
-    setTimeout(() => setBulkCapacityDone(false), 2500);
+    setTimeout(() => {
+      setBulkCapacityDone(false);
+      setBulkCapacityOpen(false);
+      setBulkCapacityInput('');
+    }, 1200);
   }
 
   // ── Modal de slot (crear / editar) ────────────────────────────────────────
@@ -704,6 +745,44 @@ export default function MaquinaDetallePage() {
       } catch { /* ignorar */ }
       setStockUpdateSlot(null);
     }
+  };
+
+  const handleBulkReplenish = async () => {
+    if (selectedReplenIds.size === 0) return;
+    if (!bulkReplenFill && bulkReplenQty <= 0) return;
+    const slotsToUpdate = slots.filter(s => selectedReplenIds.has(s.id));
+    setIsBulkReplenishing(true);
+    setBulkReplenProgress({ done: 0, total: slotsToUpdate.length });
+    let done = 0;
+    for (const slot of slotsToUpdate) {
+      const newStock = bulkReplenFill
+        ? (slot.capacity ?? (slot.current_stock ?? 0))
+        : slot.capacity !== null
+          ? Math.min((slot.current_stock ?? 0) + bulkReplenQty, slot.capacity)
+          : (slot.current_stock ?? 0) + bulkReplenQty;
+      const updated = await updateSlot(Number(machineId), slot.id, { current_stock: newStock });
+      if (updated) {
+        try {
+          await publishSlotOperation({
+            action: 'update', machineId: Number(machineId), slotId: updated.id,
+            slotData: {
+              id: updated.id, mdb_code: updated.mdb_code, label: updated.label,
+              product_id: updated.product_id, machine_id: Number(machineId),
+              capacity: updated.capacity, current_stock: updated.current_stock,
+            },
+          });
+        } catch { /* ignorar */ }
+      }
+      done++;
+      setBulkReplenProgress({ done, total: slotsToUpdate.length });
+    }
+    setIsBulkReplenishing(false);
+    setBulkReplenProgress(null);
+    setBulkReplenOpen(false);
+    setSelectedReplenIds(new Set());
+    setSelectionMode(false);
+    setBulkReplenQty(0);
+    setBulkReplenFill(false);
   };
 
   // ── Configuración (tab Configuración) ─────────────────────────────────────
@@ -1212,43 +1291,65 @@ export default function MaquinaDetallePage() {
                             <LayoutList className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                        <button
-                          onClick={() => { setSlotToEdit(null); setSlotModalOpen(true); }}
-                          className="inline-flex items-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">Nuevo slot</span>
-                        </button>
+                        {canUpdateSlots && (
+                          <button
+                            onClick={() => { setSlotToEdit(null); setSlotModalOpen(true); }}
+                            className="inline-flex items-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Nuevo slot</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    {/* ── Bulk capacity ── */}
-                    {slots.length > 0 && (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-muted shrink-0">Capacidad masiva:</span>
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="number"
-                            min={0}
-                            placeholder="Ej. 10"
-                            value={bulkCapacityInput}
-                            onChange={(e) => { setBulkCapacityInput(e.target.value); setBulkCapacityDone(false); }}
-                            onKeyDown={(e) => e.key === 'Enter' && handleBulkCapacity()}
-                            className="w-20 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-primary transition-colors placeholder-gray-300"
-                          />
+                    {/* ── Barra de herramientas secundaria ── */}
+                    {canUpdateSlots && slots.length > 0 && !selectionMode && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setBulkCapacityOpen(true)}
+                          className="inline-flex items-center gap-1.5 py-1.5 px-3 text-xs font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors text-gray-600"
+                        >
+                          <Settings className="h-3.5 w-3.5" /> Ajustar capacidad de slots
+                        </button>
+                        <button
+                          onClick={() => setSelectionMode(true)}
+                          className="inline-flex items-center gap-1.5 py-1.5 px-3 text-xs font-medium rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors text-gray-600"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" /> Reponer slots
+                        </button>
+                      </div>
+                    )}
+
+                    {/* ── Barra de selección activa ── */}
+                    {selectionMode && (
+                      <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60">
+                        <input
+                          type="checkbox"
+                          className="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4 cursor-pointer shrink-0"
+                          checked={sortedSlots.length > 0 && sortedSlots.every(s => selectedReplenIds.has(s.id))}
+                          onChange={e => setSelectedReplenIds(e.target.checked ? new Set(sortedSlots.map(s => s.id)) : new Set())}
+                        />
+                        <span className="text-xs text-emerald-800 font-medium">
+                          {selectedReplenIds.size === 0
+                            ? 'Selecciona los slots a reponer'
+                            : `${selectedReplenIds.size} de ${sortedSlots.length} slots seleccionados`}
+                        </span>
+                        {selectedReplenIds.size > 0 && (
                           <button
-                            onClick={handleBulkCapacity}
-                            disabled={isBulkUpdating || bulkCapacityInput === '' || slots.length === 0}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border border-primary/40 text-primary bg-white hover:bg-primary/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            onClick={() => { setBulkReplenQty(0); setBulkReplenFill(false); setBulkReplenOpen(true); }}
+                            className="inline-flex items-center gap-1.5 py-1 px-3 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
                           >
-                            {isBulkUpdating
-                              ? <Loader2 className="h-3 w-3 animate-spin" />
-                              : bulkCapacityDone
-                                ? <Check className="h-3 w-3 text-emerald-500" />
-                                : null}
-                            {isBulkUpdating ? 'Aplicando…' : bulkCapacityDone ? 'Listo' : `Aplicar a ${slots.length} slots`}
+                            <RefreshCw className="h-3 w-3" /> Reponer {selectedReplenIds.size}
                           </button>
-                        </div>
+                        )}
+                        <button
+                          onClick={() => { setSelectionMode(false); setSelectedReplenIds(new Set()); }}
+                          className="inline-flex items-center gap-1.5 py-1 px-3 text-xs font-medium rounded-lg border border-emerald-300 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                        >
+                          <X className="h-3 w-3" /> Cancelar
+                        </button>
+                        <div className="flex-1" />
                       </div>
                     )}
 
@@ -1258,6 +1359,16 @@ export default function MaquinaDetallePage() {
                         <table className="w-full text-sm">
                           <thead className="bg-gray-50/70 border-b border-gray-100">
                             <tr>
+                              {selectionMode && (
+                                <th className="px-3 py-2.5 w-10">
+                                  <input
+                                    type="checkbox"
+                                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4 cursor-pointer"
+                                    checked={selectedReplenIds.size === sortedSlots.length && sortedSlots.length > 0}
+                                    onChange={e => setSelectedReplenIds(e.target.checked ? new Set(sortedSlots.map(s => s.id)) : new Set())}
+                                  />
+                                </th>
+                              )}
                               <th className="text-left px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide">Slot</th>
                               <th className="text-left px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide hidden sm:table-cell">Código MDB</th>
                               <th className="text-left px-4 py-2.5 text-xs font-medium text-muted uppercase tracking-wide hidden md:table-cell">Producto</th>
@@ -1271,7 +1382,23 @@ export default function MaquinaDetallePage() {
                               const tracksStock = slotTracksStock(slot, machine);
                               const pct    = SlotAdapter.getStockPercentage({ ...slot, manage_stock: tracksStock }) ?? 0;
                               return (
-                                <tr key={slot.id} className={`hover:bg-gray-50/60 transition-colors ${level === 'critical' ? 'bg-red-50/30' : level === 'low' ? 'bg-amber-50/20' : level === 'incomplete' ? 'bg-blue-50/10' : level === 'disabled' ? 'bg-slate-50/70' : ''}`}>
+                                <tr key={slot.id} className={`transition-colors ${selectionMode && selectedReplenIds.has(slot.id) ? 'bg-emerald-50/30' : `hover:bg-gray-50/60 ${level === 'critical' ? 'bg-red-50/30' : level === 'low' ? 'bg-amber-50/20' : level === 'incomplete' ? 'bg-blue-50/10' : level === 'disabled' ? 'bg-slate-50/70' : ''}`}`}>
+                                  {selectionMode && (
+                                    <td className="px-3 py-3 w-10">
+                                      <input
+                                        type="checkbox"
+                                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4 cursor-pointer"
+                                        checked={selectedReplenIds.has(slot.id)}
+                                        onChange={e => {
+                                          setSelectedReplenIds(prev => {
+                                            const next = new Set(prev);
+                                            e.target.checked ? next.add(slot.id) : next.delete(slot.id);
+                                            return next;
+                                          });
+                                        }}
+                                      />
+                                    </td>
+                                  )}
                                   <td className="px-4 py-3">
                                     <div className="flex items-center gap-2">
                                       <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold text-white ${level === 'critical' ? 'bg-red-500' : level === 'low' ? 'bg-amber-400' : level === 'incomplete' ? 'bg-blue-400' : level === 'unknown' ? 'bg-gray-400' : level === 'disabled' ? 'bg-slate-400' : 'bg-emerald-500'}`}>
@@ -1308,7 +1435,7 @@ export default function MaquinaDetallePage() {
                                               onClose={() => setProductPickerSlotId(null)}
                                               actions={
                                                 <>
-                                                  {tracksStock && (
+                                                  {canUpdateSlots && tracksStock && (
                                                     <button
                                                       onClick={() => handleStockUpdateClick(slot)}
                                                       className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
@@ -1317,20 +1444,24 @@ export default function MaquinaDetallePage() {
                                                       Reponer
                                                     </button>
                                                   )}
-                                                  <button
-                                                    onClick={() => { setSlotToEdit(slot); setSlotModalOpen(true); }}
-                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-                                                  >
-                                                    <Edit className="h-3.5 w-3.5" />
-                                                    Editar
-                                                  </button>
-                                                  <button
-                                                    onClick={() => setSlotToDelete(slot)}
-                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                                                  >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                    Eliminar
-                                                  </button>
+                                                  {canUpdateSlots && (
+                                                    <button
+                                                      onClick={() => { setSlotToEdit(slot); setSlotModalOpen(true); }}
+                                                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                                                    >
+                                                      <Edit className="h-3.5 w-3.5" />
+                                                      Editar
+                                                    </button>
+                                                  )}
+                                                  {canUpdateSlots && (
+                                                    <button
+                                                      onClick={() => setSlotToDelete(slot)}
+                                                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                                                    >
+                                                      <Trash2 className="h-3.5 w-3.5" />
+                                                      Eliminar
+                                                    </button>
+                                                  )}
                                                 </>
                                               }
                                             />
@@ -1357,7 +1488,7 @@ export default function MaquinaDetallePage() {
                                   </td>
                                   <td className="px-4 py-3">
                                     <div className="flex items-center justify-end gap-0.5">
-                                      {tracksStock && (
+                                      {canUpdateSlots && tracksStock && (
                                         <button
                                           onClick={() => handleStockUpdateClick(slot)}
                                           title="Actualizar stock"
@@ -1366,12 +1497,16 @@ export default function MaquinaDetallePage() {
                                           <RefreshCw className="h-3.5 w-3.5" />
                                         </button>
                                       )}
-                                      <button onClick={() => { setSlotToEdit(slot); setSlotModalOpen(true); }} title="Editar" className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors">
-                                        <Edit className="h-3.5 w-3.5" />
-                                      </button>
-                                      <button onClick={() => setSlotToDelete(slot)} title="Eliminar" className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors">
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </button>
+                                      {canUpdateSlots && (
+                                        <button onClick={() => { setSlotToEdit(slot); setSlotModalOpen(true); }} title="Editar" className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors">
+                                          <Edit className="h-3.5 w-3.5" />
+                                        </button>
+                                      )}
+                                      {canUpdateSlots && (
+                                        <button onClick={() => setSlotToDelete(slot)} title="Eliminar" className="p-1.5 rounded-md text-red-500 hover:bg-red-50 transition-colors">
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                      )}
                                     </div>
                                   </td>
                                 </tr>
@@ -1422,9 +1557,9 @@ export default function MaquinaDetallePage() {
                                           setProductPickerSlotId={setProductPickerSlotId}
                                           onProductChange={handleQuickProductChange}
                                           onFieldChange={handleQuickSlotFieldChange}
-                                          onStockUpdate={handleStockUpdateClick}
-                                          onEdit={(s) => { setSlotToEdit(s); setSlotModalOpen(true); }}
-                                          onDelete={setSlotToDelete}
+                                          onStockUpdate={canUpdateSlots ? handleStockUpdateClick : undefined}
+                                          onEdit={canUpdateSlots ? (s) => { setSlotToEdit(s); setSlotModalOpen(true); } : undefined}
+                                          onDelete={canUpdateSlots ? setSlotToDelete : undefined}
                                           isDragTarget={dragOverSlotId === slot.id}
                                           onDragOver={() => { if (isDraggingProduct) setDragOverSlotId(slot.id); }}
                                           onDragLeave={() => setDragOverSlotId(null)}
@@ -1432,6 +1567,8 @@ export default function MaquinaDetallePage() {
                                             if (isDraggingProduct) handleQuickProductChange(slot, dragProduct);
                                             setDragOverSlotId(null); setDragProduct(null); setIsDraggingProduct(false);
                                           }}
+                                          isSelected={selectionMode && selectedReplenIds.has(slot.id)}
+                                          onSelect={selectionMode ? (checked => setSelectedReplenIds(prev => { const next = new Set(prev); checked ? next.add(slot.id) : next.delete(slot.id); return next; })) : undefined}
                                         />
                                       </div>
                                     );
@@ -1460,9 +1597,9 @@ export default function MaquinaDetallePage() {
                                   setProductPickerSlotId={setProductPickerSlotId}
                                   onProductChange={handleQuickProductChange}
                                   onFieldChange={handleQuickSlotFieldChange}
-                                  onStockUpdate={handleStockUpdateClick}
-                                  onEdit={(s) => { setSlotToEdit(s); setSlotModalOpen(true); }}
-                                  onDelete={setSlotToDelete}
+                                  onStockUpdate={canUpdateSlots ? handleStockUpdateClick : undefined}
+                                  onEdit={canUpdateSlots ? (s) => { setSlotToEdit(s); setSlotModalOpen(true); } : undefined}
+                                  onDelete={canUpdateSlots ? setSlotToDelete : undefined}
                                   isDragTarget={dragOverSlotId === slot.id}
                                   onDragOver={() => setDragOverSlotId(slot.id)}
                                   onDragLeave={() => setDragOverSlotId(null)}
@@ -1470,6 +1607,8 @@ export default function MaquinaDetallePage() {
                                     handleQuickProductChange(slot, dragProduct);
                                     setDragOverSlotId(null); setDragProduct(null);
                                   }}
+                                  isSelected={selectedReplenIds.has(slot.id)}
+                                  onSelect={checked => setSelectedReplenIds(prev => { const next = new Set(prev); checked ? next.add(slot.id) : next.delete(slot.id); return next; })}
                                 />
                               ))}
                             </div>
@@ -1492,9 +1631,9 @@ export default function MaquinaDetallePage() {
                             setProductPickerSlotId={setProductPickerSlotId}
                             onProductChange={handleQuickProductChange}
                             onFieldChange={handleQuickSlotFieldChange}
-                            onStockUpdate={handleStockUpdateClick}
-                            onEdit={(s) => { setSlotToEdit(s); setSlotModalOpen(true); }}
-                            onDelete={setSlotToDelete}
+                            onStockUpdate={canUpdateSlots ? handleStockUpdateClick : undefined}
+                            onEdit={canUpdateSlots ? (s) => { setSlotToEdit(s); setSlotModalOpen(true); } : undefined}
+                            onDelete={canUpdateSlots ? setSlotToDelete : undefined}
                             isDragTarget={dragOverSlotId === slot.id}
                             onDragOver={() => setDragOverSlotId(slot.id)}
                             onDragLeave={() => setDragOverSlotId(null)}
@@ -1502,6 +1641,8 @@ export default function MaquinaDetallePage() {
                               handleQuickProductChange(slot, dragProduct);
                               setDragOverSlotId(null); setDragProduct(null);
                             }}
+                            isSelected={selectedReplenIds.has(slot.id)}
+                            onSelect={checked => setSelectedReplenIds(prev => { const next = new Set(prev); checked ? next.add(slot.id) : next.delete(slot.id); return next; })}
                           />
                         ))}
                       </div>
@@ -1593,6 +1734,14 @@ export default function MaquinaDetallePage() {
                             <span className="ml-2 text-xs text-muted">{replenSlots.length} de {slots.length - disabledCount} slots controlados</span>
                           </div>
                           <div className="flex items-center gap-2">
+                            {canUpdateSlots && selectedReplenIds.size > 0 && (
+                              <button
+                                onClick={() => { setBulkReplenQty(0); setBulkReplenOpen(true); }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                              >
+                                <RefreshCw className="h-3.5 w-3.5" /> Reponer {selectedReplenIds.size} slot{selectedReplenIds.size > 1 ? 's' : ''}
+                              </button>
+                            )}
                             <button
                               onClick={copyReplenishmentList}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
@@ -1615,10 +1764,20 @@ export default function MaquinaDetallePage() {
                         <table className="w-full text-sm">
                           <thead className="border-b border-gray-100">
                             <tr>
-                              <th className="text-left px-5 py-2.5 text-xs font-medium text-muted uppercase tracking-wide">Slot</th>
-                              <th className="text-left px-5 py-2.5 text-xs font-medium text-muted uppercase tracking-wide hidden sm:table-cell">Producto</th>
-                              <th className="text-right px-5 py-2.5 text-xs font-medium text-muted uppercase tracking-wide">Faltante</th>
-                              <th className="px-5 py-2.5 text-xs font-medium text-muted uppercase tracking-wide text-right">Acción</th>
+                              {canUpdateSlots && (
+                                <th className="px-4 py-2.5 w-10">
+                                  <input
+                                    type="checkbox"
+                                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4 cursor-pointer"
+                                    checked={selectedReplenIds.size === replenSlots.length && replenSlots.length > 0}
+                                    onChange={e => setSelectedReplenIds(e.target.checked ? new Set(replenSlots.map(s => s.id)) : new Set())}
+                                  />
+                                </th>
+                              )}
+                              <th className="text-left px-3 py-2.5 text-xs font-medium text-muted uppercase tracking-wide">Slot</th>
+                              <th className="text-left px-3 py-2.5 text-xs font-medium text-muted uppercase tracking-wide hidden sm:table-cell">Producto</th>
+                              <th className="text-right px-3 py-2.5 text-xs font-medium text-muted uppercase tracking-wide">Faltante</th>
+                              {canUpdateSlots && <th className="px-3 py-2.5 text-xs font-medium text-muted uppercase tracking-wide text-right">Acción</th>}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50">
@@ -1631,12 +1790,29 @@ export default function MaquinaDetallePage() {
                                 <tr
                                   key={slot.id}
                                   className={`transition-colors ${
+                                    selectedReplenIds.has(slot.id) ? 'bg-emerald-50/30' :
                                     level === 'critical'   ? 'bg-red-50/20 hover:bg-red-50/40' :
                                     level === 'low'        ? 'bg-amber-50/10 hover:bg-amber-50/30' :
                                                              'hover:bg-gray-50/60'
                                   }`}
                                 >
-                                  <td className="px-5 py-3.5">
+                                  {canUpdateSlots && (
+                                    <td className="px-4 py-3.5 w-10">
+                                      <input
+                                        type="checkbox"
+                                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4 cursor-pointer"
+                                        checked={selectedReplenIds.has(slot.id)}
+                                        onChange={e => {
+                                          setSelectedReplenIds(prev => {
+                                            const next = new Set(prev);
+                                            e.target.checked ? next.add(slot.id) : next.delete(slot.id);
+                                            return next;
+                                          });
+                                        }}
+                                      />
+                                    </td>
+                                  )}
+                                  <td className="px-3 py-3.5">
                                     <p className="text-sm font-semibold text-dark">{slot.label}</p>
                                     <p className="text-xs font-mono text-muted">MDB {slot.mdb_code}</p>
                                     <span className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold border ${
@@ -1649,13 +1825,13 @@ export default function MaquinaDetallePage() {
                                       {STOCK_LABELS[level]}
                                     </span>
                                   </td>
-                                  <td className="px-5 py-3.5 hidden sm:table-cell">
+                                  <td className="px-3 py-3.5 hidden sm:table-cell">
                                     {productName
                                       ? <p className="text-sm text-dark truncate max-w-[160px]">{productName}</p>
                                       : <span className="text-xs text-muted italic">Sin asignar</span>
                                     }
                                   </td>
-                                  <td className="px-5 py-3.5 text-right">
+                                  <td className="px-3 py-3.5 text-right">
                                     {level === 'unknown' ? (
                                       <div className="inline-flex flex-col items-end gap-1">
                                         <span className="text-xs text-gray-400 italic">Sin registrar</span>
@@ -1676,14 +1852,16 @@ export default function MaquinaDetallePage() {
                                       <span className="text-xs text-muted">—</span>
                                     )}
                                   </td>
-                                  <td className="px-5 py-3.5 text-right">
-                                    <button
-                                      onClick={() => handleStockUpdateClick(slot)}
-                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-                                    >
-                                      <RefreshCw className="h-3 w-3" />
-                                      Reponer
-                                    </button>
+                                  <td className="px-3 py-3.5 text-right">
+                                    {canUpdateSlots && (
+                                      <button
+                                        onClick={() => handleStockUpdateClick(slot)}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
+                                      >
+                                        <RefreshCw className="h-3 w-3" />
+                                        Reponer
+                                      </button>
+                                    )}
                                   </td>
                                 </tr>
                               );
@@ -1691,10 +1869,10 @@ export default function MaquinaDetallePage() {
                           </tbody>
                           <tfoot className="bg-gray-50/60 border-t border-gray-200">
                             <tr>
-                              <td colSpan={2} className="px-5 py-2.5 text-xs font-semibold text-dark">
+                              <td colSpan={canUpdateSlots ? 3 : 2} className="px-5 py-2.5 text-xs font-semibold text-dark">
                                 {replenSlots.length} slots necesitan reposición
                               </td>
-                              <td className="px-5 py-2.5 text-right">
+                              <td className="px-3 py-2.5 text-right">
                                 <span className="text-sm font-bold text-dark">
                                   {replenSlots.reduce((s, sl) => s + (sl.capacity ?? 0) - (sl.current_stock ?? 0), 0)}
                                 </span>
@@ -2533,6 +2711,204 @@ export default function MaquinaDetallePage() {
                 }
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal capacidad masiva */}
+      {bulkCapacityOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="px-6 pt-5 pb-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-dark">Capacidad masiva</h3>
+                <p className="text-xs text-muted mt-0.5">Aplica la misma capacidad a los {slots.length} slots</p>
+              </div>
+              <button onClick={() => { setBulkCapacityOpen(false); setBulkCapacityInput(''); setBulkCapacityDone(false); }} className="p-1.5 rounded-lg text-muted hover:bg-gray-100 transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-xs text-blue-800">
+                La <span className="font-semibold">capacidad máxima</span> es el número total de unidades que caben físicamente en cada slot. Define el techo de stock y se usa para calcular cuánto falta reponer.
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1.5 uppercase tracking-wide">Nueva capacidad</label>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Ej: 10"
+                  value={bulkCapacityInput}
+                  onChange={e => { setBulkCapacityInput(e.target.value); setBulkCapacityDone(false); }}
+                  onKeyDown={e => e.key === 'Enter' && handleBulkCapacity()}
+                  className="input-field text-lg font-semibold"
+                  disabled={isBulkUpdating}
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => { setBulkCapacityOpen(false); setBulkCapacityInput(''); }} disabled={isBulkUpdating} className="flex-1 btn-secondary whitespace-nowrap">
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleBulkCapacity}
+                  disabled={isBulkUpdating || bulkCapacityInput === ''}
+                  className="flex-1 btn-primary flex items-center justify-center gap-2 whitespace-nowrap"
+                >
+                  {isBulkUpdating
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Aplicando...</>
+                    : bulkCapacityDone
+                      ? <><Check className="h-4 w-4" /> Listo</>
+                      : `Aplicar a ${slots.length} slots`
+                  }
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal reposición masiva */}
+      {bulkReplenOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+
+            {/* Header */}
+            <div className="px-6 pt-5 pb-4 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-dark">Reposición masiva</h3>
+                  <p className="text-xs text-muted mt-0.5">{selectedReplenIds.size} slot{selectedReplenIds.size !== 1 ? 's' : ''} seleccionado{selectedReplenIds.size !== 1 ? 's' : ''}</p>
+                </div>
+                {!isBulkReplenishing && (
+                  <button onClick={() => setBulkReplenOpen(false)} className="p-1.5 rounded-lg text-muted hover:bg-gray-100 transition-colors">
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {isBulkReplenishing && bulkReplenProgress ? (
+              /* ── Estado de carga ── */
+              <div className="px-6 py-8">
+                <div className="text-center mb-6">
+                  <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-3">
+                    <Loader2 className="h-7 w-7 text-emerald-600 animate-spin" />
+                  </div>
+                  <p className="text-sm font-semibold text-dark">Reponiendo slots...</p>
+                  <p className="text-xs text-muted mt-1">{bulkReplenProgress.done} de {bulkReplenProgress.total} completados</p>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-2 bg-emerald-500 rounded-full transition-all duration-300"
+                    style={{ width: `${(bulkReplenProgress.done / bulkReplenProgress.total) * 100}%` }}
+                  />
+                </div>
+                <p className="text-center text-xs text-muted mt-2">
+                  {Math.round((bulkReplenProgress.done / bulkReplenProgress.total) * 100)}%
+                </p>
+              </div>
+            ) : (
+              /* ── Formulario ── */
+              <div className="px-6 py-5 space-y-4">
+
+                {/* Selector de modo */}
+                <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-xl">
+                  <button
+                    onClick={() => setBulkReplenFill(false)}
+                    className={`py-2 px-3 text-xs font-semibold rounded-lg transition-all ${!bulkReplenFill ? 'bg-white text-dark shadow-sm' : 'text-muted hover:text-dark'}`}
+                  >
+                    Cantidad a agregar
+                  </button>
+                  <button
+                    onClick={() => setBulkReplenFill(true)}
+                    className={`py-2 px-3 text-xs font-semibold rounded-lg transition-all ${bulkReplenFill ? 'bg-white text-dark shadow-sm' : 'text-muted hover:text-dark'}`}
+                  >
+                    Llenar hasta capacidad
+                  </button>
+                </div>
+
+                {/* Input cantidad */}
+                {!bulkReplenFill && (
+                  <div>
+                    <label className="block text-xs font-medium text-muted mb-1.5 uppercase tracking-wide">Unidades a agregar</label>
+                    <input
+                      type="number"
+                      value={bulkReplenQty || ''}
+                      onChange={e => setBulkReplenQty(Math.max(0, Number(e.target.value)))}
+                      min="1"
+                      placeholder="Ej: 10"
+                      className="input-field text-lg font-semibold"
+                      autoFocus
+                    />
+                  </div>
+                )}
+
+                {bulkReplenFill && (
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-xs text-emerald-800">
+                    Cada slot se llenará hasta su capacidad máxima configurada. Los que no tienen capacidad definida no cambiarán.
+                  </div>
+                )}
+
+                {/* Preview */}
+                {(bulkReplenFill || bulkReplenQty > 0) && (
+                  <div>
+                    <p className="text-xs font-medium text-muted uppercase tracking-wide mb-1.5">Vista previa</p>
+                    <div className="rounded-xl border border-gray-100 bg-gray-50 divide-y divide-gray-100 max-h-48 overflow-y-auto">
+                      {slots.filter(s => selectedReplenIds.has(s.id)).map(slot => {
+                        const current = slot.current_stock ?? 0;
+                        const newStock = bulkReplenFill
+                          ? (slot.capacity ?? current)
+                          : slot.capacity !== null
+                            ? Math.min(current + bulkReplenQty, slot.capacity)
+                            : current + bulkReplenQty;
+                        const capped = !bulkReplenFill && slot.capacity !== null && (current + bulkReplenQty) > slot.capacity;
+                        const noCapacity = bulkReplenFill && slot.capacity === null;
+                        const pct = slot.capacity ? Math.round((newStock / slot.capacity) * 100) : null;
+                        return (
+                          <div key={slot.id} className="flex items-center gap-3 px-3 py-2">
+                            <span className="text-xs font-semibold text-dark w-10 shrink-0">{slot.label}</span>
+                            {noCapacity ? (
+                              <span className="text-xs italic text-gray-400 flex-1">Sin capacidad definida</span>
+                            ) : (
+                              <>
+                                <div className="flex-1 min-w-0">
+                                  {slot.capacity && (
+                                    <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1">
+                                      <div className="h-1.5 rounded-full bg-emerald-500 transition-all" style={{ width: `${Math.min(pct ?? 0, 100)}%` }} />
+                                    </div>
+                                  )}
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] text-muted">{current} → <span className="font-semibold text-emerald-700">{newStock}</span>{slot.capacity !== null && <> / {slot.capacity}</>}</span>
+                                    {capped && <span className="text-[10px] text-amber-600 font-medium">limitado</span>}
+                                  </div>
+                                </div>
+                                {pct !== null && <span className="text-[10px] font-bold text-emerald-700 shrink-0 w-8 text-right">{pct}%</span>}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Acciones */}
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => setBulkReplenOpen(false)} className="flex-1 btn-secondary">
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleBulkReplenish}
+                    disabled={!bulkReplenFill && bulkReplenQty <= 0}
+                    className="flex-1 btn-primary flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Reponer {selectedReplenIds.size} slot{selectedReplenIds.size !== 1 ? 's' : ''}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
